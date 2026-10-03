@@ -1,0 +1,17 @@
+{
+  "toggle": "Toggle Warband combat",
+  "enabled": "Warband combat enabled. Hold LMB to wind up, release to strike. RMB to block, mouse to choose direction. Shift for vanilla interactions.",
+  "disabled": "Warband combat disabled.",
+  "hint": "LMB: attack · RMB: block · K: toggle",
+  "phase-idle": "Ready",
+  "phase-windup": "Windup — release LMB",
+  "phase-swing": "Strike",
+  "phase-recovery": "Recovery",
+  "phase-block": "Block",
+  "hit": "Hit",
+  "miss": "Miss",
+  "parry": "Parried!",
+  "blocked": "Attack blocked",
+  "pvp-required": "Directional combat is required in PvP worlds. Shift keeps vanilla block interactions.",
+  "guard-raise": "Raising guard"
+}

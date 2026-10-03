@@ -1,0 +1,4318 @@
+[
+  {
+    "name": "warband-windup-left",
+    "code": "warband-windup-left",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "Repeat",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 35,
+            "rotationZ": -90,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -85
+          },
+          "ItemAnchor": {
+            "rotationX": 0.7549999999999955,
+            "rotationY": 106.05799999999999,
+            "rotationZ": 88.815
+          },
+          "UpperTorso": {
+            "rotationX": 2,
+            "rotationY": 18,
+            "rotationZ": 4
+          },
+          "Neck": {
+            "rotationX": -0.4,
+            "rotationY": -6.3,
+            "rotationZ": -1.2
+          },
+          "Head": {
+            "rotationX": -0.4,
+            "rotationY": -6.3,
+            "rotationZ": -1.2
+          }
+        }
+      },
+      {
+        "frame": 14,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 35,
+            "rotationZ": -90,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -85
+          },
+          "ItemAnchor": {
+            "rotationX": 0.7549999999999955,
+            "rotationY": 106.05799999999999,
+            "rotationZ": 88.815
+          },
+          "UpperTorso": {
+            "rotationX": 2,
+            "rotationY": 18,
+            "rotationZ": 4
+          },
+          "Neck": {
+            "rotationX": -0.4,
+            "rotationY": -6.3,
+            "rotationZ": -1.2
+          },
+          "Head": {
+            "rotationX": -0.4,
+            "rotationY": -6.3,
+            "rotationZ": -1.2
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-block-left",
+    "code": "warband-block-left",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "Repeat",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 50,
+            "rotationZ": -55,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -10,
+            "rotationY": 40,
+            "rotationZ": -70
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 35
+          },
+          "UpperTorso": {
+            "rotationX": 0.5,
+            "rotationY": 4.5,
+            "rotationZ": 1.0
+          },
+          "Neck": {
+            "rotationX": -0.1,
+            "rotationY": -1.575,
+            "rotationZ": -0.3
+          },
+          "Head": {
+            "rotationX": -0.1,
+            "rotationY": -1.575,
+            "rotationZ": -0.3
+          }
+        }
+      },
+      {
+        "frame": 14,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 50,
+            "rotationZ": -55,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -10,
+            "rotationY": 40,
+            "rotationZ": -70
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 35
+          },
+          "UpperTorso": {
+            "rotationX": 0.5,
+            "rotationY": 4.5,
+            "rotationZ": 1.0
+          },
+          "Neck": {
+            "rotationX": -0.1,
+            "rotationY": -1.575,
+            "rotationZ": -0.3
+          },
+          "Head": {
+            "rotationX": -0.1,
+            "rotationY": -1.575,
+            "rotationZ": -0.3
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-block-left-fp",
+    "code": "warband-block-left-fp",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "Repeat",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 50,
+            "rotationZ": -55,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -10,
+            "rotationY": 40,
+            "rotationZ": -70
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 35
+          },
+          "UpperTorso": {
+            "rotationX": 0.175,
+            "rotationY": 1.575,
+            "rotationZ": 0.35
+          },
+          "Neck": {
+            "rotationX": -0.025,
+            "rotationY": -0.39375,
+            "rotationZ": -0.075
+          },
+          "Head": {
+            "rotationX": -0.025,
+            "rotationY": -0.39375,
+            "rotationZ": -0.075
+          }
+        }
+      },
+      {
+        "frame": 14,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 50,
+            "rotationZ": -55,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -10,
+            "rotationY": 40,
+            "rotationZ": -70
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 35
+          },
+          "UpperTorso": {
+            "rotationX": 0.175,
+            "rotationY": 1.575,
+            "rotationZ": 0.35
+          },
+          "Neck": {
+            "rotationX": -0.025,
+            "rotationY": -0.39375,
+            "rotationZ": -0.075
+          },
+          "Head": {
+            "rotationX": -0.025,
+            "rotationY": -0.39375,
+            "rotationZ": -0.075
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-block-overhead",
+    "code": "warband-block-overhead",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "Repeat",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": -25,
+            "rotationY": 0,
+            "rotationZ": -105,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -25,
+            "rotationY": 0,
+            "rotationZ": -70
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 70
+          },
+          "UpperTorso": {
+            "rotationX": -2.0,
+            "rotationY": -1.25,
+            "rotationZ": -0.5
+          },
+          "Neck": {
+            "rotationX": 0.4,
+            "rotationY": 0.4375,
+            "rotationZ": 0.15
+          },
+          "Head": {
+            "rotationX": 0.4,
+            "rotationY": 0.4375,
+            "rotationZ": 0.15
+          }
+        }
+      },
+      {
+        "frame": 14,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": -25,
+            "rotationY": 0,
+            "rotationZ": -105,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -25,
+            "rotationY": 0,
+            "rotationZ": -70
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 70
+          },
+          "UpperTorso": {
+            "rotationX": -2.0,
+            "rotationY": -1.25,
+            "rotationZ": -0.5
+          },
+          "Neck": {
+            "rotationX": 0.4,
+            "rotationY": 0.4375,
+            "rotationZ": 0.15
+          },
+          "Head": {
+            "rotationX": 0.4,
+            "rotationY": 0.4375,
+            "rotationZ": 0.15
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-block-overhead-fp",
+    "code": "warband-block-overhead-fp",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "Repeat",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": -25,
+            "rotationY": 0,
+            "rotationZ": -105,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -25,
+            "rotationY": 0,
+            "rotationZ": -70
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 70
+          },
+          "UpperTorso": {
+            "rotationX": -0.7,
+            "rotationY": -0.4375,
+            "rotationZ": -0.175
+          },
+          "Neck": {
+            "rotationX": 0.1,
+            "rotationY": 0.109375,
+            "rotationZ": 0.0375
+          },
+          "Head": {
+            "rotationX": 0.1,
+            "rotationY": 0.109375,
+            "rotationZ": 0.0375
+          }
+        }
+      },
+      {
+        "frame": 14,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": -25,
+            "rotationY": 0,
+            "rotationZ": -105,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -25,
+            "rotationY": 0,
+            "rotationZ": -70
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 70
+          },
+          "UpperTorso": {
+            "rotationX": -0.7,
+            "rotationY": -0.4375,
+            "rotationZ": -0.175
+          },
+          "Neck": {
+            "rotationX": 0.1,
+            "rotationY": 0.109375,
+            "rotationZ": 0.0375
+          },
+          "Head": {
+            "rotationX": 0.1,
+            "rotationY": 0.109375,
+            "rotationZ": 0.0375
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-block-right",
+    "code": "warband-block-right",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "Repeat",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": -45,
+            "rotationZ": -55,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -10,
+            "rotationY": 10,
+            "rotationZ": -70
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -30
+          },
+          "UpperTorso": {
+            "rotationX": 0.5,
+            "rotationY": -4.5,
+            "rotationZ": -1.0
+          },
+          "Neck": {
+            "rotationX": -0.1,
+            "rotationY": 1.575,
+            "rotationZ": 0.3
+          },
+          "Head": {
+            "rotationX": -0.1,
+            "rotationY": 1.575,
+            "rotationZ": 0.3
+          }
+        }
+      },
+      {
+        "frame": 14,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": -45,
+            "rotationZ": -55,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -10,
+            "rotationY": 10,
+            "rotationZ": -70
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -30
+          },
+          "UpperTorso": {
+            "rotationX": 0.5,
+            "rotationY": -4.5,
+            "rotationZ": -1.0
+          },
+          "Neck": {
+            "rotationX": -0.1,
+            "rotationY": 1.575,
+            "rotationZ": 0.3
+          },
+          "Head": {
+            "rotationX": -0.1,
+            "rotationY": 1.575,
+            "rotationZ": 0.3
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-block-right-fp",
+    "code": "warband-block-right-fp",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "Repeat",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": -45,
+            "rotationZ": -55,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -10,
+            "rotationY": 10,
+            "rotationZ": -70
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -30
+          },
+          "UpperTorso": {
+            "rotationX": 0.175,
+            "rotationY": -1.575,
+            "rotationZ": -0.35
+          },
+          "Neck": {
+            "rotationX": -0.025,
+            "rotationY": 0.39375,
+            "rotationZ": 0.075
+          },
+          "Head": {
+            "rotationX": -0.025,
+            "rotationY": 0.39375,
+            "rotationZ": 0.075
+          }
+        }
+      },
+      {
+        "frame": 14,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": -45,
+            "rotationZ": -55,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -10,
+            "rotationY": 10,
+            "rotationZ": -70
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -30
+          },
+          "UpperTorso": {
+            "rotationX": 0.175,
+            "rotationY": -1.575,
+            "rotationZ": -0.35
+          },
+          "Neck": {
+            "rotationX": -0.025,
+            "rotationY": 0.39375,
+            "rotationZ": 0.075
+          },
+          "Head": {
+            "rotationX": -0.025,
+            "rotationY": 0.39375,
+            "rotationZ": 0.075
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-block-thrust",
+    "code": "warband-block-thrust",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "Repeat",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 15,
+            "rotationY": 10,
+            "rotationZ": -45,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -10,
+            "rotationY": 0,
+            "rotationZ": -50
+          },
+          "ItemAnchor": {
+            "rotationX": -30,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 0.75,
+            "rotationY": -2.0,
+            "rotationZ": -0.5
+          },
+          "Neck": {
+            "rotationX": -0.15000000000000002,
+            "rotationY": 0.7,
+            "rotationZ": 0.15
+          },
+          "Head": {
+            "rotationX": -0.15000000000000002,
+            "rotationY": 0.7,
+            "rotationZ": 0.15
+          }
+        }
+      },
+      {
+        "frame": 14,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 15,
+            "rotationY": 10,
+            "rotationZ": -45,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -10,
+            "rotationY": 0,
+            "rotationZ": -50
+          },
+          "ItemAnchor": {
+            "rotationX": -30,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 0.75,
+            "rotationY": -2.0,
+            "rotationZ": -0.5
+          },
+          "Neck": {
+            "rotationX": -0.15000000000000002,
+            "rotationY": 0.7,
+            "rotationZ": 0.15
+          },
+          "Head": {
+            "rotationX": -0.15000000000000002,
+            "rotationY": 0.7,
+            "rotationZ": 0.15
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-block-thrust-fp",
+    "code": "warband-block-thrust-fp",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "Repeat",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 15,
+            "rotationY": 10,
+            "rotationZ": -45,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -10,
+            "rotationY": 0,
+            "rotationZ": -50
+          },
+          "ItemAnchor": {
+            "rotationX": -30,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 0.26249999999999996,
+            "rotationY": -0.7,
+            "rotationZ": -0.175
+          },
+          "Neck": {
+            "rotationX": -0.037500000000000006,
+            "rotationY": 0.175,
+            "rotationZ": 0.0375
+          },
+          "Head": {
+            "rotationX": -0.037500000000000006,
+            "rotationY": 0.175,
+            "rotationZ": 0.0375
+          }
+        }
+      },
+      {
+        "frame": 14,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 15,
+            "rotationY": 10,
+            "rotationZ": -45,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -10,
+            "rotationY": 0,
+            "rotationZ": -50
+          },
+          "ItemAnchor": {
+            "rotationX": -30,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 0.26249999999999996,
+            "rotationY": -0.7,
+            "rotationZ": -0.175
+          },
+          "Neck": {
+            "rotationX": -0.037500000000000006,
+            "rotationY": 0.175,
+            "rotationZ": 0.0375
+          },
+          "Head": {
+            "rotationX": -0.037500000000000006,
+            "rotationY": 0.175,
+            "rotationZ": 0.0375
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-recovery-left",
+    "code": "warband-recovery-left",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "EaseOut",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 15,
+            "rotationZ": -80,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -10
+          },
+          "ItemAnchor": {
+            "rotationX": 24.424000000000007,
+            "rotationY": 70.816,
+            "rotationZ": 88.31200000000001
+          },
+          "UpperTorso": {
+            "rotationX": -4,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "Neck": {
+            "rotationX": 0.8,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.8,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 2,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": -35,
+            "rotationZ": -70,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -25
+          },
+          "ItemAnchor": {
+            "rotationX": 100.322,
+            "rotationY": 118.80899999999997,
+            "rotationZ": 7.223000000000013
+          },
+          "UpperTorso": {
+            "rotationX": -6.0,
+            "rotationY": -24.0,
+            "rotationZ": -6.0
+          },
+          "Neck": {
+            "rotationX": 1.2000000000000002,
+            "rotationY": 8.399999999999999,
+            "rotationZ": 1.7999999999999998
+          },
+          "Head": {
+            "rotationX": 1.2000000000000002,
+            "rotationY": 8.399999999999999,
+            "rotationZ": 1.7999999999999998
+          }
+        }
+      },
+      {
+        "frame": 10,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 8,
+            "rotationY": -2,
+            "rotationZ": -17,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -8,
+            "rotationY": 0,
+            "rotationZ": -28
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "Neck": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 14,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 8,
+            "rotationY": -2,
+            "rotationZ": -17,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -8,
+            "rotationY": 0,
+            "rotationZ": -28
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "Neck": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-recovery-left-fp",
+    "code": "warband-recovery-left-fp",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "EaseOut",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 15,
+            "rotationZ": -80,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -10
+          },
+          "ItemAnchor": {
+            "rotationX": 24.305000000000007,
+            "rotationY": 68.226,
+            "rotationZ": 88.64499999999998
+          },
+          "UpperTorso": {
+            "rotationX": -1.4,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Neck": {
+            "rotationX": 0.2,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.2,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 2,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": -35,
+            "rotationZ": -70,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -25
+          },
+          "ItemAnchor": {
+            "rotationX": 116.28199999999998,
+            "rotationY": 118.19100000000003,
+            "rotationZ": 7.5730000000000075
+          },
+          "UpperTorso": {
+            "rotationX": -2.0999999999999996,
+            "rotationY": -8.399999999999999,
+            "rotationZ": -2.0999999999999996
+          },
+          "Neck": {
+            "rotationX": 0.30000000000000004,
+            "rotationY": 2.0999999999999996,
+            "rotationZ": 0.44999999999999996
+          },
+          "Head": {
+            "rotationX": 0.30000000000000004,
+            "rotationY": 2.0999999999999996,
+            "rotationZ": 0.44999999999999996
+          }
+        }
+      },
+      {
+        "frame": 10,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 8,
+            "rotationY": -2,
+            "rotationZ": -17,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -8,
+            "rotationY": 0,
+            "rotationZ": -28
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Neck": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 14,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 8,
+            "rotationY": -2,
+            "rotationZ": -17,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -8,
+            "rotationY": 0,
+            "rotationZ": -28
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Neck": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-recovery-overhead",
+    "code": "warband-recovery-overhead",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "EaseOut",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 10,
+            "rotationY": 0,
+            "rotationZ": -40,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -20,
+            "rotationY": 0,
+            "rotationZ": -15
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 10,
+            "rotationY": 6,
+            "rotationZ": 3
+          },
+          "Neck": {
+            "rotationX": -2.0,
+            "rotationY": -2.0999999999999996,
+            "rotationZ": -0.8999999999999999
+          },
+          "Head": {
+            "rotationX": -2.0,
+            "rotationY": -2.0999999999999996,
+            "rotationZ": -0.8999999999999999
+          }
+        }
+      },
+      {
+        "frame": 2,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 10,
+            "rotationY": 0,
+            "rotationZ": -40,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -20,
+            "rotationY": 0,
+            "rotationZ": -15
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 12.0,
+            "rotationY": 7.199999999999999,
+            "rotationZ": 3.5999999999999996
+          },
+          "Neck": {
+            "rotationX": -2.4000000000000004,
+            "rotationY": -2.5199999999999996,
+            "rotationZ": -1.0799999999999998
+          },
+          "Head": {
+            "rotationX": -2.4000000000000004,
+            "rotationY": -2.5199999999999996,
+            "rotationZ": -1.0799999999999998
+          }
+        }
+      },
+      {
+        "frame": 10,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 8,
+            "rotationY": -2,
+            "rotationZ": -17,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -8,
+            "rotationY": 0,
+            "rotationZ": -28
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "Neck": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 14,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 8,
+            "rotationY": -2,
+            "rotationZ": -17,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -8,
+            "rotationY": 0,
+            "rotationZ": -28
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "Neck": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-recovery-overhead-fp",
+    "code": "warband-recovery-overhead-fp",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "EaseOut",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 10,
+            "rotationY": 0,
+            "rotationZ": -40,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -20,
+            "rotationY": 0,
+            "rotationZ": -15
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 3.5,
+            "rotationY": 2.0999999999999996,
+            "rotationZ": 1.0499999999999998
+          },
+          "Neck": {
+            "rotationX": -0.5,
+            "rotationY": -0.5249999999999999,
+            "rotationZ": -0.22499999999999998
+          },
+          "Head": {
+            "rotationX": -0.5,
+            "rotationY": -0.5249999999999999,
+            "rotationZ": -0.22499999999999998
+          }
+        }
+      },
+      {
+        "frame": 2,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 10,
+            "rotationY": 0,
+            "rotationZ": -40,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -20,
+            "rotationY": 0,
+            "rotationZ": -15
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 4.199999999999999,
+            "rotationY": 2.5199999999999996,
+            "rotationZ": 1.2599999999999998
+          },
+          "Neck": {
+            "rotationX": -0.6000000000000001,
+            "rotationY": -0.6299999999999999,
+            "rotationZ": -0.26999999999999996
+          },
+          "Head": {
+            "rotationX": -0.6000000000000001,
+            "rotationY": -0.6299999999999999,
+            "rotationZ": -0.26999999999999996
+          }
+        }
+      },
+      {
+        "frame": 10,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 8,
+            "rotationY": -2,
+            "rotationZ": -17,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -8,
+            "rotationY": 0,
+            "rotationZ": -28
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Neck": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 14,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 8,
+            "rotationY": -2,
+            "rotationZ": -17,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -8,
+            "rotationY": 0,
+            "rotationZ": -28
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Neck": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-recovery-right",
+    "code": "warband-recovery-right",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "EaseOut",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 15,
+            "rotationZ": -80,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -10
+          },
+          "ItemAnchor": {
+            "rotationX": 97.87599999999998,
+            "rotationY": -86.636,
+            "rotationZ": 166.034
+          },
+          "UpperTorso": {
+            "rotationX": -4,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "Neck": {
+            "rotationX": 0.8,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.8,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 2,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 35,
+            "rotationZ": -70,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -25
+          },
+          "ItemAnchor": {
+            "rotationX": 27.637,
+            "rotationY": -82.65,
+            "rotationZ": 121.906
+          },
+          "UpperTorso": {
+            "rotationX": -6.0,
+            "rotationY": 24.0,
+            "rotationZ": 6.0
+          },
+          "Neck": {
+            "rotationX": 1.2000000000000002,
+            "rotationY": -8.399999999999999,
+            "rotationZ": -1.7999999999999998
+          },
+          "Head": {
+            "rotationX": 1.2000000000000002,
+            "rotationY": -8.399999999999999,
+            "rotationZ": -1.7999999999999998
+          }
+        }
+      },
+      {
+        "frame": 10,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 8,
+            "rotationY": -2,
+            "rotationZ": -17,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -8,
+            "rotationY": 0,
+            "rotationZ": -28
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "Neck": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 14,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 8,
+            "rotationY": -2,
+            "rotationZ": -17,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -8,
+            "rotationY": 0,
+            "rotationZ": -28
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "Neck": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-recovery-right-fp",
+    "code": "warband-recovery-right-fp",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "EaseOut",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 15,
+            "rotationZ": -80,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -10
+          },
+          "ItemAnchor": {
+            "rotationX": -39.44399999999996,
+            "rotationY": -93.72399999999999,
+            "rotationZ": 28.595
+          },
+          "UpperTorso": {
+            "rotationX": -1.4,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Neck": {
+            "rotationX": 0.2,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.2,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 2,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 35,
+            "rotationZ": -70,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -25
+          },
+          "ItemAnchor": {
+            "rotationX": 6.848000000000013,
+            "rotationY": -87.363,
+            "rotationZ": 116.68399999999997
+          },
+          "UpperTorso": {
+            "rotationX": -2.0999999999999996,
+            "rotationY": 8.399999999999999,
+            "rotationZ": 2.0999999999999996
+          },
+          "Neck": {
+            "rotationX": 0.30000000000000004,
+            "rotationY": -2.0999999999999996,
+            "rotationZ": -0.44999999999999996
+          },
+          "Head": {
+            "rotationX": 0.30000000000000004,
+            "rotationY": -2.0999999999999996,
+            "rotationZ": -0.44999999999999996
+          }
+        }
+      },
+      {
+        "frame": 10,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 8,
+            "rotationY": -2,
+            "rotationZ": -17,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -8,
+            "rotationY": 0,
+            "rotationZ": -28
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Neck": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 14,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 8,
+            "rotationY": -2,
+            "rotationZ": -17,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -8,
+            "rotationY": 0,
+            "rotationZ": -28
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Neck": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-recovery-thrust",
+    "code": "warband-recovery-thrust",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "EaseOut",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 15,
+            "rotationZ": -85,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -5
+          },
+          "ItemAnchor": {
+            "rotationX": 79.981,
+            "rotationY": -85.911,
+            "rotationZ": 148.092
+          },
+          "UpperTorso": {
+            "rotationX": -6,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "Neck": {
+            "rotationX": 1.2000000000000002,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 1.2000000000000002,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 2,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 15,
+            "rotationZ": -85,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -5
+          },
+          "ItemAnchor": {
+            "rotationX": 67.779,
+            "rotationY": -85.17,
+            "rotationZ": 135.948
+          },
+          "UpperTorso": {
+            "rotationX": -7.199999999999999,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Neck": {
+            "rotationX": 1.44,
+            "rotationY": -0.0,
+            "rotationZ": -0.0
+          },
+          "Head": {
+            "rotationX": 1.44,
+            "rotationY": -0.0,
+            "rotationZ": -0.0
+          }
+        }
+      },
+      {
+        "frame": 10,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 8,
+            "rotationY": -2,
+            "rotationZ": -17,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -8,
+            "rotationY": 0,
+            "rotationZ": -28
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "Neck": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 14,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 8,
+            "rotationY": -2,
+            "rotationZ": -17,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -8,
+            "rotationY": 0,
+            "rotationZ": -28
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "Neck": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-recovery-thrust-fp",
+    "code": "warband-recovery-thrust-fp",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "EaseOut",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 15,
+            "rotationZ": -85,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -5
+          },
+          "ItemAnchor": {
+            "rotationX": 138.527,
+            "rotationY": -86.117,
+            "rotationZ": 206.452
+          },
+          "UpperTorso": {
+            "rotationX": -2.0999999999999996,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Neck": {
+            "rotationX": 0.30000000000000004,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.30000000000000004,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 2,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 15,
+            "rotationZ": -85,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -5
+          },
+          "ItemAnchor": {
+            "rotationX": 132.717,
+            "rotationY": -86.286,
+            "rotationZ": 200.663
+          },
+          "UpperTorso": {
+            "rotationX": -2.5199999999999996,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Neck": {
+            "rotationX": 0.36,
+            "rotationY": -0.0,
+            "rotationZ": -0.0
+          },
+          "Head": {
+            "rotationX": 0.36,
+            "rotationY": -0.0,
+            "rotationZ": -0.0
+          }
+        }
+      },
+      {
+        "frame": 10,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 8,
+            "rotationY": -2,
+            "rotationZ": -17,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -8,
+            "rotationY": 0,
+            "rotationZ": -28
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 360
+          },
+          "UpperTorso": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Neck": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 14,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 8,
+            "rotationY": -2,
+            "rotationZ": -17,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -8,
+            "rotationY": 0,
+            "rotationZ": -28
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 360
+          },
+          "UpperTorso": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Neck": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.0,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-swing-left",
+    "code": "warband-swing-left",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "EaseOut",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 35,
+            "rotationZ": -90,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -85
+          },
+          "ItemAnchor": {
+            "rotationX": 0.7549999999999955,
+            "rotationY": 106.05799999999999,
+            "rotationZ": 88.815
+          },
+          "UpperTorso": {
+            "rotationX": 2,
+            "rotationY": 18,
+            "rotationZ": 4
+          },
+          "Neck": {
+            "rotationX": -0.4,
+            "rotationY": -6.3,
+            "rotationZ": -1.2
+          },
+          "Head": {
+            "rotationX": -0.4,
+            "rotationY": -6.3,
+            "rotationZ": -1.2
+          }
+        }
+      },
+      {
+        "frame": 2,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 30,
+            "rotationZ": -85,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -35
+          },
+          "ItemAnchor": {
+            "rotationX": -33.55799999999999,
+            "rotationY": 71.487,
+            "rotationZ": 139.54399999999998
+          },
+          "UpperTorso": {
+            "rotationX": -1,
+            "rotationY": 8,
+            "rotationZ": 0
+          },
+          "Neck": {
+            "rotationX": 0.2,
+            "rotationY": -2.8,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.2,
+            "rotationY": -2.8,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 4,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 15,
+            "rotationZ": -80,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -10
+          },
+          "ItemAnchor": {
+            "rotationX": 24.424000000000007,
+            "rotationY": 70.816,
+            "rotationZ": 88.31200000000001
+          },
+          "UpperTorso": {
+            "rotationX": -4,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "Neck": {
+            "rotationX": 0.8,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.8,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 6,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": -35,
+            "rotationZ": -70,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -25
+          },
+          "ItemAnchor": {
+            "rotationX": 104.06200000000001,
+            "rotationY": 118.63400000000001,
+            "rotationZ": 7.682999999999993
+          },
+          "UpperTorso": {
+            "rotationX": -5,
+            "rotationY": -20,
+            "rotationZ": -5
+          },
+          "Neck": {
+            "rotationX": 1.0,
+            "rotationY": 7.0,
+            "rotationZ": 1.5
+          },
+          "Head": {
+            "rotationX": 1.0,
+            "rotationY": 7.0,
+            "rotationZ": 1.5
+          }
+        }
+      },
+      {
+        "frame": 8,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": -35,
+            "rotationZ": -70,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -25
+          },
+          "ItemAnchor": {
+            "rotationX": 104.06200000000001,
+            "rotationY": 118.63400000000001,
+            "rotationZ": 7.682999999999993
+          },
+          "UpperTorso": {
+            "rotationX": -5,
+            "rotationY": -20,
+            "rotationZ": -5
+          },
+          "Neck": {
+            "rotationX": 1.0,
+            "rotationY": 7.0,
+            "rotationZ": 1.5
+          },
+          "Head": {
+            "rotationX": 1.0,
+            "rotationY": 7.0,
+            "rotationZ": 1.5
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-swing-left-fp",
+    "code": "warband-swing-left-fp",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "EaseOut",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 35,
+            "rotationZ": -90,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -85
+          },
+          "ItemAnchor": {
+            "rotationX": 3.695999999999998,
+            "rotationY": 94.52100000000002,
+            "rotationZ": 86.31
+          },
+          "UpperTorso": {
+            "rotationX": 0.7,
+            "rotationY": 6.3,
+            "rotationZ": 1.4
+          },
+          "Neck": {
+            "rotationX": -0.1,
+            "rotationY": -1.575,
+            "rotationZ": -0.3
+          },
+          "Head": {
+            "rotationX": -0.1,
+            "rotationY": -1.575,
+            "rotationZ": -0.3
+          }
+        }
+      },
+      {
+        "frame": 2,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 30,
+            "rotationZ": -85,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -35
+          },
+          "ItemAnchor": {
+            "rotationX": -30.399,
+            "rotationY": 69.83600000000001,
+            "rotationZ": 131.7
+          },
+          "UpperTorso": {
+            "rotationX": -0.35,
+            "rotationY": 2.8,
+            "rotationZ": 0.0
+          },
+          "Neck": {
+            "rotationX": 0.05,
+            "rotationY": -0.7,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.05,
+            "rotationY": -0.7,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 4,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 15,
+            "rotationZ": -80,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -10
+          },
+          "ItemAnchor": {
+            "rotationX": 24.305000000000007,
+            "rotationY": 68.226,
+            "rotationZ": 88.64499999999998
+          },
+          "UpperTorso": {
+            "rotationX": -1.4,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Neck": {
+            "rotationX": 0.2,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.2,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 6,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": -35,
+            "rotationZ": -70,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -25
+          },
+          "ItemAnchor": {
+            "rotationX": 117.88999999999999,
+            "rotationY": 118.154,
+            "rotationZ": 7.4199999999999875
+          },
+          "UpperTorso": {
+            "rotationX": -1.75,
+            "rotationY": -7.0,
+            "rotationZ": -1.75
+          },
+          "Neck": {
+            "rotationX": 0.25,
+            "rotationY": 1.75,
+            "rotationZ": 0.375
+          },
+          "Head": {
+            "rotationX": 0.25,
+            "rotationY": 1.75,
+            "rotationZ": 0.375
+          }
+        }
+      },
+      {
+        "frame": 8,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": -35,
+            "rotationZ": -70,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -25
+          },
+          "ItemAnchor": {
+            "rotationX": 117.88999999999999,
+            "rotationY": 118.154,
+            "rotationZ": 7.4199999999999875
+          },
+          "UpperTorso": {
+            "rotationX": -1.75,
+            "rotationY": -7.0,
+            "rotationZ": -1.75
+          },
+          "Neck": {
+            "rotationX": 0.25,
+            "rotationY": 1.75,
+            "rotationZ": 0.375
+          },
+          "Head": {
+            "rotationX": 0.25,
+            "rotationY": 1.75,
+            "rotationZ": 0.375
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-swing-overhead",
+    "code": "warband-swing-overhead",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "EaseOut",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": -35,
+            "rotationY": 0,
+            "rotationZ": -135,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -25,
+            "rotationY": 0,
+            "rotationZ": -60
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": -8,
+            "rotationY": -5,
+            "rotationZ": -2
+          },
+          "Neck": {
+            "rotationX": 1.6,
+            "rotationY": 1.75,
+            "rotationZ": 0.6
+          },
+          "Head": {
+            "rotationX": 1.6,
+            "rotationY": 1.75,
+            "rotationZ": 0.6
+          }
+        }
+      },
+      {
+        "frame": 2,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": -35,
+            "rotationY": 0,
+            "rotationZ": -135,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -25,
+            "rotationY": 0,
+            "rotationZ": -60
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": -8,
+            "rotationY": -5,
+            "rotationZ": -2
+          },
+          "Neck": {
+            "rotationX": 1.6,
+            "rotationY": 1.75,
+            "rotationZ": 0.6
+          },
+          "Head": {
+            "rotationX": 1.6,
+            "rotationY": 1.75,
+            "rotationZ": 0.6
+          }
+        }
+      },
+      {
+        "frame": 4,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 10,
+            "rotationY": 0,
+            "rotationZ": -40,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -20,
+            "rotationY": 0,
+            "rotationZ": -15
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 10,
+            "rotationY": 6,
+            "rotationZ": 3
+          },
+          "Neck": {
+            "rotationX": -2.0,
+            "rotationY": -2.0999999999999996,
+            "rotationZ": -0.8999999999999999
+          },
+          "Head": {
+            "rotationX": -2.0,
+            "rotationY": -2.0999999999999996,
+            "rotationZ": -0.8999999999999999
+          }
+        }
+      },
+      {
+        "frame": 6,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 10,
+            "rotationY": 0,
+            "rotationZ": -40,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -20,
+            "rotationY": 0,
+            "rotationZ": -15
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 10,
+            "rotationY": 6,
+            "rotationZ": 3
+          },
+          "Neck": {
+            "rotationX": -2.0,
+            "rotationY": -2.0999999999999996,
+            "rotationZ": -0.8999999999999999
+          },
+          "Head": {
+            "rotationX": -2.0,
+            "rotationY": -2.0999999999999996,
+            "rotationZ": -0.8999999999999999
+          }
+        }
+      },
+      {
+        "frame": 8,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 10,
+            "rotationY": 0,
+            "rotationZ": -40,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -20,
+            "rotationY": 0,
+            "rotationZ": -15
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 10,
+            "rotationY": 6,
+            "rotationZ": 3
+          },
+          "Neck": {
+            "rotationX": -2.0,
+            "rotationY": -2.0999999999999996,
+            "rotationZ": -0.8999999999999999
+          },
+          "Head": {
+            "rotationX": -2.0,
+            "rotationY": -2.0999999999999996,
+            "rotationZ": -0.8999999999999999
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-swing-overhead-fp",
+    "code": "warband-swing-overhead-fp",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "EaseOut",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": -35,
+            "rotationY": 0,
+            "rotationZ": -135,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -25,
+            "rotationY": 0,
+            "rotationZ": -60
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": -2.8,
+            "rotationY": -1.75,
+            "rotationZ": -0.7
+          },
+          "Neck": {
+            "rotationX": 0.4,
+            "rotationY": 0.4375,
+            "rotationZ": 0.15
+          },
+          "Head": {
+            "rotationX": 0.4,
+            "rotationY": 0.4375,
+            "rotationZ": 0.15
+          }
+        }
+      },
+      {
+        "frame": 2,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": -35,
+            "rotationY": 0,
+            "rotationZ": -135,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -25,
+            "rotationY": 0,
+            "rotationZ": -60
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": -2.8,
+            "rotationY": -1.75,
+            "rotationZ": -0.7
+          },
+          "Neck": {
+            "rotationX": 0.4,
+            "rotationY": 0.4375,
+            "rotationZ": 0.15
+          },
+          "Head": {
+            "rotationX": 0.4,
+            "rotationY": 0.4375,
+            "rotationZ": 0.15
+          }
+        }
+      },
+      {
+        "frame": 4,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 10,
+            "rotationY": 0,
+            "rotationZ": -40,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -20,
+            "rotationY": 0,
+            "rotationZ": -15
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 3.5,
+            "rotationY": 2.0999999999999996,
+            "rotationZ": 1.0499999999999998
+          },
+          "Neck": {
+            "rotationX": -0.5,
+            "rotationY": -0.5249999999999999,
+            "rotationZ": -0.22499999999999998
+          },
+          "Head": {
+            "rotationX": -0.5,
+            "rotationY": -0.5249999999999999,
+            "rotationZ": -0.22499999999999998
+          }
+        }
+      },
+      {
+        "frame": 6,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 10,
+            "rotationY": 0,
+            "rotationZ": -40,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -20,
+            "rotationY": 0,
+            "rotationZ": -15
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 3.5,
+            "rotationY": 2.0999999999999996,
+            "rotationZ": 1.0499999999999998
+          },
+          "Neck": {
+            "rotationX": -0.5,
+            "rotationY": -0.5249999999999999,
+            "rotationZ": -0.22499999999999998
+          },
+          "Head": {
+            "rotationX": -0.5,
+            "rotationY": -0.5249999999999999,
+            "rotationZ": -0.22499999999999998
+          }
+        }
+      },
+      {
+        "frame": 8,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 10,
+            "rotationY": 0,
+            "rotationZ": -40,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -20,
+            "rotationY": 0,
+            "rotationZ": -15
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": 3.5,
+            "rotationY": 2.0999999999999996,
+            "rotationZ": 1.0499999999999998
+          },
+          "Neck": {
+            "rotationX": -0.5,
+            "rotationY": -0.5249999999999999,
+            "rotationZ": -0.22499999999999998
+          },
+          "Head": {
+            "rotationX": -0.5,
+            "rotationY": -0.5249999999999999,
+            "rotationZ": -0.22499999999999998
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-swing-right",
+    "code": "warband-swing-right",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "EaseOut",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": -35,
+            "rotationZ": -75,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -10,
+            "rotationY": -25,
+            "rotationZ": -70
+          },
+          "ItemAnchor": {
+            "rotationX": -22.198,
+            "rotationY": -70.44,
+            "rotationZ": 53.396
+          },
+          "UpperTorso": {
+            "rotationX": 2,
+            "rotationY": -18,
+            "rotationZ": -4
+          },
+          "Neck": {
+            "rotationX": -0.4,
+            "rotationY": 6.3,
+            "rotationZ": 1.2
+          },
+          "Head": {
+            "rotationX": -0.4,
+            "rotationY": 6.3,
+            "rotationZ": 1.2
+          }
+        }
+      },
+      {
+        "frame": 1,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": -35,
+            "rotationZ": -75,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -15
+          },
+          "ItemAnchor": {
+            "rotationX": 97.333,
+            "rotationY": -79.086,
+            "rotationZ": 148.458
+          },
+          "UpperTorso": {
+            "rotationX": -1,
+            "rotationY": -8,
+            "rotationZ": 0
+          },
+          "Neck": {
+            "rotationX": 0.2,
+            "rotationY": 2.8,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.2,
+            "rotationY": 2.8,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 2,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": -15,
+            "rotationZ": -75,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -35
+          },
+          "ItemAnchor": {
+            "rotationX": 94.15699999999998,
+            "rotationY": -63.105999999999995,
+            "rotationZ": 165.029
+          },
+          "UpperTorso": {
+            "rotationX": -1,
+            "rotationY": -8,
+            "rotationZ": 0
+          },
+          "Neck": {
+            "rotationX": 0.2,
+            "rotationY": 2.8,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.2,
+            "rotationY": 2.8,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 4,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 15,
+            "rotationZ": -80,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -10
+          },
+          "ItemAnchor": {
+            "rotationX": 97.87599999999998,
+            "rotationY": -86.636,
+            "rotationZ": 166.034
+          },
+          "UpperTorso": {
+            "rotationX": -4,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "Neck": {
+            "rotationX": 0.8,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.8,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 6,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 35,
+            "rotationZ": -70,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -25
+          },
+          "ItemAnchor": {
+            "rotationX": 23.735000000000014,
+            "rotationY": -83.708,
+            "rotationZ": 122.01999999999998
+          },
+          "UpperTorso": {
+            "rotationX": -5,
+            "rotationY": 20,
+            "rotationZ": 5
+          },
+          "Neck": {
+            "rotationX": 1.0,
+            "rotationY": -7.0,
+            "rotationZ": -1.5
+          },
+          "Head": {
+            "rotationX": 1.0,
+            "rotationY": -7.0,
+            "rotationZ": -1.5
+          }
+        }
+      },
+      {
+        "frame": 8,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 35,
+            "rotationZ": -70,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -25
+          },
+          "ItemAnchor": {
+            "rotationX": 23.735000000000014,
+            "rotationY": -83.708,
+            "rotationZ": 122.01999999999998
+          },
+          "UpperTorso": {
+            "rotationX": -5,
+            "rotationY": 20,
+            "rotationZ": 5
+          },
+          "Neck": {
+            "rotationX": 1.0,
+            "rotationY": -7.0,
+            "rotationZ": -1.5
+          },
+          "Head": {
+            "rotationX": 1.0,
+            "rotationY": -7.0,
+            "rotationZ": -1.5
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-swing-right-fp",
+    "code": "warband-swing-right-fp",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "EaseOut",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": -35,
+            "rotationZ": -75,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -10,
+            "rotationY": -25,
+            "rotationZ": -70
+          },
+          "ItemAnchor": {
+            "rotationX": -11.55,
+            "rotationY": -58.292,
+            "rotationZ": 64.137
+          },
+          "UpperTorso": {
+            "rotationX": 0.7,
+            "rotationY": -6.3,
+            "rotationZ": -1.4
+          },
+          "Neck": {
+            "rotationX": -0.1,
+            "rotationY": 1.575,
+            "rotationZ": 0.3
+          },
+          "Head": {
+            "rotationX": -0.1,
+            "rotationY": 1.575,
+            "rotationZ": 0.3
+          }
+        }
+      },
+      {
+        "frame": 1,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": -35,
+            "rotationZ": -75,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -15
+          },
+          "ItemAnchor": {
+            "rotationX": 100.595,
+            "rotationY": -78.502,
+            "rotationZ": 146.489
+          },
+          "UpperTorso": {
+            "rotationX": -0.35,
+            "rotationY": -2.8,
+            "rotationZ": 0.0
+          },
+          "Neck": {
+            "rotationX": 0.05,
+            "rotationY": 0.7,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.05,
+            "rotationY": 0.7,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 2,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": -15,
+            "rotationZ": -75,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -35
+          },
+          "ItemAnchor": {
+            "rotationX": -84.43,
+            "rotationY": -117.44900000000001,
+            "rotationZ": -18.88499999999999
+          },
+          "UpperTorso": {
+            "rotationX": -0.35,
+            "rotationY": -2.8,
+            "rotationZ": 0.0
+          },
+          "Neck": {
+            "rotationX": 0.05,
+            "rotationY": 0.7,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.05,
+            "rotationY": 0.7,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 4,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 15,
+            "rotationZ": -80,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -10
+          },
+          "ItemAnchor": {
+            "rotationX": -39.44399999999996,
+            "rotationY": -93.72399999999999,
+            "rotationZ": 28.595
+          },
+          "UpperTorso": {
+            "rotationX": -1.4,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Neck": {
+            "rotationX": 0.2,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.2,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 6,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 35,
+            "rotationZ": -70,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -25
+          },
+          "ItemAnchor": {
+            "rotationX": 2.4470000000000027,
+            "rotationY": -87.849,
+            "rotationZ": 113.66700000000003
+          },
+          "UpperTorso": {
+            "rotationX": -1.75,
+            "rotationY": 7.0,
+            "rotationZ": 1.75
+          },
+          "Neck": {
+            "rotationX": 0.25,
+            "rotationY": -1.75,
+            "rotationZ": -0.375
+          },
+          "Head": {
+            "rotationX": 0.25,
+            "rotationY": -1.75,
+            "rotationZ": -0.375
+          }
+        }
+      },
+      {
+        "frame": 8,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 35,
+            "rotationZ": -70,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -25
+          },
+          "ItemAnchor": {
+            "rotationX": 2.4470000000000027,
+            "rotationY": -87.849,
+            "rotationZ": 113.66700000000003
+          },
+          "UpperTorso": {
+            "rotationX": -1.75,
+            "rotationY": 7.0,
+            "rotationZ": 1.75
+          },
+          "Neck": {
+            "rotationX": 0.25,
+            "rotationY": -1.75,
+            "rotationZ": -0.375
+          },
+          "Head": {
+            "rotationX": 0.25,
+            "rotationY": -1.75,
+            "rotationZ": -0.375
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-swing-thrust",
+    "code": "warband-swing-thrust",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "EaseOut",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 60,
+            "rotationZ": 10,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -125
+          },
+          "ItemAnchor": {
+            "rotationX": 96.793,
+            "rotationY": -69.245,
+            "rotationZ": 137.505
+          },
+          "UpperTorso": {
+            "rotationX": 3,
+            "rotationY": -8,
+            "rotationZ": -2
+          },
+          "Neck": {
+            "rotationX": -0.6000000000000001,
+            "rotationY": 2.8,
+            "rotationZ": 0.6
+          },
+          "Head": {
+            "rotationX": -0.6000000000000001,
+            "rotationY": 2.8,
+            "rotationZ": 0.6
+          }
+        }
+      },
+      {
+        "frame": 2,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 25,
+            "rotationZ": -45,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -55
+          },
+          "ItemAnchor": {
+            "rotationX": 87.808,
+            "rotationY": -77.717,
+            "rotationZ": 152.579
+          },
+          "UpperTorso": {
+            "rotationX": -1.5,
+            "rotationY": -4,
+            "rotationZ": -1
+          },
+          "Neck": {
+            "rotationX": 0.30000000000000004,
+            "rotationY": 1.4,
+            "rotationZ": 0.3
+          },
+          "Head": {
+            "rotationX": 0.30000000000000004,
+            "rotationY": 1.4,
+            "rotationZ": 0.3
+          }
+        }
+      },
+      {
+        "frame": 4,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 15,
+            "rotationZ": -85,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -5
+          },
+          "ItemAnchor": {
+            "rotationX": 79.981,
+            "rotationY": -85.911,
+            "rotationZ": 148.092
+          },
+          "UpperTorso": {
+            "rotationX": -6,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "Neck": {
+            "rotationX": 1.2000000000000002,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 1.2000000000000002,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 6,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 15,
+            "rotationZ": -85,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -5
+          },
+          "ItemAnchor": {
+            "rotationX": 79.981,
+            "rotationY": -85.911,
+            "rotationZ": 148.092
+          },
+          "UpperTorso": {
+            "rotationX": -6,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "Neck": {
+            "rotationX": 1.2000000000000002,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 1.2000000000000002,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 8,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 15,
+            "rotationZ": -85,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -5
+          },
+          "ItemAnchor": {
+            "rotationX": 79.981,
+            "rotationY": -85.911,
+            "rotationZ": 148.092
+          },
+          "UpperTorso": {
+            "rotationX": -6,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "Neck": {
+            "rotationX": 1.2000000000000002,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 1.2000000000000002,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-swing-thrust-fp",
+    "code": "warband-swing-thrust-fp",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "EaseOut",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 60,
+            "rotationZ": 10,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -125
+          },
+          "ItemAnchor": {
+            "rotationX": 90.687,
+            "rotationY": -68.327,
+            "rotationZ": 126.588
+          },
+          "UpperTorso": {
+            "rotationX": 1.0499999999999998,
+            "rotationY": -2.8,
+            "rotationZ": -0.7
+          },
+          "Neck": {
+            "rotationX": -0.15000000000000002,
+            "rotationY": 0.7,
+            "rotationZ": 0.15
+          },
+          "Head": {
+            "rotationX": -0.15000000000000002,
+            "rotationY": 0.7,
+            "rotationZ": 0.15
+          }
+        }
+      },
+      {
+        "frame": 2,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 25,
+            "rotationZ": -45,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -55
+          },
+          "ItemAnchor": {
+            "rotationX": 90.851,
+            "rotationY": -78.459,
+            "rotationZ": 152.887
+          },
+          "UpperTorso": {
+            "rotationX": -0.5249999999999999,
+            "rotationY": -1.4,
+            "rotationZ": -0.35
+          },
+          "Neck": {
+            "rotationX": 0.07500000000000001,
+            "rotationY": 0.35,
+            "rotationZ": 0.075
+          },
+          "Head": {
+            "rotationX": 0.07500000000000001,
+            "rotationY": 0.35,
+            "rotationZ": 0.075
+          }
+        }
+      },
+      {
+        "frame": 4,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 15,
+            "rotationZ": -85,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -5
+          },
+          "ItemAnchor": {
+            "rotationX": 138.527,
+            "rotationY": -86.117,
+            "rotationZ": 206.452
+          },
+          "UpperTorso": {
+            "rotationX": -2.0999999999999996,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Neck": {
+            "rotationX": 0.30000000000000004,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.30000000000000004,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 6,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 15,
+            "rotationZ": -85,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -5
+          },
+          "ItemAnchor": {
+            "rotationX": 138.527,
+            "rotationY": -86.117,
+            "rotationZ": 206.452
+          },
+          "UpperTorso": {
+            "rotationX": -2.0999999999999996,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Neck": {
+            "rotationX": 0.30000000000000004,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.30000000000000004,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      },
+      {
+        "frame": 8,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 15,
+            "rotationZ": -85,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -5
+          },
+          "ItemAnchor": {
+            "rotationX": 138.527,
+            "rotationY": -86.117,
+            "rotationZ": 206.452
+          },
+          "UpperTorso": {
+            "rotationX": -2.0999999999999996,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Neck": {
+            "rotationX": 0.30000000000000004,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          },
+          "Head": {
+            "rotationX": 0.30000000000000004,
+            "rotationY": 0.0,
+            "rotationZ": 0.0
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-windup-left-fp",
+    "code": "warband-windup-left-fp",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "Repeat",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 35,
+            "rotationZ": -90,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -85
+          },
+          "ItemAnchor": {
+            "rotationX": 3.695999999999998,
+            "rotationY": 94.52100000000002,
+            "rotationZ": 86.31
+          },
+          "UpperTorso": {
+            "rotationX": 0.7,
+            "rotationY": 6.3,
+            "rotationZ": 1.4
+          },
+          "Neck": {
+            "rotationX": -0.1,
+            "rotationY": -1.575,
+            "rotationZ": -0.3
+          },
+          "Head": {
+            "rotationX": -0.1,
+            "rotationY": -1.575,
+            "rotationZ": -0.3
+          }
+        }
+      },
+      {
+        "frame": 14,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 35,
+            "rotationZ": -90,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -85
+          },
+          "ItemAnchor": {
+            "rotationX": 3.695999999999998,
+            "rotationY": 94.52100000000002,
+            "rotationZ": 86.31
+          },
+          "UpperTorso": {
+            "rotationX": 0.7,
+            "rotationY": 6.3,
+            "rotationZ": 1.4
+          },
+          "Neck": {
+            "rotationX": -0.1,
+            "rotationY": -1.575,
+            "rotationZ": -0.3
+          },
+          "Head": {
+            "rotationX": -0.1,
+            "rotationY": -1.575,
+            "rotationZ": -0.3
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-windup-overhead",
+    "code": "warband-windup-overhead",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "Repeat",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": -35,
+            "rotationY": 0,
+            "rotationZ": -135,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -25,
+            "rotationY": 0,
+            "rotationZ": -60
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": -8,
+            "rotationY": -5,
+            "rotationZ": -2
+          },
+          "Neck": {
+            "rotationX": 1.6,
+            "rotationY": 1.75,
+            "rotationZ": 0.6
+          },
+          "Head": {
+            "rotationX": 1.6,
+            "rotationY": 1.75,
+            "rotationZ": 0.6
+          }
+        }
+      },
+      {
+        "frame": 14,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": -35,
+            "rotationY": 0,
+            "rotationZ": -135,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -25,
+            "rotationY": 0,
+            "rotationZ": -60
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": -8,
+            "rotationY": -5,
+            "rotationZ": -2
+          },
+          "Neck": {
+            "rotationX": 1.6,
+            "rotationY": 1.75,
+            "rotationZ": 0.6
+          },
+          "Head": {
+            "rotationX": 1.6,
+            "rotationY": 1.75,
+            "rotationZ": 0.6
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-windup-overhead-fp",
+    "code": "warband-windup-overhead-fp",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "Repeat",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": -35,
+            "rotationY": 0,
+            "rotationZ": -135,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -25,
+            "rotationY": 0,
+            "rotationZ": -60
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": -2.8,
+            "rotationY": -1.75,
+            "rotationZ": -0.7
+          },
+          "Neck": {
+            "rotationX": 0.4,
+            "rotationY": 0.4375,
+            "rotationZ": 0.15
+          },
+          "Head": {
+            "rotationX": 0.4,
+            "rotationY": 0.4375,
+            "rotationZ": 0.15
+          }
+        }
+      },
+      {
+        "frame": 14,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": -35,
+            "rotationY": 0,
+            "rotationZ": -135,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -25,
+            "rotationY": 0,
+            "rotationZ": -60
+          },
+          "ItemAnchor": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": 0
+          },
+          "UpperTorso": {
+            "rotationX": -2.8,
+            "rotationY": -1.75,
+            "rotationZ": -0.7
+          },
+          "Neck": {
+            "rotationX": 0.4,
+            "rotationY": 0.4375,
+            "rotationZ": 0.15
+          },
+          "Head": {
+            "rotationX": 0.4,
+            "rotationY": 0.4375,
+            "rotationZ": 0.15
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-windup-right",
+    "code": "warband-windup-right",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "Repeat",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": -35,
+            "rotationZ": -75,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -10,
+            "rotationY": -25,
+            "rotationZ": -70
+          },
+          "ItemAnchor": {
+            "rotationX": -22.198,
+            "rotationY": -70.44,
+            "rotationZ": 53.396
+          },
+          "UpperTorso": {
+            "rotationX": 2,
+            "rotationY": -18,
+            "rotationZ": -4
+          },
+          "Neck": {
+            "rotationX": -0.4,
+            "rotationY": 6.3,
+            "rotationZ": 1.2
+          },
+          "Head": {
+            "rotationX": -0.4,
+            "rotationY": 6.3,
+            "rotationZ": 1.2
+          }
+        }
+      },
+      {
+        "frame": 14,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": -35,
+            "rotationZ": -75,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": -10,
+            "rotationY": -25,
+            "rotationZ": -70
+          },
+          "ItemAnchor": {
+            "rotationX": -22.198,
+            "rotationY": -70.44,
+            "rotationZ": 53.396
+          },
+          "UpperTorso": {
+            "rotationX": 2,
+            "rotationY": -18,
+            "rotationZ": -4
+          },
+          "Neck": {
+            "rotationX": -0.4,
+            "rotationY": 6.3,
+            "rotationZ": 1.2
+          },
+          "Head": {
+            "rotationX": -0.4,
+            "rotationY": 6.3,
+            "rotationZ": 1.2
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-windup-right-fp",
+    "code": "warband-windup-right-fp",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "Repeat",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": -35,
+            "rotationZ": -75,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -10,
+            "rotationY": -25,
+            "rotationZ": -70
+          },
+          "ItemAnchor": {
+            "rotationX": -11.55,
+            "rotationY": -58.292,
+            "rotationZ": 64.137
+          },
+          "UpperTorso": {
+            "rotationX": 0.7,
+            "rotationY": -6.3,
+            "rotationZ": -1.4
+          },
+          "Neck": {
+            "rotationX": -0.1,
+            "rotationY": 1.575,
+            "rotationZ": 0.3
+          },
+          "Head": {
+            "rotationX": -0.1,
+            "rotationY": 1.575,
+            "rotationZ": 0.3
+          }
+        }
+      },
+      {
+        "frame": 14,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": -35,
+            "rotationZ": -75,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": -10,
+            "rotationY": -25,
+            "rotationZ": -70
+          },
+          "ItemAnchor": {
+            "rotationX": -11.55,
+            "rotationY": -58.292,
+            "rotationZ": 64.137
+          },
+          "UpperTorso": {
+            "rotationX": 0.7,
+            "rotationY": -6.3,
+            "rotationZ": -1.4
+          },
+          "Neck": {
+            "rotationX": -0.1,
+            "rotationY": 1.575,
+            "rotationZ": 0.3
+          },
+          "Head": {
+            "rotationX": -0.1,
+            "rotationY": 1.575,
+            "rotationZ": 0.3
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-windup-thrust",
+    "code": "warband-windup-thrust",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "Repeat",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 60,
+            "rotationZ": 10,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -125
+          },
+          "ItemAnchor": {
+            "rotationX": 96.793,
+            "rotationY": -69.245,
+            "rotationZ": 137.505
+          },
+          "UpperTorso": {
+            "rotationX": 3,
+            "rotationY": -8,
+            "rotationZ": -2
+          },
+          "Neck": {
+            "rotationX": -0.6000000000000001,
+            "rotationY": 2.8,
+            "rotationZ": 0.6
+          },
+          "Head": {
+            "rotationX": -0.6000000000000001,
+            "rotationY": 2.8,
+            "rotationZ": 0.6
+          }
+        }
+      },
+      {
+        "frame": 14,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 60,
+            "rotationZ": 10,
+            "offsetX": 0,
+            "offsetY": 0,
+            "offsetZ": 0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -125
+          },
+          "ItemAnchor": {
+            "rotationX": 96.793,
+            "rotationY": -69.245,
+            "rotationZ": 137.505
+          },
+          "UpperTorso": {
+            "rotationX": 3,
+            "rotationY": -8,
+            "rotationZ": -2
+          },
+          "Neck": {
+            "rotationX": -0.6000000000000001,
+            "rotationY": 2.8,
+            "rotationZ": 0.6
+          },
+          "Head": {
+            "rotationX": -0.6000000000000001,
+            "rotationY": 2.8,
+            "rotationZ": 0.6
+          }
+        }
+      }
+    ]
+  },
+  {
+    "name": "warband-windup-thrust-fp",
+    "code": "warband-windup-thrust-fp",
+    "quantityframes": 15,
+    "onActivityStopped": "EaseOut",
+    "onAnimationEnd": "Repeat",
+    "keyframes": [
+      {
+        "frame": 0,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 60,
+            "rotationZ": 10,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -125
+          },
+          "ItemAnchor": {
+            "rotationX": 90.687,
+            "rotationY": -68.327,
+            "rotationZ": 126.588
+          },
+          "UpperTorso": {
+            "rotationX": 1.0499999999999998,
+            "rotationY": -2.8,
+            "rotationZ": -0.7
+          },
+          "Neck": {
+            "rotationX": -0.15000000000000002,
+            "rotationY": 0.7,
+            "rotationZ": 0.15
+          },
+          "Head": {
+            "rotationX": -0.15000000000000002,
+            "rotationY": 0.7,
+            "rotationZ": 0.15
+          }
+        }
+      },
+      {
+        "frame": 14,
+        "elements": {
+          "UpperArmR": {
+            "rotationX": 0,
+            "rotationY": 60,
+            "rotationZ": 10,
+            "offsetX": 1.3,
+            "offsetY": -2.7,
+            "offsetZ": -7.0
+          },
+          "LowerArmR": {
+            "rotationX": 0,
+            "rotationY": 0,
+            "rotationZ": -125
+          },
+          "ItemAnchor": {
+            "rotationX": 90.687,
+            "rotationY": -68.327,
+            "rotationZ": 126.588
+          },
+          "UpperTorso": {
+            "rotationX": 1.0499999999999998,
+            "rotationY": -2.8,
+            "rotationZ": -0.7
+          },
+          "Neck": {
+            "rotationX": -0.15000000000000002,
+            "rotationY": 0.7,
+            "rotationZ": 0.15
+          },
+          "Head": {
+            "rotationX": -0.15000000000000002,
+            "rotationY": 0.7,
+            "rotationZ": 0.15
+          }
+        }
+      }
+    ]
+  }
+]

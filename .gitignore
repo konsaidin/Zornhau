@@ -1,0 +1,10 @@
+bin/
+obj/
+.tools/
+.artifacts/
+tests/bin/
+tests/obj/
+dist/
+__pycache__/
+*.py[cod]
+editor/textures/
