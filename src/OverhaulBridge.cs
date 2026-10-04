@@ -12,6 +12,7 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Server;
 using Vintagestory.API.Util;
+using Vintagestory.API.MathTools;
 
 namespace WarbandCombat;
 
@@ -61,6 +62,10 @@ internal sealed class OverhaulBridge : ICombatIntegration
             Patch(typeof(MeleeWeaponClient), "Attack", nameof(NativeMeleePrefix));
             Patch(typeof(MeleeWeaponClient), "Block", nameof(NativeMeleePrefix));
             Patch(typeof(FirstPersonAnimationsBehavior), "IsImmersiveFirstPerson", nameof(ImmersivePrefix));
+            harmony.Patch(AccessTools.Method(typeof(FirstPersonAnimationsBehavior), "ApplyFrame"),
+                postfix: new HarmonyMethod(typeof(OverhaulBridge), nameof(FirstPersonAim)));
+            harmony.Patch(AccessTools.Method(typeof(ThirdPersonAnimationsBehavior), "ApplyFrame"),
+                postfix: new HarmonyMethod(typeof(OverhaulBridge), nameof(ThirdPersonAim)));
         }
         else
         {
@@ -86,16 +91,21 @@ internal sealed class OverhaulBridge : ICombatIntegration
             prefix: new HarmonyMethod(typeof(OverhaulBridge), prefix));
 
     private bool OwnsInput => combat.Controls?.OwnsMeleeInput == true;
+    private bool OwnsShieldInput => combat.Controls?.OwnsShieldInput == true;
     private static bool MousePrefix(MouseEvent mouseEvent)
-        => !(clientBridge?.OwnsInput == true && mouseEvent.Button is EnumMouseButton.Left or EnumMouseButton.Right);
+        => !(mouseEvent.Button == EnumMouseButton.Left && clientBridge?.OwnsInput == true
+            || mouseEvent.Button == EnumMouseButton.Right
+                && (clientBridge?.OwnsInput == true || clientBridge?.OwnsShieldInput == true));
     private static bool ActionPrefix(EnumEntityAction action, ref bool __result)
     {
-        if (clientBridge?.OwnsInput != true || action is not (EnumEntityAction.LeftMouseDown
+        bool owned = clientBridge?.OwnsInput == true || clientBridge?.OwnsShieldInput == true
+            && action is EnumEntityAction.RightMouseDown or EnumEntityAction.InWorldRightMouseDown;
+        if (!owned || action is not (EnumEntityAction.LeftMouseDown
             or EnumEntityAction.RightMouseDown or EnumEntityAction.InWorldLeftMouseDown or EnumEntityAction.InWorldRightMouseDown)) return true;
         __result = false; return false;
     }
     private static bool CursorPrefix() => clientBridge?.OwnsInput != true;
-    private static bool ShieldPrefix() => clientBridge?.OwnsInput != true;
+    private static bool ShieldPrefix() => clientBridge?.OwnsInput != true && clientBridge?.OwnsShieldInput != true;
     private static bool GripPrefix(ref bool __result)
     {
         if (clientBridge?.OwnsInput != true || clientBridge.combat.Controls?.Fighter.Phase == Phase.Idle) return true;
@@ -116,12 +126,42 @@ internal sealed class OverhaulBridge : ICombatIntegration
         return false;
     }
     private static bool BlockPrefix(IServerPlayer player)
-        => !CombatSystem.Supported(player.Entity.RightHandItemSlot.Itemstack?.Collectible);
+        => !CombatSystem.Supported(player.Entity.RightHandItemSlot.Itemstack?.Collectible) && !CombatShields.Equipped(player.Entity);
+
+    private static bool AimsArms(Entity entity, ElementPose pose, bool clearPose)
+    {
+        if (clearPose || clientBridge == null || entity is not EntityPlayer player
+            || pose.ForElement?.Name is not ("UpperArmR" or "UpperArmL")
+            || player.RightHandItemSlot.Itemstack is not { } stack
+            || !clientBridge.UsesPhysicalContacts(stack.Collectible)) return false;
+        var phase = player == (clientBridge.api as ICoreClientAPI)?.World.Player?.Entity
+            ? clientBridge.combat.Controls?.Fighter.Phase ?? Phase.Idle
+            : (Phase)player.WatchedAttributes.GetInt("warbandPhase");
+        return phase is Phase.Windup or Phase.Swing or Phase.Recovery;
+    }
+
+    private static void FirstPersonAim(FirstPersonAnimationsBehavior __instance, ElementPose pose, bool clearPose)
+    {
+        if (!AimsArms(__instance.entity, pose, clearPose)
+            || clientBridge?.api is not ICoreClientAPI client || !client.Settings.Bool["immersiveFpMode"]) return;
+        // Ordinary FP already pitches the renderer's whole model matrix.
+        // Immersive FP leaves that matrix upright; aim only the weapon arms.
+        CombatAim.RotateArm(pose, CombatAim.LookPitch(__instance.entity.Pos.Pitch));
+    }
+
+    private static void ThirdPersonAim(ThirdPersonAnimationsBehavior __instance, PlayerItemFrame frame, ElementPose pose, bool clearPose)
+    {
+        if (!AimsArms(__instance.entity, pose, clearPose)) return;
+        float nativePitch = GameMath.Clamp(__instance.entity.Pos.HeadPitch * frame.Player.PitchFollow
+            * frame.Player.DetachedAnchorFollow, PlayerFrame.PitchAngleMin * GameMath.DEG2RAD,
+            PlayerFrame.PitchAngleMax * GameMath.DEG2RAD);
+        CombatAim.RotateArm(pose, CombatAim.LookPitch(__instance.entity.Pos.Pitch) - nativePitch);
+    }
 
     public bool UsesPhysicalContacts(CollectibleObject item) => OverhaulCompat.IsMelee(item);
     public void ClearNativeBlock(EntityPlayer player)
     {
-        if (CombatSystem.Supported(player.RightHandItemSlot.Itemstack?.Collectible))
+        if (CombatSystem.Supported(player.RightHandItemSlot.Itemstack?.Collectible) || CombatShields.Equipped(player))
         {
             var model = player.GetBehavior<PlayerDamageModelBehavior>();
             if (model != null) model.CurrentDamageBlock = null;
@@ -304,8 +344,7 @@ internal sealed class OverhaulBridge : ICombatIntegration
 
     private string Source(StanceStats? stance, Direction direction, bool block)
     {
-        if (block) return stance?.ParryAnimation ?? stance?.BlockAnimation
-            ?? "warbandcombat:warband-block-" + direction.ToString().ToLowerInvariant();
+        if (block) return OverhaulAnimationResolver.Guard(direction);
         var attacks = stance?.AttackAnimation;
         if (attacks?.TryGetValue(NativeDirection(direction).ToString(), out var clips) == true && clips.Length > 0) return clips[0];
         var genericClips = attacks?.GetValueOrDefault("Main") ?? attacks?.Values.FirstOrDefault();
@@ -382,7 +421,8 @@ internal sealed class OverhaulBridge : ICombatIntegration
         }
         if (fp == null || tp == null || animations == null) return false;
         var stance = Stance(player, out bool twoHanded);
-        string? source = twoHanded && stance != null
+        string? source = action == "block" ? OverhaulAnimationResolver.Guard(fighter.Direction)
+            : twoHanded && stance != null
             ? OverhaulAnimationResolver.TwoHanded(stance, fighter.Direction, action == "block",
                 player.RightHandItemSlot.Itemstack!.Collectible.Code.Path,
                 code => animations.Animations.ContainsKey(OverhaulPhaseAnimations.Code(code, "windup")))

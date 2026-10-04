@@ -26,20 +26,21 @@ internal static class BalanceChecks
             aimed.Apply(Command.KeepAlive, initial, 600, timing);
             aimed.Apply(Command.Aim, final, 700, timing);
             aimed.Apply(Command.Release, final, 701, timing);
-            long expected = (initial == final ? 701 : 700 + timing.Windup) + (timing.PhysicalContacts ? 0 : timing.Strike);
-            Check(aimed.HitAt == expected, "A direction switch must re-wind; same-direction heartbeat must not re-wind");
-            Check(!aimed.TakeHit(expected - 1) && aimed.TakeHit(expected), "Contact must respect the renewed windup exactly");
+            long expected = 701 + (timing.PhysicalContacts ? 0 : timing.Strike);
+            Check(aimed.Direction == initial && aimed.Started == 0, "Aim and release packets preserve the pressed direction");
+            Check(aimed.HitAt == expected, "Held input cannot change direction or reset windup");
+            Check(!aimed.TakeHit(expected - 1) && aimed.TakeHit(expected), "Contact must respect the original windup exactly");
 
             var released = new Fighter();
             released.Apply(Command.Begin, initial, 0, timing);
             released.Apply(Command.KeepAlive, initial, 600, timing);
             released.Apply(Command.Release, final, 701, timing);
-            Check(released.HitAt == 701 + (initial == final ? 0 : timing.Windup) + (timing.PhysicalContacts ? 0 : timing.Strike),
+            Check(released.HitAt == 701 + (timing.PhysicalContacts ? 0 : timing.Strike),
                 "Release itself cannot smuggle a changed direction past windup");
             long ends = released.Ends;
             foreach (Command command in new[] { Command.Aim, Command.Begin, Command.Block, Command.Cancel })
                 Check(!released.Apply(command, initial, 702, timing), "A committed strike cannot change side, cancel or block");
-            Check(released.Ends == ends && released.Direction == final, "Rejected inputs must preserve committed recovery and direction");
+            Check(released.Ends == ends && released.Direction == initial, "Rejected inputs must preserve committed recovery and direction");
         }
         var sword = WeaponTiming.Sword;
         var repeated = new Fighter();
@@ -48,7 +49,7 @@ internal static class BalanceChecks
         repeated.Apply(Command.Aim, Direction.Overhead, 200, sword);
         repeated.Apply(Command.Aim, Direction.Right, 250, sword);
         repeated.Apply(Command.Release, Direction.Right, 251, sword);
-        Check(repeated.HitAt == 250 + sword.Windup + sword.Strike, "Switching back cannot restore banked charge");
+        Check(repeated.HitAt == sword.Windup + sword.Strike, "Mouse motion cannot change a held chamber");
 
         foreach (Direction initial in Enum.GetValues<Direction>())
         foreach (Direction final in Enum.GetValues<Direction>())
@@ -59,8 +60,8 @@ internal static class BalanceChecks
             guard.Apply(Command.Block, initial, 150, sword);
             Check(guard.CanGuard(150) && guard.Started == 0, "Repeated guard commands must not lower a ready guard");
             guard.Apply(Command.Aim, final, 201, sword);
-            Check(guard.CanGuard(201) == (initial == final), "Only a changed guard needs to be raised again");
-            Check(guard.CanGuard(301), "Changed guard becomes ready after 100ms");
+            Check(guard.CanGuard(201) && guard.Direction == initial, "Mouse motion cannot change a held guard");
+            Check(guard.CanGuard(301), "Held guard remains ready");
             guard.Apply(Command.Cancel, final, 350, sword);
             Check(!guard.CanGuard(350) && !guard.RecoveryAttackPose, "Dropping guard is not a strike or an effective guard");
             Check(!guard.Apply(Command.Begin, final, 429, sword), "Guard release cannot instantly launch a counter");

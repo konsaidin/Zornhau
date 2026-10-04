@@ -3,6 +3,7 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
+using HarmonyLib;
 
 namespace WarbandCombat;
 
@@ -14,6 +15,7 @@ public sealed class CombatSystem : ModSystem
     private ICoreServerAPI? server;
     private IServerNetworkChannel? channel;
     private long serverTick;
+    private Harmony? movementPatch;
     private readonly Dictionary<string, Session> sessions = new();
 
     private sealed class Session
@@ -36,6 +38,8 @@ public sealed class CombatSystem : ModSystem
     public override void Start(ICoreAPI api)
     {
         api.Network.RegisterChannel("warbandcombat").RegisterMessageType<InputPacket>().RegisterMessageType<StatePacket>();
+        movementPatch = new Harmony("warbandcombat.movement." + api.Side);
+        CombatMovement.Patch(movementPatch);
     }
 
     public override void AssetsFinalize(ICoreAPI api) => Integration?.AssetsReady();
@@ -66,7 +70,9 @@ public sealed class CombatSystem : ModSystem
     private void OnPlayerReady(IServerPlayer player)
     {
         AttachGuard(player.Entity);
-        if (server != null) SendState(player, GetSession(player), server.World.ElapsedMilliseconds);
+        var session = GetSession(player);
+        CombatMovement.Bind(player.Entity, session.Fighter);
+        if (server != null) SendState(player, session, server.World.ElapsedMilliseconds);
     }
     private void OnDisconnect(IServerPlayer player) => sessions.Remove(player.PlayerUID);
 
@@ -114,6 +120,7 @@ public sealed class CombatSystem : ModSystem
         if (++session.PacketCount > 100) return;
         if (packet.WeaponMode == null || packet.WeaponMode.Length > 64) return;
         var entity = player.Entity;
+        CombatMovement.Bind(entity, session.Fighter);
         AttachGuard(entity);
         var slot = entity.RightHandItemSlot;
         var command = (Command)packet.Command;
@@ -123,7 +130,8 @@ public sealed class CombatSystem : ModSystem
             session.WeaponMode = packet.WeaponMode;
             entity.WatchedAttributes.SetString("warbandWeaponMode", packet.WeaponMode);
         }
-        if (!entity.Alive || !Supported(slot.Itemstack?.Collectible) || entity.Controls.Sneak && !ForcePvpCombat)
+        if (!entity.Alive || !CombatShields.AllowsInput(command, Supported(slot.Itemstack?.Collectible),
+            CombatShields.Equipped(entity), session.Fighter.Phase) || entity.Controls.Sneak && !ForcePvpCombat)
         {
             session.Fighter.Invalidate(now); SendState(player, session, now); return;
         }
@@ -136,7 +144,8 @@ public sealed class CombatSystem : ModSystem
             session.Slot = player.InventoryManager.ActiveHotbarSlotNumber;
         }
         session.Fighter.SetShield(CombatShields.Equipped(entity), now);
-        session.Fighter.Apply(command, (Direction)packet.Direction, now, Timing(slot.Itemstack!.Collectible));
+        session.Fighter.Apply(command, (Direction)packet.Direction, now, slot.Itemstack != null ? Timing(slot.Itemstack.Collectible) : WeaponTiming.Sword);
+        CombatMovement.Enforce(entity, session.Fighter, now);
         SendState(player, session, now);
     }
 
@@ -157,6 +166,8 @@ public sealed class CombatSystem : ModSystem
             session.Fighter.SetShield(CombatShields.Equipped(entity), now);
             bool windowExpired = session.Fighter.Phase == Phase.Swing && now > session.Fighter.ContactEnds;
             session.Fighter.Advance(now);
+            CombatMovement.Bind(entity, session.Fighter);
+            CombatMovement.Enforce(entity, session.Fighter, now);
             if (windowExpired) session.Feedback = "warbandcombat:miss";
             CombatAnimations.Update(entity, session.Fighter, now, integration: Integration);
             if (session.Fighter.CanHit(now)
@@ -287,6 +298,7 @@ public sealed class CombatSystem : ModSystem
             Feedback = session.Feedback, ForcePvpCombat = ForcePvpCombat,
             RecoveryAttackPose = f.RecoveryAttackPose,
             ContactEndsIn = (int)Math.Clamp(f.ContactEnds - now, -10000, 10000),
+            SprintIn = (int)Math.Clamp(f.SprintUntil - now, 0, 10000),
             EchoSentAt = session.ClientSentAt, InputReceivedAt = session.InputReceivedAt, ServerSentAt = now
         }, player);
         session.LastSync = now; session.Feedback = "";
@@ -330,6 +342,7 @@ public sealed class CombatSystem : ModSystem
     {
         Controls?.Dispose();
         Integration?.Dispose();
+        if (movementPatch != null) movementPatch.UnpatchAll(movementPatch.Id);
         if (server != null)
         {
             server.Event.UnregisterGameTickListener(serverTick);

@@ -31,7 +31,7 @@ internal sealed class CameraDiagnostics(ICoreClientAPI api)
         grabbed = capture; lastReport = now;
         var entity = player.Entity;
         api.Logger.Notification(FormattableString.Invariant(
-            $"[Warband Combat][Camera] t={now} captured={capture} mode={player.CameraMode} immersive={api.Settings.Bool["immersiveFpMode"]} pitch={entity.Pos.Pitch:F5} inputPitch={api.Input.MousePitch:F5} serverPitch={entity.ServerPos.Pitch:F5} yaw={entity.Pos.Yaw:F5} phase={fighter.Phase}/{fighter.Direction} events={events} handled={handled} dx={dx} up={up} down={down} dyMin={minDy} dyMax={maxDy} mounted={entity.MountedOn != null} eye={entity.LocalEyePos}"));
+            $"[Warband Combat][Camera] t={now} captured={capture} mode={player.CameraMode} immersive={api.Settings.Bool["immersiveFpMode"]} pitch={entity.Pos.Pitch:F5} inputPitch={api.Input.MousePitch:F5} headPitch={entity.Pos.HeadPitch:F5} yaw={entity.Pos.Yaw:F5} phase={fighter.Phase}/{fighter.Direction} sprint={entity.Controls.Sprint} sprintLocked={fighter.SprintLocked(now)} sprintIn={Math.Max(0, fighter.SprintUntil-now)} shield={fighter.ShieldGuard} main={entity.RightHandItemSlot.Itemstack?.Collectible.Code} offhand={entity.LeftHandItemSlot.Itemstack?.Collectible.Code} events={events} handled={handled} dx={dx} up={up} down={down} dyMin={minDy} dyMax={maxDy} mounted={entity.MountedOn != null} eye={entity.LocalEyePos}"));
         dx = up = down = 0; events = handled = minDy = maxDy = 0;
     }
 

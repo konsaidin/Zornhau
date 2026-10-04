@@ -18,6 +18,33 @@ internal static class ShieldChecks
         Check(CombatShields.IsShield(new Item { Tool = EnumTool.Shield }), "Armory shield classification");
         Check(!CombatShields.IsShield(new Item { Tool = EnumTool.Sword }), "Sword is not a shield");
         Check(!CombatShields.IsShield(null), "Empty offhand is not a shield");
+        foreach (string code in new[] { "game:shield-blackguard", "game:shield-woodmetal",
+            "armory:shield-light-plain-iron", "armory:shield-heavy-plain-iron" })
+            Check(CombatShields.IsShield(new Item { Code = new AssetLocation(code) }),
+                code + ": shield remains recognized when a mod replaces its class/tool");
+        foreach (string code in new[] { "game:stick", "armory:sword-short-plain-steel", "game:shieldrack" })
+            Check(!CombatShields.IsShield(new Item { Code = new AssetLocation(code) }), code + ": not a shield");
+        foreach (Command command in Enum.GetValues<Command>())
+        foreach (Phase phase in Enum.GetValues<Phase>())
+        {
+            Check(!CombatShields.AllowsInput(command, false, false, phase), "No weapon or shield cannot own combat input");
+            Check(CombatShields.AllowsInput(command, true, false, phase), "Weapon controls remain available");
+            bool permitted = CombatShields.AllowsInput(command, false, true, phase);
+            if (command == Command.Begin || command == Command.Release)
+                Check(!permitted, "An empty hand/tool plus shield cannot create an unauthorized attack");
+            if (command == Command.Block) Check(permitted, "Shield raises without a supported mainhand weapon");
+            if (phase == Phase.Block && command is Command.Aim or Command.KeepAlive or Command.Cancel)
+                Check(permitted, "Empty mainhand must not stop shield aiming/heartbeat/release");
+        }
+        var unarmedGuard = new Fighter();
+        unarmedGuard.SetShield(true, 0);
+        foreach (var (command, time) in new[] { (Command.Block, 0L), (Command.Aim, 170L),
+            (Command.KeepAlive, 200L), (Command.KeepAlive, 900L), (Command.KeepAlive, 1600L) })
+        {
+            Check(CombatShields.AllowsInput(command, false, true, unarmedGuard.Phase), "Unarmed shield server input accepted");
+            Check(unarmedGuard.Apply(command, Direction.Left, time, WeaponTiming.Sword), "Unarmed shield state progresses");
+        }
+        Check(unarmedGuard.CanGuard(1600), "Shield remains raised across heartbeats with empty mainhand");
         var f = new Fighter();
         f.SetShield(true, 0);
         Check(f.Apply(Command.Block, Direction.Left, 0, WeaponTiming.Sword), "Raise shield");

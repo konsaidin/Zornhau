@@ -20,12 +20,13 @@ internal sealed class CombatClient : IRenderer
     private bool forcePvpCombat;
     private bool choosingShieldBlock;
     private bool left, right;
+    private bool sprintWanted, sprintWasLocked;
     private int sequence;
     private int ownedSlot = -1;
     private ItemStack? ownedStack;
     private ItemStack? ownedOffhand;
     private string ownedMode = "";
-    private long lastHeartbeat, lastAim;
+    private long lastHeartbeat;
     private string feedback = "";
     private long feedbackUntil;
     private string lastText = "";
@@ -61,13 +62,15 @@ internal sealed class CombatClient : IRenderer
         api.Event.MouseDown += MouseDown;
         api.Event.MouseUp += MouseUp;
         api.Event.MouseMove += MouseMove;
+        api.Input.InWorldAction += InWorldAction;
         api.Event.LeaveWorld += LeaveWorld;
         tick = api.Event.RegisterGameTickListener(Tick, 20);
         api.Event.RegisterRenderer(this, EnumRenderStage.Ortho, "warband-hud");
     }
 
     internal bool Available => Enabled && api.World.Player?.Entity is { Alive: true } entity
-        && CombatSystem.Supported(entity.RightHandItemSlot.Itemstack?.Collectible) && !ToolInteraction;
+        && (CombatSystem.Supported(entity.RightHandItemSlot.Itemstack?.Collectible)
+            || CombatShields.Equipped(entity)) && !ToolInteraction;
 
     private bool ToolInteraction
     {
@@ -91,7 +94,10 @@ internal sealed class CombatClient : IRenderer
             || forcePvpCombat && api.World.Player.CurrentEntitySelection?.Entity is EntityPlayer)
         && channel.Connected;
 
-    internal bool OwnsMeleeInput => Active;
+    internal bool OwnsShieldInput => Enabled && api.World.Player?.Entity is { Alive: true } entity
+        && CombatShields.Equipped(entity) && !entity.Controls.Sneak && api.Input.MouseGrabbed && !api.IsGamePaused && channel.Connected;
+    internal bool OwnsMeleeInput => Active
+        && (right || Fighter.Phase == Phase.Block || CombatSystem.Supported(api.World.Player.Entity.RightHandItemSlot.Itemstack?.Collectible));
     private ICombatIntegration? Integration => api.ModLoader.GetModSystem<CombatSystem>()?.Integration;
 
     private long Now => api.World.ElapsedMilliseconds;
@@ -102,7 +108,11 @@ internal sealed class CombatClient : IRenderer
         var item = api.World.Player?.Entity.RightHandItemSlot.Itemstack?.Collectible;
         if (api.World.Player?.Entity is { } playerEntity)
             Fighter.SetShield(CombatShields.Equipped(playerEntity), Now);
-        if (item != null && Fighter.Apply(command, Direction, Now, CombatSystem.Timing(item)) && command == Command.Begin)
+        bool weapon = CombatSystem.Supported(item);
+        bool shield = api.World.Player?.Entity is { } owner && CombatShields.Equipped(owner);
+        if (CombatShields.AllowsInput(command, weapon, shield, Fighter.Phase)
+            && Fighter.Apply(command, Direction, Now, item != null ? CombatSystem.Timing(item) : WeaponTiming.Sword)
+            && command == Command.Begin)
             presentation.Begin();
         channel.SendPacket(new InputPacket { Command = (int)command, Direction = (int)Direction,
             Sequence = ++sequence, SentAt = Now, WeaponMode = api.World.Player?.Entity is { } player
@@ -113,7 +123,8 @@ internal sealed class CombatClient : IRenderer
     {
         choosingShieldBlock = e.Button == EnumMouseButton.Right
             && api.World.Player?.Entity is { } player && CombatShields.Equipped(player) && !player.Controls.Sneak;
-        bool active = Active;
+        bool active = Active && (e.Button != EnumMouseButton.Left
+            || CombatSystem.Supported(api.World.Player?.Entity.RightHandItemSlot.Itemstack?.Collectible));
         choosingShieldBlock = false;
         if (e.Handled || !active || e.Button is not (EnumMouseButton.Left or EnumMouseButton.Right)) return;
         e.Handled = true;
@@ -149,14 +160,17 @@ internal sealed class CombatClient : IRenderer
     private void MouseMove(MouseEvent e)
     {
         cameraDiagnostics?.MouseMove(e);
-        if (!Active || e.Handled) return;
+        if (!Active || e.Handled || left || right) return;
         Direction next = Fighter.FromMouse(e.DeltaX, e.DeltaY, Direction);
         if (next == Direction) return;
         Direction = next;
-        if ((left || right) && Now - lastAim >= 40)
-        {
-            Send(Command.Aim); lastAim = Now;
-        }
+    }
+
+    private void InWorldAction(EnumEntityAction action, bool on, ref EnumHandling handled)
+    {
+        if (action != EnumEntityAction.Sprint) return;
+        sprintWanted = on;
+        if (on && Fighter.SprintLocked(Now)) handled = EnumHandling.PreventDefault;
     }
 
     private void Tick(float dt)
@@ -175,12 +189,6 @@ internal sealed class CombatClient : IRenderer
         }
         Fighter.Advance(Now);
         if (api.World.Player?.Entity is { } shieldOwner) Fighter.SetShield(CombatShields.Equipped(shieldOwner), Now);
-        if (Active && Fighter.Phase is Phase.Windup or Phase.Block
-            && !(Fighter.Phase == Phase.Block && Fighter.ShieldGuard)
-            && Direction != Fighter.Direction && Now - lastAim >= 40)
-        {
-            Send(Command.Aim); lastAim = Now;
-        }
         // Only the server knows whether the current aim contacted a target.
         // Prediction lets a miss run through the window instead of consuming it.
         // Held input resumes when recovery ends; a click during a short lockout
@@ -188,10 +196,20 @@ internal sealed class CombatClient : IRenderer
         if (Active && Fighter.Phase == Phase.Idle)
         {
             if (right) Send(Command.Block);
-            else if (left) Send(Command.Begin);
+            else if (left && CombatSystem.Supported(api.World.Player?.Entity.RightHandItemSlot.Itemstack?.Collectible)) Send(Command.Begin);
         }
         if (api.World.Player?.Entity is { } entity)
         {
+            CombatMovement.Bind(entity, Fighter);
+            bool locked = Fighter.SprintLocked(Now);
+            if (locked)
+            {
+                if (!sprintWasLocked && entity.Controls.Sprint) sprintWanted = true;
+                CombatMovement.Enforce(entity, Fighter, Now);
+            }
+            else if (sprintWasLocked && sprintWanted && api.Input.MouseGrabbed && !api.IsGamePaused)
+                entity.Controls.Sprint = true;
+            sprintWasLocked = locked;
             if (!ReferenceEquals(animatedPlayer, entity))
             {
                 DetachAnimationHooks();
@@ -213,7 +231,7 @@ internal sealed class CombatClient : IRenderer
             int age = CombatPresentation.SnapshotAge(Now, packet.EchoSentAt, packet.InputReceivedAt, packet.ServerSentAt);
             Fighter.Restore((Phase)packet.Phase, (Direction)packet.Direction, Now,
                 packet.Elapsed + age, packet.HitIn - age, packet.EndsIn - age, packet.Charge,
-                packet.RecoveryAttackPose, packet.ContactEndsIn - age);
+                packet.RecoveryAttackPose, packet.ContactEndsIn - age, packet.SprintIn - age);
             Fighter.Advance(Now);
         }
         if (!string.IsNullOrEmpty(packet.Feedback))
@@ -231,7 +249,8 @@ internal sealed class CombatClient : IRenderer
     {
         DetachAnimationHooks(); presentation.Reset();
         cameraDiagnostics?.Reset();
-        Fighter.Reset(); left = right = false; ownedSlot = -1; ownedStack = null;
+        Fighter.Reset(clearSprint: true); left = right = false; ownedSlot = -1; ownedStack = null;
+        sprintWanted = sprintWasLocked = false;
         sequence = 0; feedbackUntil = 0;
         forcePvpCombat = false;
     }
@@ -301,6 +320,7 @@ internal sealed class CombatClient : IRenderer
         api.Event.MouseDown -= MouseDown;
         api.Event.MouseUp -= MouseUp;
         api.Event.MouseMove -= MouseMove;
+        api.Input.InWorldAction -= InWorldAction;
         api.Event.LeaveWorld -= LeaveWorld;
         api.Event.UnregisterGameTickListener(tick);
         api.Event.UnregisterRenderer(this, EnumRenderStage.Ortho);

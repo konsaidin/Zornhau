@@ -4,6 +4,9 @@ namespace WarbandCombat;
 
 internal static class OverhaulAnimationResolver
 {
+    internal static string Guard(Direction direction)
+        => "warbandcombat:warband-block-" + direction.ToString().ToLowerInvariant();
+
     internal static string? TwoHanded(StanceStats stance, Direction direction, bool block,
         string weapon, Func<string, bool> available)
     {

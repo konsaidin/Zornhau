@@ -29,4 +29,5 @@ public sealed class StatePacket
     [ProtoMember(12)] public long EchoSentAt { get; set; }
     [ProtoMember(13)] public long InputReceivedAt { get; set; }
     [ProtoMember(14)] public long ServerSentAt { get; set; }
+    [ProtoMember(15)] public int SprintIn { get; set; }
 }

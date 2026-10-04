@@ -96,6 +96,7 @@ internal static class OverhaulPhaseAnimations
     {
         var copy = JsonConvert.DeserializeObject<PLayerKeyFrameJson>(JsonConvert.SerializeObject(frame))!;
         copy.FOVMultiplier = 1; copy.BobbingAmplitude = 1;
+        copy.PitchFollow = true; copy.PitchDontFollow = false;
         return copy;
     }
 

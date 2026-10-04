@@ -10,3 +10,5 @@ dist/
 __pycache__/
 *.py[cod]
 editor/textures/
+tests/server/bin/
+tests/server/obj/

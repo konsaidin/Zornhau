@@ -52,6 +52,8 @@ Check(!Fighter.Faces(0, 1, 3, 0), "Side attacks bypass narrow guard");
 Console.WriteLine($"PASS: {count} combat checks");
 AnimationGeometry.Check();
 BalanceChecks.Run();
+SprintChecks.Run();
+AimChecks.Run();
 ContactWindowChecks.Run();
 ToolInteractionChecks.Run();
 PresentationChecks.Run();

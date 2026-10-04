@@ -23,6 +23,17 @@ foreach (var (code, original) in source.Where(kv => kv.Key.Contains("shield-")
     Check(guard.PlayerKeyFrames.All(f => !f.Elements.ContainsKey("UpperArmR")
         && !f.Elements.ContainsKey("Head") && !f.Elements.ContainsKey("Neck")), code + ": shield leaves weapon and camera alone");
 }
+var stock = JsonConvert.DeserializeObject<Dictionary<string, AnimationJson>>(
+    File.ReadAllText(Path.Combine(root, "assets/warbandcombat/config/overhaul-fallback.json")))!;
+foreach (Direction direction in Enum.GetValues<Direction>())
+{
+    string guardCode = OverhaulAnimationResolver.Guard(direction);
+    Check(stock.TryGetValue(guardCode, out var guard), direction + ": stock guard is packaged");
+    Check(guard!.Hold && guard.PlayerKeyFrames.Any(f => f.Elements.ContainsKey("UpperArmR")),
+        direction + ": authored guard drives weapon arm and stays held");
+    Check(guard.PlayerKeyFrames.All(f => !f.Elements.ContainsKey("Head") && !f.Elements.ContainsKey("Neck")),
+        direction + ": guard arm clip does not alter camera");
+}
 int twoHandedStances = 0;
 var coveredWeapons = new HashSet<string>();
 var items = Directory.GetFiles(Path.Combine(root,
@@ -44,8 +55,14 @@ foreach (string file in items)
         foreach (Direction direction in Enum.GetValues<Direction>())
         foreach (bool block in new[] { false, true })
         {
-            string? code = OverhaulAnimationResolver.TwoHanded(stance, direction, block,
+            string? code = block ? OverhaulAnimationResolver.Guard(direction)
+                : OverhaulAnimationResolver.TwoHanded(stance, direction, false,
                 Path.GetFileNameWithoutExtension(file), source.ContainsKey);
+            if (block)
+            {
+                Check(code != null && stock.ContainsKey(code), file + ": all weapon guards use authored stock clips");
+                continue;
+            }
             Check(code != null && !code.StartsWith("warbandcombat:"), file + ": native two-handed coverage " + direction);
             var frames = source[code!].PlayerKeyFrames;
             Check(frames.Any(f => f.Elements.ContainsKey("UpperArmL") || f.Elements.ContainsKey("LowerArmL")),
@@ -100,6 +117,7 @@ foreach (var (code, original) in source)
     {
         Check(json.CallbackFrames.Length == 0 && json.SoundFrames.Length == 0, phase + ": native attack callbacks are disabled");
         Check(json.PlayerKeyFrames.All(f => f.FOVMultiplier == 1 && f.BobbingAmplitude == 1), phase + ": no camera kick");
+        Check(json.PlayerKeyFrames.All(f => f.PitchFollow && !f.PitchDontFollow), phase + ": ordinary FP follows look at full scale");
         Check(json.ToAnimation().TotalDuration.TotalMilliseconds > 0, phase + ": accepted by the installed CO library");
         for (int index = 1; index < json.PlayerKeyFrames.Length; index++)
         {

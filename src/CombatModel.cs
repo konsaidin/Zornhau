@@ -34,6 +34,7 @@ public static class CombatRules
     public const int ShieldRaise = 180;
     public const int ShieldBounce = 180;
     public const int ShieldBreak = 350;
+    public const int SprintCooldown = 1500;
     public static bool GuardCovers(bool shield, Direction guard, Direction incoming)
         => shield || guard == Fighter.GuardFor(incoming);
     public static int ShieldWear(float damage)
@@ -57,6 +58,8 @@ public sealed class Fighter
     public long StrikeStarts => ContactEnds - Timing.Strike - CombatRules.ContactWindow;
     public long Ends { get; private set; }
     public long LastInput { get; private set; }
+    public long SprintUntil { get; private set; }
+    public bool SprintLocked(long now) => Phase is Phase.Windup or Phase.Swing || now < SprintUntil;
     public float Charge { get; private set; }
     public bool HitDelivered { get; private set; }
     public bool RecoveryAttackPose { get; private set; }
@@ -74,37 +77,33 @@ public sealed class Fighter
                 Timing = timing; Phase = Phase.Windup; Started = now; Direction = direction;
                 HitAt = ContactEnds = Ends = 0; HitDelivered = false; RecoveryAttackPose = false; Charge = 0; return true;
             case Command.Release when Phase == Phase.Windup:
-                // Release packets must not sneak in a new side with old charge.
-                SetDirection(direction, now);
+                // The side belongs to the initial press, including forged release packets.
                 Charge = Math.Clamp((now - Started) / (float)Timing.Windup, 0, 1);
                 long strikeStarts = Math.Max(now, Started + Timing.Windup);
                 // Native colliders must be active while the blade actually cuts.
                 // Standalone ray attacks retain their original late contact rule.
                 HitAt = strikeStarts + (Timing.PhysicalContacts ? 0 : Timing.Strike);
                 ContactEnds = strikeStarts + Timing.Strike + CombatRules.ContactWindow;
+                SprintUntil = Math.Max(SprintUntil, ContactEnds + CombatRules.SprintCooldown);
                 Ends = ContactEnds + Timing.Recovery; Phase = Phase.Swing; return true;
             case Command.Block when Phase is Phase.Idle or Phase.Windup or Phase.Block:
-                if (Phase != Phase.Block) { Phase = Phase.Block; Started = now; }
-                if (ShieldGuard) Direction = Direction.Overhead;
-                else SetDirection(direction, now);
+                if (Phase != Phase.Block)
+                {
+                    Phase = Phase.Block; Started = now;
+                    Direction = ShieldGuard ? Direction.Overhead : direction;
+                }
                 RecoveryAttackPose = false; Charge = 0; return true;
             case Command.Cancel when Phase is Phase.Windup or Phase.Block:
                 Recover(now, Phase == Phase.Block ? CombatRules.GuardRelease : CombatRules.FeintRecovery);
                 return true;
             case Command.Aim when Phase is Phase.Windup or Phase.Block:
-                if (Phase != Phase.Block || !ShieldGuard) SetDirection(direction, now);
+                // Heartbeats may refresh the hold, never its locked direction.
                 return true;
             case Command.KeepAlive:
                 return true;
             default:
                 return false;
         }
-    }
-
-    private void SetDirection(Direction direction, long now)
-    {
-        if (Direction == direction) return;
-        Direction = direction; Started = now; Charge = 0;
     }
 
     private void Recover(long now, int duration, bool attackPose = false)
@@ -139,6 +138,7 @@ public sealed class Fighter
     {
         if (!CanHit(now)) return false;
         HitDelivered = true; RecoveryAttackPose = true; Phase = Phase.Recovery;
+        SprintUntil = now + CombatRules.SprintCooldown;
         Ends = now + Timing.Recovery;
         return true;
     }
@@ -148,7 +148,12 @@ public sealed class Fighter
         Recover(now, duration, Phase == Phase.Swing || RecoveryAttackPose);
     }
 
-    public void Reset() { Phase = Phase.Idle; HitDelivered = true; RecoveryAttackPose = false; Charge = 0; Started = HitAt = ContactEnds = Ends = 0; }
+    public void Reset(bool clearSprint = false)
+    {
+        Phase = Phase.Idle; HitDelivered = true; RecoveryAttackPose = false; Charge = 0;
+        Started = HitAt = ContactEnds = Ends = 0;
+        if (clearSprint) SprintUntil = 0;
+    }
 
     public void Invalidate(long now)
     {
@@ -160,13 +165,14 @@ public sealed class Fighter
     }
 
     public void Restore(Phase phase, Direction direction, long now, int elapsed, int hitIn, int endsIn, float charge,
-        bool recoveryAttackPose = false, int? contactEndsIn = null)
+        bool recoveryAttackPose = false, int? contactEndsIn = null, int? sprintIn = null)
     {
         Phase = phase; Direction = direction; Started = now - elapsed; HitAt = now + hitIn;
         ContactEnds = contactEndsIn.HasValue ? now + contactEndsIn.Value : HitAt + CombatRules.ContactWindow;
         Ends = now + endsIn; Charge = charge; LastInput = now;
         HitDelivered = phase == Phase.Recovery;
         RecoveryAttackPose = recoveryAttackPose;
+        if (sprintIn.HasValue) SprintUntil = now + Math.Max(0, sprintIn.Value);
     }
 
     public static Direction FromMouse(int dx, int dy, Direction previous, int threshold = 3)

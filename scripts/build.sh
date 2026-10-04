@@ -8,6 +8,7 @@ python3 scripts/fetch-overhaul.py
 python3 scripts/generate-animations.py
 "$SDK_BIN" build WarbandCombat.csproj -c Release --nologo "$@"
 "$SDK_BIN" run --project tests/CombatModel.Tests.csproj -c Release --nologo
+"$SDK_BIN" run --project tests/server/Server.Tests.csproj -c Release --nologo
 "$SDK_BIN" run --project tests/overhaul/Overhaul.Tests.csproj -c Release --nologo
 if [[ -n "${VS_EDITOR_MODEL:-}" ]]; then
     python3 scripts/import-editor-animations.py "$VS_EDITOR_MODEL"
