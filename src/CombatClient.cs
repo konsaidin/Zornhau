@@ -29,6 +29,8 @@ internal sealed class CombatClient : IRenderer
     private long lastHeartbeat;
     private string feedback = "";
     private long feedbackUntil;
+    private long lastContact, contactUntil;
+    private ContactKind contactKind;
     private string lastText = "";
     private LoadedTexture texture;
     private readonly LoadedTexture[] directionTextures;
@@ -46,7 +48,8 @@ internal sealed class CombatClient : IRenderer
         font = CairoFont.WhiteSmallText().WithFontSize(13);
         font.StrokeWidth = 2;
         font.StrokeColor = new double[] { 0, 0, 0, .9 };
-        channel = api.Network.GetChannel("warbandcombat").SetMessageHandler<StatePacket>(OnState);
+        channel = api.Network.GetChannel("warbandcombat").SetMessageHandler<StatePacket>(OnState)
+            .SetMessageHandler<ContactPacket>(OnContact);
         api.Input.RegisterHotKey("warband-toggle", Lang.Get("warbandcombat:toggle"), GlKeys.K);
         api.Input.SetHotKeyHandler("warband-toggle", _ =>
         {
@@ -200,6 +203,9 @@ internal sealed class CombatClient : IRenderer
         }
         if (api.World.Player?.Entity is { } entity)
         {
+            if (presentation.PlaySwingSound(Fighter, Now))
+                api.World.PlaySoundAt(CombatFeedback.SwingSound, entity.Pos.X, entity.Pos.Y + 1,
+                    entity.Pos.Z, api.World.Player, true, 16, .45f);
             CombatMovement.Bind(entity, Fighter);
             bool locked = Fighter.SprintLocked(Now);
             if (locked)
@@ -240,6 +246,20 @@ internal sealed class CombatClient : IRenderer
         }
     }
 
+    private void OnContact(ContactPacket packet)
+    {
+        if (packet.Id <= lastContact || !Enum.IsDefined(packet.Kind) || api.World.Player?.Entity is not { } entity) return;
+        bool attacking = entity.EntityId == packet.Attacker;
+        if (!attacking && entity.EntityId != packet.Defender) return;
+        lastContact = packet.Id;
+        float impulse = CombatFeedback.Impulse(packet.Kind, attacking);
+        if (impulse > 0) api.World.AddCameraShake(impulse);
+        if (packet.Kind != ContactKind.Hit || attacking)
+        {
+            contactKind = packet.Kind; contactUntil = Now + 180;
+        }
+    }
+
     private void Cancel()
     {
         Send(Command.Cancel); Fighter.Invalidate(Now); left = right = false; ownedSlot = -1; ownedStack = null;
@@ -252,6 +272,7 @@ internal sealed class CombatClient : IRenderer
         Fighter.Reset(clearSprint: true); left = right = false; ownedSlot = -1; ownedStack = null;
         sprintWanted = sprintWasLocked = false;
         sequence = 0; feedbackUntil = 0;
+        lastContact = contactUntil = 0;
         forcePvpCombat = false;
     }
 
@@ -267,6 +288,13 @@ internal sealed class CombatClient : IRenderer
         float radius = 28 * scale, size = 20 * scale;
         var selectedColor = Fighter.CanGuard(Now)
             ? new Vec4f(.35f, 1f, .6f, 1f) : new Vec4f(1f, .78f, .3f, 1f);
+        if (Now < contactUntil)
+            selectedColor = contactKind switch
+            {
+                ContactKind.Hit => new Vec4f(.35f, 1f, .45f, 1f),
+                ContactKind.ShieldBreak => new Vec4f(1f, .35f, .15f, 1f),
+                _ => new Vec4f(.3f, .85f, 1f, 1f)
+            };
         var inactiveColor = new Vec4f(.85f, .9f, .95f, .4f);
         for (int i = 0; i < directionTextures.Length; i++)
         {

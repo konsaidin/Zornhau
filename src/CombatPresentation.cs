@@ -5,8 +5,15 @@ namespace WarbandCombat;
 internal sealed class CombatPresentation
 {
     private int attackStage;
-    internal void Begin() => attackStage = 0;
-    internal void Reset() => attackStage = 0;
+    private bool swingSound;
+    internal void Begin() { attackStage = 0; swingSound = false; }
+    internal void Reset() { attackStage = 0; swingSound = false; }
+
+    internal bool PlaySwingSound(Fighter fighter, long now)
+    {
+        if (swingSound || fighter.Phase != Phase.Swing || now < fighter.StrikeStarts) return false;
+        swingSound = true; return true;
+    }
 
     internal string? Action(Fighter fighter, long now)
     {

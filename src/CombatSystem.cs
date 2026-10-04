@@ -16,6 +16,7 @@ public sealed class CombatSystem : ModSystem
     private IServerNetworkChannel? channel;
     private long serverTick;
     private Harmony? movementPatch;
+    private long contactSequence;
     private readonly Dictionary<string, Session> sessions = new();
 
     private sealed class Session
@@ -31,13 +32,15 @@ public sealed class CombatSystem : ModSystem
         public string Feedback = "";
         public string WeaponMode = "";
         public long ClientSentAt, InputReceivedAt;
+        public long SwingSoundAt;
     }
 
     public override double ExecuteOrder() => 1.1;
 
     public override void Start(ICoreAPI api)
     {
-        api.Network.RegisterChannel("warbandcombat").RegisterMessageType<InputPacket>().RegisterMessageType<StatePacket>();
+        api.Network.RegisterChannel("warbandcombat").RegisterMessageType<InputPacket>().RegisterMessageType<StatePacket>()
+            .RegisterMessageType<ContactPacket>();
         movementPatch = new Harmony("warbandcombat.movement." + api.Side);
         CombatMovement.Patch(movementPatch);
     }
@@ -47,6 +50,7 @@ public sealed class CombatSystem : ModSystem
     public override void StartClientSide(ICoreClientAPI api)
     {
         Client = api;
+        if (movementPatch != null) CombatPrediction.Patch(movementPatch);
         Integration = OverhaulCompat.Create(api);
         Controls = new CombatClient(api);
         api.Logger.Notification("[Warband Combat] Client ready. K toggles combat; Shift uses vanilla interactions.");
@@ -165,6 +169,7 @@ public sealed class CombatSystem : ModSystem
                 session.Fighter.Invalidate(now);
             session.Fighter.SetShield(CombatShields.Equipped(entity), now);
             bool windowExpired = session.Fighter.Phase == Phase.Swing && now > session.Fighter.ContactEnds;
+            PlaySwing(player, session, now);
             session.Fighter.Advance(now);
             CombatMovement.Bind(entity, session.Fighter);
             CombatMovement.Enforce(entity, session.Fighter, now);
@@ -230,6 +235,7 @@ public sealed class CombatSystem : ModSystem
         item.OnAttackingWith(server.World, attacker, target, attacker.RightHandItemSlot);
         if (hit && !damage.Blocked && target is EntityAgent victim) attacker.DidAttack(damage, victim);
         if (!damage.Blocked) session.Feedback = hit ? "warbandcombat:hit" : "warbandcombat:miss";
+        if (hit && !damage.Blocked) EmitContact(attacker, target, ContactKind.Hit);
     }
 
     internal void Guard(EntityPlayer defender, DamageSource source, ref float damage)
@@ -276,6 +282,7 @@ public sealed class CombatSystem : ModSystem
             SendState(enemyPlayer, enemySession, now);
         }
         var guardingSlot = shield ? defender.LeftHandItemSlot : defender.RightHandItemSlot;
+        var guardItem = guardingSlot.Itemstack?.Collectible;
         guardingSlot.Itemstack?.Collectible.DamageItem(server.World, defender, guardingSlot,
             shield ? CombatRules.ShieldWear(blockedDamage) : 1);
         if (shield && !CombatShields.Equipped(defender))
@@ -283,7 +290,35 @@ public sealed class CombatSystem : ModSystem
             fighter.SetShield(false, now); fighter.Stun(now, CombatRules.ShieldBreak);
             session.Feedback = "warbandcombat:shield-break";
         }
+        EmitContact(attacker, defender, session.Feedback == "warbandcombat:shield-break" ? ContactKind.ShieldBreak
+            : shield ? ContactKind.Shield : ContactKind.Parry, guardItem, blockedDamage >= 6);
         SendState(player, session, now);
+    }
+
+    private void PlaySwing(IServerPlayer player, Session session, long now)
+    {
+        var f = session.Fighter;
+        if (server == null || f.Phase != Phase.Swing || now < f.StrikeStarts || session.SwingSoundAt == f.ContactEnds) return;
+        session.SwingSoundAt = f.ContactEnds;
+        var pos = player.Entity.Pos;
+        // The owner predicts the same sound locally; only observers need this copy.
+        server.World.PlaySoundAt(CombatFeedback.SwingSound, pos.X, pos.Y + 1, pos.Z, player, true, 16, .45f);
+    }
+
+    private void EmitContact(Entity attacker, Entity defender, ContactKind kind,
+        CollectibleObject? guard = null, bool heavy = false)
+    {
+        if (server == null) return;
+        var pos = defender.Pos;
+        // DestroyItem already emits the break sound; do not duplicate it.
+        if (kind != ContactKind.ShieldBreak)
+            server.World.PlaySoundAt(CombatFeedback.ContactSound(kind, guard, heavy), pos.X,
+                pos.Y + defender.LocalEyePos.Y * .65, pos.Z, null, true, 20, kind == ContactKind.Hit ? .65f : .8f);
+        var packet = new ContactPacket { Id = ++contactSequence, Attacker = attacker.EntityId,
+            Defender = defender.EntityId, Kind = kind };
+        if ((attacker as EntityPlayer)?.Player is IServerPlayer attacking) channel?.SendPacket(packet, attacking);
+        if (defender != attacker && (defender as EntityPlayer)?.Player is IServerPlayer defending)
+            channel?.SendPacket(packet, defending);
     }
 
     private void SendState(IServerPlayer player, Session session, long now)
@@ -327,14 +362,17 @@ public sealed class CombatSystem : ModSystem
             || target.EntityId == player.Entity.EntityId || target.Pos.Dimension != player.Entity.Pos.Dimension) return false;
         if (target is EntityPlayer && (!server.Server.Config.AllowPvP || !player.HasPrivilege("attackplayers"))) return false;
         if (target is not EntityPlayer && !player.HasPrivilege("attackcreatures")) return false;
-        return GetSession(player).Fighter.TakeHit(server.World.ElapsedMilliseconds);
+        var session = GetSession(player);
+        PlaySwing(player, session, server.World.ElapsedMilliseconds);
+        return session.Fighter.TakeHit(server.World.ElapsedMilliseconds);
     }
 
-    internal void PhysicalFeedback(IServerPlayer player, bool blocked, bool hit)
+    internal void PhysicalFeedback(IServerPlayer player, Entity target, bool blocked, bool hit)
     {
         if (server == null) return;
         var session = GetSession(player);
         if (!blocked) session.Feedback = hit ? "warbandcombat:hit" : "warbandcombat:miss";
+        if (hit && !blocked) EmitContact(player.Entity, target, ContactKind.Hit);
         SendState(player, session, server.World.ElapsedMilliseconds);
     }
 

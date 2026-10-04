@@ -5,16 +5,30 @@ using WarbandCombat;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Server;
+using HarmonyLib;
+using CombatOverhaul.MeleeSystems;
+using CombatOverhaul.DamageSystems;
+using CombatOverhaul.Implementations;
+using CombatOverhaul.Colliders;
+using OpenTK.Mathematics;
+using Vintagestory.API.Datastructures;
 
 int checks = 0;
 void Check(bool value, string message) { if (!value) throw new Exception(message); checks++; }
 const BindingFlags all = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 long now = 1200;
 IServerPlayer? owner = null;
+var playedSounds = new List<AssetLocation>();
+object? RecordSound(object?[]? args)
+{
+    if (args?[0] is AssetLocation sound) playedSounds.Add(sound);
+    return null;
+}
 var world = Stub.Make<IServerWorldAccessor>((method, args) => method.Name switch
 {
     "get_ElapsedMilliseconds" => now,
     "PlayerByUid" => owner,
+    "PlaySoundAt" => RecordSound(args),
     _ => Stub.Default(method.ReturnType)
 });
 var api = Stub.Make<ICoreServerAPI>((method, args) => method.Name switch
@@ -48,11 +62,25 @@ foreach (bool raised in new[] { false, true })
     sourceType.GetField("Direction")!.SetValue(source, direction);
     source.SourceEntity = attacker; source.Type = EnumDamageType.SlashingAttack;
     object[] parameters = { defender, source, 4f };
+    playedSounds.Clear();
     typeof(CombatSystem).GetMethod("Guard", all)!.Invoke(system, parameters);
     bool blocked = raised && front;
     Check((float)parameters[2] == (blocked ? 0 : 4), $"Production guard: armed={armed} direction={direction} front={front} raised={raised}");
     Check(shield.Wear == (blocked ? 4 : 0), "Production guard wears the actual left-hand shield exactly once");
     Check((bool)sourceType.GetProperty("Blocked")!.GetValue(source)! == blocked, "Production guard reports blocked metadata");
+    Check(playedSounds.Count == (blocked ? 1 : 0), "Only a real block produces one contact sound");
+    // Exercise the engine entry as well: this counter/animation paints the player red.
+    shield.Wear = 0;
+    sourceType.GetProperty("Blocked")!.SetValue(source, false);
+    var behaviorType = typeof(CombatSystem).Assembly.GetType("WarbandCombat.GuardBehavior")!;
+    defender.SidedProperties.Behaviors.Add((EntityBehavior)Activator.CreateInstance(behaviorType,
+        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new object[] { defender, system }, null)!);
+    playedSounds.Clear();
+    bool received = defender.ReceiveDamage(source, 4);
+    Check(received == !blocked, "Engine damage entry distinguishes blocked contact from a body hit");
+    Check(defender.WatchedAttributes.GetInt("onHurtCounter") == (blocked ? 0 : 1), "Blocked contact never increments the authoritative hurt counter");
+    Check(defender.Manager.Hurts == (blocked ? 0 : 1), "Blocked contact never starts the authoritative hurt animation");
+    Check(playedSounds.Count == (blocked ? 1 : 0), "Engine entry never duplicates contact sound");
 }
 Console.WriteLine($"PASS: {checks} production server shield checks");
 
@@ -85,6 +113,46 @@ runner.Controls.Sprint = runner.ServerControls.Sprint = true;
 movement.GetMethod("BeforeWalkSpeed", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, new object[] { runner });
 Check(runner.Controls.Sprint && runner.ServerControls.Sprint, "Physics entry permits sprint after cooldown expires");
 Console.WriteLine("PASS: 8 production movement checks");
+
+int predictionChecks = 0;
+void PredictionCheck(bool condition, string message) { Check(condition, message); predictionChecks++; }
+var prediction = typeof(CombatSystem).Assembly.GetType("WarbandCombat.CombatPrediction")!;
+var predictionPatch = new Harmony("warband.tests.prediction");
+prediction.GetMethod("Patch", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, new object[] { predictionPatch });
+var clientApi = Stub.Make<ICoreAPI>((method, args) => method.Name == "get_Side" ? EnumAppSide.Client : Stub.Default(method.ReturnType));
+var predictedTarget = new Holder { Api = clientApi, World = world, Alive = true, EntityId = 41 };
+var realTarget = new Holder { Api = api, World = world, Alive = true, EntityId = 42 };
+var hitSource = new DamageSource { Type = EnumDamageType.SlashingAttack };
+IDisposable Scope() => (IDisposable)prediction.GetMethod("Begin", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, null)!;
+try
+{
+    using (Scope())
+    {
+        PredictionCheck(!predictedTarget.ReceiveDamage(hitSource, 4), "Owned collision probe suppresses speculative ReceiveDamage");
+        PredictionCheck(predictedTarget.WatchedAttributes.GetInt("onHurtCounter") == 0 && predictedTarget.Manager.Hurts == 0,
+            "Owned probe produces neither red flash nor hurt animation");
+        PredictionCheck(realTarget.ReceiveDamage(hitSource, 4), "Server damage is never suppressed by the prediction scope");
+        using (Scope()) PredictionCheck(!predictedTarget.ReceiveDamage(hitSource, 4), "Nested prediction scopes remain suppressed");
+        PredictionCheck(!predictedTarget.ReceiveDamage(hitSource, 4), "Inner scope disposal preserves the outer suppression");
+        var nativeDamage = new MeleeDamageType(new MeleeDamageTypeJson
+            { Damage = new DamageDataJson { Damage = 4, DamageType = "SlashingAttack", Tier = 1 } });
+        var attacking = new Holder { Api = clientApi, World = world, Alive = true, EntityId = 40 };
+        PredictionCheck(nativeDamage.Attack(attacking, predictedTarget, Vector3d.Zero, "torso", out var packet,
+            true, ColliderTypes.Torso, new ItemStackMeleeWeaponStats()), "Native CO still consumes and reports physical contact when prediction returns false");
+        PredictionCheck(packet.TargetEntityId == 41 && packet.Damage > 0,
+            "Native CO still builds a valid damage packet for server adjudication");
+        PredictionCheck(predictedTarget.WatchedAttributes.GetInt("onHurtCounter") == 0,
+            "Real native CO attack no longer paints a speculative body hit");
+    }
+    PredictionCheck(predictedTarget.ReceiveDamage(hitSource, 4), "Ordinary client damage outside owned collision is unchanged");
+    PredictionCheck(predictedTarget.WatchedAttributes.GetInt("onHurtCounter") == 1,
+        "Real client damage can still produce its hurt counter");
+    try { using (Scope()) throw new InvalidOperationException("test scope unwind"); }
+    catch (InvalidOperationException) { }
+    PredictionCheck(predictedTarget.ReceiveDamage(hitSource, 4), "Exception unwind cannot leave damage prediction globally suppressed");
+}
+finally { predictionPatch.UnpatchAll(predictionPatch.Id); }
+Console.WriteLine($"PASS: {predictionChecks} native prediction and damage presentation checks");
 
 public class Stub : DispatchProxy
 {
@@ -146,8 +214,10 @@ public class Stub : DispatchProxy
 }
 public class Holder : EntityPlayer
 {
-    private readonly AnimationManager manager = new QuietAnimationManager();
-    public override IAnimationManager AnimManager { get => manager; set { } }
+    public readonly QuietAnimationManager Manager = new();
+    public Holder() { Properties = new EntityProperties { Server = new EntityServerProperties(Array.Empty<JsonObject>(), new()) }; }
+    public override bool ShouldReceiveDamage(DamageSource source, float damage) => true;
+    public override IAnimationManager AnimManager { get => Manager; set { } }
     public readonly ItemSlot Left = new ItemSlot(null), Right = new ItemSlot(null);
     public override ItemSlot LeftHandItemSlot => Left;
     public override ItemSlot RightHandItemSlot => Right;
@@ -160,6 +230,7 @@ public class ShieldItem : Item
 
 public class QuietAnimationManager : AnimationManager
 {
-    public override bool StartAnimation(string code) => true;
+    public int Hurts;
+    public override bool StartAnimation(string code) { if (code == "hurt") Hurts++; return true; }
     public override void StopAnimation(string code) { }
 }

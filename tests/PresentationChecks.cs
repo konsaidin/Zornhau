@@ -65,10 +65,16 @@ internal static class PresentationChecks
         {
             var player = new TestPlayer();
             var fighter = new Fighter();
+            var sounds = new CombatPresentation();
+            sounds.Begin();
             fighter.Apply(Command.Begin, direction, 1000, timing);
+            Check(!sounds.PlaySwingSound(fighter, 1000), "A chamber does not play an attack sound");
             CombatAnimations.Update(player, fighter, 1000);
             fighter.Apply(Command.Release, direction, 1001, timing);
             long swingStart = 1000 + timing.Windup;
+            Check(!sounds.PlaySwingSound(fighter, swingStart - 1) && sounds.PlaySwingSound(fighter, swingStart),
+                "The attack sound plays when the actual cut starts, including quick taps");
+            Check(!sounds.PlaySwingSound(fighter, swingStart + 1), "Repeated presentation updates cannot replay the attack sound");
             CombatAnimations.Update(player, fighter, swingStart);
             player.Manager.ActiveAnimationsByAnimCode.Clear(); // A finished engine clip.
             for (long now = swingStart + 20; now <= fighter.ContactEnds; now += 20)

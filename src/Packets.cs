@@ -31,3 +31,14 @@ public sealed class StatePacket
     [ProtoMember(14)] public long ServerSentAt { get; set; }
     [ProtoMember(15)] public int SprintIn { get; set; }
 }
+
+public enum ContactKind { Hit, Parry, Shield, ShieldBreak }
+
+[ProtoContract]
+public sealed class ContactPacket
+{
+    [ProtoMember(1)] public long Id { get; set; }
+    [ProtoMember(2)] public long Attacker { get; set; }
+    [ProtoMember(3)] public long Defender { get; set; }
+    [ProtoMember(4)] public ContactKind Kind { get; set; }
+}

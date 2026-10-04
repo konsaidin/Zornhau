@@ -303,7 +303,7 @@ internal sealed class OverhaulBridge : ICombatIntegration
     {
         if (!contacts.TryGetValue(args.DamageSource, out var contact)
             || args.DamageSource.SourceEntity is not EntityPlayer attacker || attacker.Player is not IServerPlayer player) return;
-        combat.PhysicalFeedback(player, contact.Blocked, args.DamageReceived);
+        combat.PhysicalFeedback(player, args.Target, contact.Blocked, args.DamageReceived);
     }
 
     public void AssetsReady()
@@ -477,8 +477,11 @@ internal sealed class OverhaulBridge : ICombatIntegration
         var slot = player.RightHandItemSlot;
         if (slot.Itemstack == null) return;
         if (!fighter.CanHit(now)) { collisionAttack.PrepareColliders(player.Player, slot, true); return; }
-        contactSent = collisionAttack.Attack(player.Player, slot, true, out _, out _,
-            ItemStackMeleeWeaponStats.FromItemStack(slot.Itemstack), NativeDirection(fighter.Direction), true);
+        using (CombatPrediction.Begin())
+        {
+            contactSent = collisionAttack.Attack(player.Player, slot, true, out _, out _,
+                ItemStackMeleeWeaponStats.FromItemStack(slot.Itemstack), NativeDirection(fighter.Direction), true);
+        }
         if (contactSent) fighter.TakeHit(now);
     }
 
