@@ -26,7 +26,7 @@ internal sealed class OverhaulBridge : ICombatIntegration
     private readonly Dictionary<int, MeleeWeaponStats> singleStats = new();
     private readonly Dictionary<int, MeleeWeaponModeCollectionStats> modeStats = new();
     private AnimationsManager? animations;
-    private string? playing, collisionKey;
+    private string? playing, shieldPlaying, collisionKey;
     private MeleeAttack? collisionAttack;
     private bool contactSent;
     private static OverhaulBridge? clientBridge, serverBridge;
@@ -47,6 +47,12 @@ internal sealed class OverhaulBridge : ICombatIntegration
         if (api is ICoreClientAPI)
         {
             clientBridge = this;
+            // The native renderer has an immersive branch; keep the player's
+            // chosen camera mode instead of CO forcing ordinary first person.
+            var system = api.ModLoader.GetModSystem<CombatOverhaulSystem>();
+            system.Settings.SwitchFromImmersiveFirstPerson = false;
+            system.SettingsLoaded += PreserveImmersive;
+            system.SettingsChanged += PreserveImmersive;
             Patch(typeof(ActionListener), "HandleMouseEvents", nameof(MousePrefix));
             Patch(typeof(ActionListener), "CallSubscriptions", nameof(ActionPrefix));
             Patch(typeof(DirectionCursorRenderer), "OnRenderFrame", nameof(CursorPrefix));
@@ -54,6 +60,7 @@ internal sealed class OverhaulBridge : ICombatIntegration
             Patch(typeof(MeleeWeaponClient), "OnMouseWheel", nameof(GripPrefix));
             Patch(typeof(MeleeWeaponClient), "Attack", nameof(NativeMeleePrefix));
             Patch(typeof(MeleeWeaponClient), "Block", nameof(NativeMeleePrefix));
+            Patch(typeof(FirstPersonAnimationsBehavior), "IsImmersiveFirstPerson", nameof(ImmersivePrefix));
         }
         else
         {
@@ -70,6 +77,9 @@ internal sealed class OverhaulBridge : ICombatIntegration
         }
         api.Logger.Notification("[Warband Combat] CO adapter initialized; Warband controls attacks and guards.");
     }
+
+    private static void PreserveImmersive(Settings settings)
+        => settings.SwitchFromImmersiveFirstPerson = false;
 
     private void Patch(Type type, string method, string prefix)
         => harmony.Patch(AccessTools.Method(type, method) ?? throw new MissingMethodException(type.FullName, method),
@@ -95,6 +105,15 @@ internal sealed class OverhaulBridge : ICombatIntegration
     {
         if (clientBridge?.OwnsInput != true) return true;
         __result = false; return false;
+    }
+    private static bool ImmersivePrefix(Entity entity, ref bool __result)
+    {
+        if (entity.Api is not ICoreClientAPI client || entity != client.World.Player?.Entity) return true;
+        // Ready/idle requests bypass CO's cached camera-setting refresh. Read the
+        // live option so equipping Armory and toggling the option both work.
+        __result = client.Settings.Bool["immersiveFpMode"]
+            && client.World.Player.CameraMode == EnumCameraMode.FirstPerson;
+        return false;
     }
     private static bool BlockPrefix(IServerPlayer player)
         => !CombatSystem.Supported(player.Entity.RightHandItemSlot.Itemstack?.Collectible);
@@ -308,12 +327,46 @@ internal sealed class OverhaulBridge : ICombatIntegration
         return "warbandcombat:warband-swing-" + direction.ToString().ToLowerInvariant();
     }
 
+    private bool AnimateShield(EntityPlayer player, Fighter fighter, long now, string? action,
+        FirstPersonAnimationsBehavior? fp, ThirdPersonAnimationsBehavior? tp)
+    {
+        bool guarding = action == "block" && fighter.ShieldGuard && CombatShields.Equipped(player);
+        if (!guarding)
+        {
+            if (shieldPlaying != null)
+            {
+                if (!CombatShields.Equipped(player)) { fp?.Stop("mainOffhand"); tp?.Stop("mainOffhand"); }
+                fp?.PlayReadyAnimation(false); tp?.PlayReadyAnimation(false);
+                shieldPlaying = null;
+            }
+            return false;
+        }
+        var stack = player.LeftHandItemSlot.Itemstack!;
+        if (!singleStats.TryGetValue(stack.Collectible.Id, out var stats))
+            singleStats[stack.Collectible.Id] = stats = stack.ItemAttributes.AsObject<MeleeWeaponStats>() ?? new();
+        string source = stats.OffHandStance?.BlockAnimation ?? stats.OffHandStance?.ParryAnimation
+            ?? "combatoverhaul:shield-light-parry";
+        string clip = OverhaulPhaseAnimations.Code(source, "windup");
+        string key = stack.Collectible.Id + ":" + clip;
+        if (shieldPlaying == key) return true;
+        if (fp == null || tp == null || animations?.Animations.TryGetValue(clip, out var animation) != true) return false;
+        // Cancel a feinted chamber, then leave the weapon in its normal grip.
+        if (playing != null) { fp.PlayReadyAnimation(); tp.PlayReadyAnimation(); playing = null; }
+        collisionKey = null; collisionAttack = null;
+        double remaining = Math.Max(40, fighter.Started + CombatRules.ShieldRaise - now);
+        var request = new AnimationRequestByCode(clip, (float)(animation!.TotalDuration.TotalMilliseconds / remaining), 1,
+            "mainOffhand", TimeSpan.FromMilliseconds(35), TimeSpan.FromMilliseconds(80), false);
+        fp.Play(request, false); tp.Play(request, false); shieldPlaying = key;
+        return true;
+    }
+
     public bool Animate(EntityPlayer player, Fighter fighter, long now, string? action)
     {
         bool physical = player.RightHandItemSlot.Itemstack is { } stack && UsesPhysicalContacts(stack.Collectible);
         if (api is not ICoreClientAPI client || player != client.World.Player?.Entity) return physical;
         var fp = player.GetBehavior<FirstPersonAnimationsBehavior>();
         var tp = player.GetBehavior<ThirdPersonAnimationsBehavior>();
+        if (AnimateShield(player, fighter, now, action, fp, tp)) return true;
         if (!physical || action == null)
         {
             if (playing != null)
@@ -339,9 +392,11 @@ internal sealed class OverhaulBridge : ICombatIntegration
         if (source == null) return twoHanded;
         string clip;
         bool fallback = source.StartsWith("warbandcombat:warband-");
-        if (fallback) clip = "warbandcombat:warband-" + action + "-" + fighter.Direction.ToString().ToLowerInvariant();
+        if (fallback) clip = "warbandcombat:warband-" + (action == "recovery" ? "return" : action) + "-"
+            + fighter.Direction.ToString().ToLowerInvariant();
         else clip = OverhaulPhaseAnimations.Code(source,
-            action == "block" ? "block-" + fighter.Direction.ToString().ToLowerInvariant() : action, fighter.Timing.Strike);
+            action == "block" ? "block-" + fighter.Direction.ToString().ToLowerInvariant()
+                : action == "recovery" ? "return" : action, fighter.Timing.Strike);
         string key = player.RightHandItemSlot.Itemstack!.Collectible.Id + ":" + WeaponMode(player) + ":" + clip;
         if (playing == key) return true;
         if (!animations.Animations.TryGetValue(clip, out var animation)) return false;
@@ -349,7 +404,7 @@ internal sealed class OverhaulBridge : ICombatIntegration
         double remaining = action switch
         {
             "windup" => Math.Max(40, fighter.Started + fighter.Timing.Windup - now),
-            "swing" => Math.Max(40, fighter.HitAt + CombatRules.ContactWindow - now),
+            "swing" => Math.Max(40, fighter.ContactEnds - now),
             "recovery" => Math.Max(40, fighter.Ends - now),
             _ => CombatRules.GuardRaise
         };
@@ -388,7 +443,12 @@ internal sealed class OverhaulBridge : ICombatIntegration
         if (meleeServer != null)
         { meleeServer.OnDealMeleeDamage -= BeforeDamage; meleeServer.OnMeleeDamageResolved -= DamageResolved; }
         harmony.UnpatchAll(harmony.Id);
-        if (clientBridge == this) clientBridge = null;
+        if (clientBridge == this)
+        {
+            var system = api.ModLoader.GetModSystem<CombatOverhaulSystem>();
+            system.SettingsLoaded -= PreserveImmersive; system.SettingsChanged -= PreserveImmersive;
+            clientBridge = null;
+        }
         if (serverBridge == this) serverBridge = null;
     }
 }

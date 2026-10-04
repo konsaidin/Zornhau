@@ -22,7 +22,7 @@ internal sealed class CombatPresentation
     internal static string? CombatAnimationsAction(Fighter fighter, long now) => fighter.Phase switch
     {
         Phase.Windup => "windup",
-        Phase.Swing => now < fighter.HitAt - fighter.Timing.Strike ? "windup" : "swing",
+        Phase.Swing => now < fighter.StrikeStarts ? "windup" : "swing",
         Phase.Block => "block",
         Phase.Recovery when fighter.RecoveryAttackPose => "recovery",
         _ => null

@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../src/CombatModel.cs" Link="CombatModel.cs" />
+    <Compile Include="../../src/CombatPresentation.cs" Link="CombatPresentation.cs" />
     <Compile Include="../../src/OverhaulPhaseAnimations.cs" Link="OverhaulPhaseAnimations.cs" />
     <Compile Include="../../src/OverhaulAnimationResolver.cs" Link="OverhaulAnimationResolver.cs" />
     <Reference Include="VintagestoryAPI"><HintPath>$(VSPath)/VintagestoryAPI.dll</HintPath></Reference>

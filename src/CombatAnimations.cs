@@ -29,7 +29,7 @@ internal static class CombatAnimations
         (from prefix in new[] { "warband", "warband-body" }
          from action in new[] { "windup", "swing", "block", "recovery" }
          from direction in Enum.GetValues<Direction>()
-         select $"{prefix}-{action}-{direction.ToString().ToLowerInvariant()}").ToArray();
+         select $"{prefix}-{action}-{direction.ToString().ToLowerInvariant()}").Append("raiseshield-left").ToArray();
 
     internal static void Update(EntityPlayer player, Fighter fighter, long now, CombatPresentation? presentation = null,
         ICombatIntegration? integration = null)
@@ -38,7 +38,8 @@ internal static class CombatAnimations
             : CombatPresentation.CombatAnimationsAction(fighter, now);
         bool native = integration?.Animate(player, fighter, now, action) == true;
         string prefix = native ? "warband-body" : "warband";
-        string? desired = action == null ? null : $"{prefix}-{action}-{fighter.Direction.ToString().ToLowerInvariant()}";
+        string? desired = !native && action == "block" && fighter.ShieldGuard ? "raiseshield-left"
+            : action == null ? null : $"{prefix}-{action}-{fighter.Direction.ToString().ToLowerInvariant()}";
         if (!selections.GetOrCreateValue(player).Change(desired)) return;
         foreach (string code in Codes)
             if (code != desired && player.AnimManager.IsAnimationActive(code)) player.AnimManager.StopAnimation(code);

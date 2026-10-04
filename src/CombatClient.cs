@@ -18,6 +18,7 @@ internal sealed class CombatClient : IRenderer
     internal Direction Direction;
     internal bool Enabled = true;
     private bool forcePvpCombat;
+    private bool choosingShieldBlock;
     private bool left, right;
     private int sequence;
     private int ownedSlot = -1;
@@ -73,6 +74,8 @@ internal sealed class CombatClient : IRenderer
         get
         {
             var player = api.World.Player;
+            if ((right || choosingShieldBlock) && player?.Entity is { } equipped
+                && CombatShields.Equipped(equipped)) return false;
             var target = player?.CurrentEntitySelection?.Entity;
             var tool = player?.Entity?.RightHandItemSlot.Itemstack?.Collectible.Tool;
             // Decide at the start of a gesture. Moving the crosshair off a live
@@ -97,6 +100,8 @@ internal sealed class CombatClient : IRenderer
     {
         if (!channel.Connected) return;
         var item = api.World.Player?.Entity.RightHandItemSlot.Itemstack?.Collectible;
+        if (api.World.Player?.Entity is { } playerEntity)
+            Fighter.SetShield(CombatShields.Equipped(playerEntity), Now);
         if (item != null && Fighter.Apply(command, Direction, Now, CombatSystem.Timing(item)) && command == Command.Begin)
             presentation.Begin();
         channel.SendPacket(new InputPacket { Command = (int)command, Direction = (int)Direction,
@@ -106,9 +111,13 @@ internal sealed class CombatClient : IRenderer
 
     private void MouseDown(MouseEvent e)
     {
-        if (e.Handled || !Active || e.Button is not (EnumMouseButton.Left or EnumMouseButton.Right)) return;
+        choosingShieldBlock = e.Button == EnumMouseButton.Right
+            && api.World.Player?.Entity is { } player && CombatShields.Equipped(player) && !player.Controls.Sneak;
+        bool active = Active;
+        choosingShieldBlock = false;
+        if (e.Handled || !active || e.Button is not (EnumMouseButton.Left or EnumMouseButton.Right)) return;
         e.Handled = true;
-        ownedStack = api.World.Player.Entity.RightHandItemSlot.Itemstack;
+        ownedStack = api.World.Player!.Entity.RightHandItemSlot.Itemstack;
         ownedOffhand = api.World.Player.Entity.LeftHandItemSlot.Itemstack;
         ownedSlot = api.World.Player.InventoryManager.ActiveHotbarSlotNumber;
         ownedMode = Integration?.WeaponMode(api.World.Player.Entity) ?? "";
@@ -155,7 +164,7 @@ internal sealed class CombatClient : IRenderer
         bool changed = ownedSlot >= 0 && (ownedSlot != api.World.Player.InventoryManager.ActiveHotbarSlotNumber
             || !ReferenceEquals(ownedStack, api.World.Player.Entity.RightHandItemSlot.Itemstack)
             || ownedMode != (Integration?.WeaponMode(api.World.Player.Entity) ?? "")
-            || Integration != null && !ReferenceEquals(ownedOffhand, api.World.Player.Entity.LeftHandItemSlot.Itemstack));
+            || !ReferenceEquals(ownedOffhand, api.World.Player.Entity.LeftHandItemSlot.Itemstack));
         if (!Active || changed)
         {
             if (left || right || Fighter.Phase is Phase.Windup or Phase.Block || changed && Fighter.Phase == Phase.Swing) Cancel();
@@ -165,7 +174,9 @@ internal sealed class CombatClient : IRenderer
             Send(Command.Aim); Send(Command.KeepAlive); lastHeartbeat = Now;
         }
         Fighter.Advance(Now);
+        if (api.World.Player?.Entity is { } shieldOwner) Fighter.SetShield(CombatShields.Equipped(shieldOwner), Now);
         if (Active && Fighter.Phase is Phase.Windup or Phase.Block
+            && !(Fighter.Phase == Phase.Block && Fighter.ShieldGuard)
             && Direction != Fighter.Direction && Now - lastAim >= 40)
         {
             Send(Command.Aim); lastAim = Now;
@@ -245,10 +256,12 @@ internal sealed class CombatClient : IRenderer
             float dy = i switch { 0 => -radius, 2 => radius, _ => 0 };
             api.Render.Render2DTexturePremultipliedAlpha(directionTextures[i].TextureId,
                 centerX + dx - size / 2, centerY + dy - size / 2, size, size, 50,
-                i == (int)display ? selectedColor : inactiveColor);
+                i == (int)display || Fighter.ShieldGuard && Fighter.Phase == Phase.Block ? selectedColor : inactiveColor);
         }
-        string state = Lang.Get(Fighter.Phase == Phase.Block && !Fighter.CanGuard(Now)
-            ? "warbandcombat:guard-raise" : "warbandcombat:phase-" + Fighter.Phase.ToString().ToLowerInvariant());
+        string state = Lang.Get(Fighter.Phase == Phase.Block && Fighter.ShieldGuard
+            ? Fighter.CanGuard(Now) ? "warbandcombat:shield-guard" : "warbandcombat:shield-raise"
+            : Fighter.Phase == Phase.Block && !Fighter.CanGuard(Now)
+                ? "warbandcombat:guard-raise" : "warbandcombat:phase-" + Fighter.Phase.ToString().ToLowerInvariant());
         string text = Now < feedbackUntil ? state + "\n" + feedback : state;
         if (text != lastText)
         {

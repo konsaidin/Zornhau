@@ -24,9 +24,9 @@ internal static class ContactWindowChecks
                 return f;
             }
             var early = Swing();
-            long opens = timing.Windup + timing.Strike;
-            long closes = opens + 50;
-            Check(early.HitAt == opens && early.ContactEnds == closes, "Contact must not begin before the existing windup/strike deadline");
+            long opens = timing.Windup + (timing.PhysicalContacts ? 0 : timing.Strike);
+            long closes = timing.Windup + timing.Strike + 50;
+            Check(early.HitAt == opens && early.ContactEnds == closes, "Contact starts after full windup: physical cut or standalone strike deadline");
             Check(!early.CanHit(opens - 1) && !early.TakeHit(opens - 1), "No early contact while raising or moving the weapon");
             Check(early.TakeHit(opens) && early.Phase == Phase.Recovery && early.RecoveryAttackPose,
                 "The first contact must immediately end the swing");

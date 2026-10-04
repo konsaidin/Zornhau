@@ -4,7 +4,7 @@
   "name": "Warband Combat",
   "authors": ["dead"],
   "description": "Four-direction melee, held windups, manual parries and feints. Experimental combat prototype.",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "side": "Universal",
   "requiredOnClient": true,
   "requiredOnServer": true,

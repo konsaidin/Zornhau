@@ -13,5 +13,9 @@
   "parry": "Parried!",
   "blocked": "Attack blocked",
   "pvp-required": "Directional combat is required in PvP worlds. Shift keeps vanilla block interactions.",
-  "guard-raise": "Raising guard"
+  "guard-raise": "Raising guard",
+  "shield-guard": "Shield raised",
+  "shield-raise": "Raising shield",
+  "shield-block": "Shield blocked the hit",
+  "shield-break": "Shield broken!"
 }

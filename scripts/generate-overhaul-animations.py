@@ -37,6 +37,10 @@ for patch in patches:
                 frames.append({'EasingTime': frame['frame'] / length * 1000,
                                'EasingFunction': 'Sin', 'PitchFollow': True, 'Elements': elements})
             fallback['warbandcombat:' + code] = {'Hold': True, 'PlayerKeyFrames': frames}
+            if action == 'recovery':
+                rest = deepcopy(frames[-1]); rest['EasingTime'] = 1000
+                fallback['warbandcombat:' + code.replace('-recovery-', '-return-')] = {
+                    'Hold': True, 'PlayerKeyFrames': [rest]}
     else:
         v['animation'] = v['code']
         for field in ('elementWeight', 'elementBlendMode'):

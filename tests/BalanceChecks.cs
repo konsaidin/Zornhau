@@ -26,7 +26,7 @@ internal static class BalanceChecks
             aimed.Apply(Command.KeepAlive, initial, 600, timing);
             aimed.Apply(Command.Aim, final, 700, timing);
             aimed.Apply(Command.Release, final, 701, timing);
-            long expected = (initial == final ? 701 : 700 + timing.Windup) + timing.Strike;
+            long expected = (initial == final ? 701 : 700 + timing.Windup) + (timing.PhysicalContacts ? 0 : timing.Strike);
             Check(aimed.HitAt == expected, "A direction switch must re-wind; same-direction heartbeat must not re-wind");
             Check(!aimed.TakeHit(expected - 1) && aimed.TakeHit(expected), "Contact must respect the renewed windup exactly");
 
@@ -34,7 +34,7 @@ internal static class BalanceChecks
             released.Apply(Command.Begin, initial, 0, timing);
             released.Apply(Command.KeepAlive, initial, 600, timing);
             released.Apply(Command.Release, final, 701, timing);
-            Check(released.HitAt == 701 + (initial == final ? 0 : timing.Windup) + timing.Strike,
+            Check(released.HitAt == 701 + (initial == final ? 0 : timing.Windup) + (timing.PhysicalContacts ? 0 : timing.Strike),
                 "Release itself cannot smuggle a changed direction past windup");
             long ends = released.Ends;
             foreach (Command command in new[] { Command.Aim, Command.Begin, Command.Block, Command.Cancel })

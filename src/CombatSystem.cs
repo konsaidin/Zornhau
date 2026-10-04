@@ -128,13 +128,14 @@ public sealed class CombatSystem : ModSystem
             session.Fighter.Invalidate(now); SendState(player, session, now); return;
         }
         if (!ReferenceEquals(session.Weapon, slot.Itemstack) || session.Slot != player.InventoryManager.ActiveHotbarSlotNumber
-            || Integration != null && !ReferenceEquals(session.Offhand, entity.LeftHandItemSlot.Itemstack))
+            || !ReferenceEquals(session.Offhand, entity.LeftHandItemSlot.Itemstack))
         {
             session.Fighter.Invalidate(now);
             session.Weapon = slot.Itemstack;
             session.Offhand = entity.LeftHandItemSlot.Itemstack;
             session.Slot = player.InventoryManager.ActiveHotbarSlotNumber;
         }
+        session.Fighter.SetShield(CombatShields.Equipped(entity), now);
         session.Fighter.Apply(command, (Direction)packet.Direction, now, Timing(slot.Itemstack!.Collectible));
         SendState(player, session, now);
     }
@@ -151,8 +152,9 @@ public sealed class CombatSystem : ModSystem
             Integration?.ClearNativeBlock(entity);
             if (!entity.Alive || entity.Controls.Sneak && !ForcePvpCombat || !ReferenceEquals(session.Weapon, slot.Itemstack)
                 || session.Slot != player.InventoryManager.ActiveHotbarSlotNumber
-                || Integration != null && !ReferenceEquals(session.Offhand, entity.LeftHandItemSlot.Itemstack))
+                || !ReferenceEquals(session.Offhand, entity.LeftHandItemSlot.Itemstack))
                 session.Fighter.Invalidate(now);
+            session.Fighter.SetShield(CombatShields.Equipped(entity), now);
             bool windowExpired = session.Fighter.Phase == Phase.Swing && now > session.Fighter.ContactEnds;
             session.Fighter.Advance(now);
             if (windowExpired) session.Feedback = "warbandcombat:miss";
@@ -238,28 +240,38 @@ public sealed class CombatSystem : ModSystem
         fighter.Advance(now);
         if (!fighter.CanGuard(now) || !defender.Alive || defender.Controls.Sneak && !ForcePvpCombat
             || !ReferenceEquals(session.Weapon, defender.RightHandItemSlot.Itemstack)
+            || !ReferenceEquals(session.Offhand, defender.LeftHandItemSlot.Itemstack)
             || session.Slot != player.InventoryManager.ActiveHotbarSlotNumber) return;
-        // Environmental damage and projectiles cannot be stopped by a weapon parry.
+        // This first shield implementation covers melee contacts.
         if (source.Type is not (EnumDamageType.SlashingAttack or EnumDamageType.PiercingAttack or EnumDamageType.BluntAttack)
             || source.SourceEntity is not EntityAgent attacker) return;
         // Neutral PLAYER pitch is PI. Pitch 0 points behind the player's model.
+        bool shield = fighter.ShieldGuard && CombatShields.Equipped(defender);
         var forward = Fighter.PlayerForward(defender.Pos.Yaw);
         if (attacker.Pos.Dimension != defender.Pos.Dimension
             || !Fighter.Faces(forward.X, forward.Z, attacker.Pos.X - defender.Pos.X,
-                attacker.Pos.Z - defender.Pos.Z)) return;
+                attacker.Pos.Z - defender.Pos.Z, shield ? .5 : .35)) return;
         var incoming = directedDamage?.AttackDirection ?? Direction.Overhead;
-        if (fighter.Direction != Fighter.GuardFor(incoming)) return;
+        if (!CombatRules.GuardCovers(shield, fighter.Direction, incoming)) return;
+        float blockedDamage = damage;
         damage = 0; source.KnockbackStrength = 0;
-        session.Feedback = "warbandcombat:parry";
+        session.Feedback = shield ? "warbandcombat:shield-block" : "warbandcombat:parry";
         if (directedDamage != null) directedDamage.Blocked = true;
         if (attacker is EntityPlayer enemy && enemy.Player is IServerPlayer enemyPlayer
             && sessions.TryGetValue(enemyPlayer.PlayerUID, out var enemySession))
         {
-            enemySession.Fighter.Stun(now, CombatRules.ParryStun);
+            enemySession.Fighter.Stun(now, shield ? CombatRules.ShieldBounce : CombatRules.ParryStun);
             enemySession.Feedback = "warbandcombat:blocked";
             SendState(enemyPlayer, enemySession, now);
         }
-        defender.RightHandItemSlot.Itemstack?.Collectible.DamageItem(server.World, defender, defender.RightHandItemSlot, 1);
+        var guardingSlot = shield ? defender.LeftHandItemSlot : defender.RightHandItemSlot;
+        guardingSlot.Itemstack?.Collectible.DamageItem(server.World, defender, guardingSlot,
+            shield ? CombatRules.ShieldWear(blockedDamage) : 1);
+        if (shield && !CombatShields.Equipped(defender))
+        {
+            fighter.SetShield(false, now); fighter.Stun(now, CombatRules.ShieldBreak);
+            session.Feedback = "warbandcombat:shield-break";
+        }
         SendState(player, session, now);
     }
 

@@ -36,7 +36,7 @@ internal static class OverhaulPhaseAnimations
             var beginning = Clone(frames[chamber]); beginning.EasingTime = 0; swing.Add(beginning);
             if (end == chamber)
             {
-                var held = Clone(frames[chamber]); held.EasingTime = strike + CombatRules.ContactWindow; swing.Add(held);
+                var held = Clone(frames[chamber]); held.EasingTime = strike; swing.Add(held);
             }
             else
             {
@@ -47,10 +47,12 @@ internal static class OverhaulPhaseAnimations
                     var frame = Clone(frames[index]);
                     float fraction = (frames[index].EasingTime - frames[chamber].EasingTime)
                         / Math.Max(1, frames[end].EasingTime - frames[chamber].EasingTime);
-                    frame.EasingTime = fraction * (strike + CombatRules.ContactWindow);
+                    frame.EasingTime = fraction * strike;
                     swing.Add(frame);
                 }
             }
+            // Preserve a short tail for camera turning after the cut completes.
+            var tail = Clone(swing[^1]); tail.EasingTime = strike + CombatRules.ContactWindow; swing.Add(tail);
             result[Code(code, "swing", strike)] = Clip(swing.ToArray(), true);
         }
 
@@ -62,6 +64,9 @@ internal static class OverhaulPhaseAnimations
         recovery.Add(rest);
         Normalize(recovery.ToArray());
         result[Code(code, "recovery")] = Clip(recovery.ToArray(), true);
+        // A single target frame blends from the composer's current pose. An
+        // explicit end-of-cut frame would snap there after an early contact.
+        result[Code(code, "return")] = Clip(new[] { Clone(rest) }, true);
 
         foreach (Direction direction in Enum.GetValues<Direction>())
         {

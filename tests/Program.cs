@@ -55,3 +55,4 @@ BalanceChecks.Run();
 ContactWindowChecks.Run();
 ToolInteractionChecks.Run();
 PresentationChecks.Run();
+ShieldChecks.Run();

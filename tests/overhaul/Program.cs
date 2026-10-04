@@ -14,6 +14,15 @@ foreach (var (package, domain) in new[] { ("combatoverhaulfork_0.18.8", "combato
 foreach (var file in Directory.GetFiles(Path.Combine(root, $".artifacts/compat/unpacked/{package}/assets/{domain}/config/animations"), "*.json", SearchOption.AllDirectories))
     foreach (var (code, clip) in JsonConvert.DeserializeObject<Dictionary<string, AnimationJson>>(File.ReadAllText(file))!)
         source.TryAdd(code.Contains(':') ? code : domain + ":" + code, clip);
+foreach (var (code, original) in source.Where(kv => kv.Key.Contains("shield-")
+    && (kv.Key.Contains("parry") || kv.Key.Contains("block"))))
+{
+    var guard = OverhaulPhaseAnimations.Split(code, original)[OverhaulPhaseAnimations.Code(code, "windup")];
+    Check(guard.Hold && guard.CallbackFrames.Length == 0, code + ": held guard with no native block callbacks");
+    Check(guard.PlayerKeyFrames.Any(f => f.Elements.ContainsKey("UpperArmL")), code + ": shield drives left arm");
+    Check(guard.PlayerKeyFrames.All(f => !f.Elements.ContainsKey("UpperArmR")
+        && !f.Elements.ContainsKey("Head") && !f.Elements.ContainsKey("Neck")), code + ": shield leaves weapon and camera alone");
+}
 int twoHandedStances = 0;
 var coveredWeapons = new HashSet<string>();
 var items = Directory.GetFiles(Path.Combine(root,
@@ -60,6 +69,27 @@ foreach (var (code, original) in source)
     {
         var swing = split[OverhaulPhaseAnimations.Code(code, "swing", strike)];
         var recovery = split[OverhaulPhaseAnimations.Code(code, "recovery")];
+        var returnClip = split[OverhaulPhaseAnimations.Code(code, "return")].ToAnimation();
+        var compiledSwing = swing.ToAnimation();
+        var timing = new WeaponTiming(500, strike, 650) { PhysicalContacts = true };
+        var fighter = new Fighter();
+        fighter.Apply(Command.Begin, Direction.Right, 0, timing);
+        fighter.Apply(Command.Release, Direction.Right, 1, timing);
+        Check(CombatPresentation.CombatAnimationsAction(fighter, 499) == "windup",
+            code + ": quick taps retain the full telegraph");
+        Check(CombatPresentation.CombatAnimationsAction(fighter, 500) == "swing",
+            code + ": physical swing begins when contact becomes legal");
+        foreach (var frame in swing.PlayerKeyFrames)
+            Check(fighter.CanHit(500 + (long)frame.EasingTime), code + ": every blade pose is inside the physical window");
+        Check(swing.PlayerKeyFrames[^2].EasingTime == strike
+            && JsonConvert.SerializeObject(swing.PlayerKeyFrames[^2].Elements)
+                == JsonConvert.SerializeObject(swing.PlayerKeyFrames[^1].Elements), code + ": 50 ms turn tail retains the end pose");
+        var mid = compiledSwing.Interpolate(PlayerItemFrame.Zero, TimeSpan.FromMilliseconds(strike / 2));
+        var atReturnStart = returnClip.Interpolate(mid, TimeSpan.Zero);
+        Check(JsonConvert.SerializeObject(mid.Player) == JsonConvert.SerializeObject(atReturnStart.Player),
+            code + ": early-hit recovery preserves current pose");
+        Check(fighter.TakeHit(500 + strike / 2) && !fighter.CanHit(500 + strike / 2 + 1),
+            code + ": mid-cut contact ends attack immediately");
         Check(swing.PlayerKeyFrames[^1].EasingTime == strike + CombatRules.ContactWindow, code + ": contact window retiming");
         Check(JsonConvert.SerializeObject(windup.PlayerKeyFrames[^1].Elements) == JsonConvert.SerializeObject(swing.PlayerKeyFrames[0].Elements), code + ": windup must meet swing");
         Check(JsonConvert.SerializeObject(swing.PlayerKeyFrames[^1].Elements) == JsonConvert.SerializeObject(recovery.PlayerKeyFrames[0].Elements), code + ": swing must meet recovery");
