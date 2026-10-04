@@ -155,6 +155,7 @@ finally { predictionPatch.UnpatchAll(predictionPatch.Id); }
 Console.WriteLine($"PASS: {predictionChecks} native prediction and damage presentation checks");
 
 HitDiagnosticChecks.Run();
+ContactBoundsChecks.Run();
 
 public class Stub : DispatchProxy
 {

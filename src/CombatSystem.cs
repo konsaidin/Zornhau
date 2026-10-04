@@ -362,6 +362,10 @@ public sealed class CombatSystem : ModSystem
             && session.Slot == player.InventoryManager.ActiveHotbarSlotNumber;
     }
 
+    internal bool TracksPhysicalContacts(IServerPlayer player)
+        => sessions.TryGetValue(player.PlayerUID, out var session) && session.Fighter.Timing.PhysicalContacts
+            && session.Fighter.Phase is Phase.Windup or Phase.Swing;
+
     internal int DiagnosticAttackId(IServerPlayer player)
         => sessions.TryGetValue(player.PlayerUID, out var session) && session.HitDiagnostics ? session.AttackId : 0;
 

@@ -25,6 +25,8 @@ internal sealed class OverhaulBridge : ICombatIntegration
     private readonly CombatSystem combat;
     private readonly Harmony harmony;
     private readonly MeleeSystemServer? meleeServer;
+    private readonly OverhaulContactBounds? contactBounds;
+    private readonly long contactTrackingTick;
     private readonly ConditionalWeakTable<DamageSource, Contact> contacts = new();
     private readonly Dictionary<int, MeleeWeaponStats> singleStats = new();
     private readonly Dictionary<int, MeleeWeaponModeCollectionStats> modeStats = new();
@@ -45,6 +47,7 @@ internal sealed class OverhaulBridge : ICombatIntegration
         internal readonly int Id = id;
         internal readonly AttackTrace? Previous = previous;
         internal bool Reported;
+        internal string BoundDetail = "";
         internal void Report(string result, string detail)
         {
             if (Reported) return;
@@ -92,6 +95,8 @@ internal sealed class OverhaulBridge : ICombatIntegration
         else
         {
             serverBridge = this;
+            contactBounds = new OverhaulContactBounds(api);
+            contactTrackingTick = api.Event.RegisterGameTickListener(TrackContactTargets, 50);
             harmony.Patch(AccessTools.Method(typeof(MeleeSystemServer), "Attack"),
                 prefix: new HarmonyMethod(typeof(OverhaulBridge), nameof(AttackPrefix)),
                 finalizer: new HarmonyMethod(typeof(OverhaulBridge), nameof(AttackFinished)));
@@ -337,13 +342,13 @@ internal sealed class OverhaulBridge : ICombatIntegration
             - (i == 0 ? pos.X : i == 1 ? pos.Y + player.Entity.LocalEyePos.Y * .65 : pos.Z), 2));
         if (distanceSquared > Math.Pow(p.Reach + .75, 2))
             return RejectPacket("reach", FormattableString.Invariant($"distance={Math.Sqrt(distanceSquared):F3} allowed={p.Reach + .75:F3}"));
-        var bounds = target.CollisionBox;
-        if (bounds == null || packet.Position[0] < target.Pos.X + bounds.X1 - .75
-            || packet.Position[0] > target.Pos.X + bounds.X2 + .75
-            || packet.Position[1] < target.Pos.Y + bounds.Y1 - .75
-            || packet.Position[1] > target.Pos.Y + bounds.Y2 + .75
-            || packet.Position[2] < target.Pos.Z + bounds.Z1 - .75
-            || packet.Position[2] > target.Pos.Z + bounds.Z2 + .75) return RejectPacket("outside-target-bounds");
+        var point = new Vec3d(packet.Position[0], packet.Position[1], packet.Position[2]);
+        if (contactBounds != null)
+        {
+            if (!contactBounds.Validate(target, point, api.World.ElapsedMilliseconds, player.Ping, out string boundDetail))
+                return RejectPacket("outside-target-bounds", boundDetail);
+            if (activeTrace != null) activeTrace.BoundDetail = boundDetail;
+        }
         // The library retains terrain, equipment and typed-damage validation.
         // Replace client claims with stats from the authorized mode/direction.
         packet.Damage = p.Power; packet.Tier = p.Tier; packet.ArmorPiercingTier = p.ArmorPiercing;
@@ -351,6 +356,24 @@ internal sealed class OverhaulBridge : ICombatIntegration
         packet.StaggerTimeMs = packet.StaggerTier = 0; packet.ImpaleEnabled = false;
         packet.AttackDirection = (int)NativeDirection(combat.PhysicalDirection(player));
         return true;
+    }
+
+    private void TrackContactTargets(float dt)
+    {
+        if (api is not ICoreServerAPI server || contactBounds == null) return;
+        long now = api.World.ElapsedMilliseconds;
+        var recorded = new HashSet<long>();
+        foreach (var player in server.World.AllOnlinePlayers.OfType<IServerPlayer>())
+        {
+            if (!combat.TracksPhysicalContacts(player)) continue;
+            foreach (var target in api.World.GetEntitiesAround(player.Entity.Pos.XYZ, 10, 10))
+            {
+                if (!target.Alive || !target.IsCreature || target.Pos.Dimension != player.Entity.Pos.Dimension
+                    || !recorded.Add(target.EntityId)) continue;
+                contactBounds.Record(target, now);
+            }
+        }
+        contactBounds.Prune(now);
     }
 
     private void BeforeDamage(Entity target, DamageSource source, ItemSlot? slot, ref float damage)
@@ -376,7 +399,7 @@ internal sealed class OverhaulBridge : ICombatIntegration
         combat.PhysicalFeedback(player, args.Target, contact.Blocked, args.DamageReceived);
         if (activeTrace?.Player == player && activeTrace.Packet.TargetEntityId == args.Target.EntityId)
             activeTrace.Report(contact.Blocked ? "blocked" : args.DamageReceived ? "hit" : "no-damage",
-                $"target={args.Target.Code} collider={activeTrace.Packet.Collider} damageReceived={args.DamageReceived}");
+                $"target={args.Target.Code} collider={activeTrace.Packet.Collider} damageReceived={args.DamageReceived} {activeTrace.BoundDetail}");
     }
 
     public void AssetsReady()
@@ -660,6 +683,8 @@ internal sealed class OverhaulBridge : ICombatIntegration
 
     public void Dispose()
     {
+        if (api is ICoreServerAPI) api.Event.UnregisterGameTickListener(contactTrackingTick);
+        contactBounds?.Clear();
         if (meleeServer != null)
         { meleeServer.OnDealMeleeDamage -= BeforeDamage; meleeServer.OnMeleeDamageResolved -= DamageResolved; }
         harmony.UnpatchAll(harmony.Id);
