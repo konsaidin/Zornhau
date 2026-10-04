@@ -35,6 +35,7 @@ public static class CombatRules
     public const int ShieldBounce = 180;
     public const int ShieldBreak = 350;
     public const int SprintCooldown = 1500;
+    public const float WeaponContactPadding = .03f;
     public static bool GuardCovers(bool shield, Direction guard, Direction incoming)
         => shield || guard == Fighter.GuardFor(incoming);
     public static int ShieldWear(float damage)

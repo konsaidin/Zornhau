@@ -459,7 +459,11 @@ internal sealed class OverhaulBridge : ICombatIntegration
                 var contactStats = JsonConvert.DeserializeObject<MeleeAttackStats>(JsonConvert.SerializeObject(stats))!;
                 contactStats.HitOnlyOneEntity = true; contactStats.StopOnEntityHit = true;
                 contactStats.CollideWithTerrain = true; contactStats.Impale = null;
-                foreach (var d in contactStats.DamageTypes) { d.StaggerTimeMs = 0; d.PushTier = 0; }
+                foreach (var d in contactStats.DamageTypes)
+                {
+                    d.StaggerTimeMs = 0; d.PushTier = 0;
+                    d.Radius += CombatRules.WeaponContactPadding;
+                }
                 collisionAttack = new MeleeAttack(client, contactStats); collisionAttack.Start(player.Player);
                 collisionKey = key; contactSent = false;
             }
