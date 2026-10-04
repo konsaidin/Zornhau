@@ -54,3 +54,4 @@ AnimationGeometry.Check();
 BalanceChecks.Run();
 ContactWindowChecks.Run();
 ToolInteractionChecks.Run();
+PresentationChecks.Run();

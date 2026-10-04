@@ -25,6 +25,7 @@ public sealed class CombatSystem : ModSystem
         public long LastPacket;
         public int PacketCount;
         public string Feedback = "";
+        public long ClientSentAt, InputReceivedAt;
     }
 
     public override void Start(ICoreAPI api)
@@ -93,6 +94,8 @@ public sealed class CombatSystem : ModSystem
         Session session = GetSession(player);
         if (packet.Sequence <= session.Sequence) return;
         session.Sequence = packet.Sequence;
+        session.ClientSentAt = packet.SentAt;
+        session.InputReceivedAt = now;
         // Bound work per player even when a modified client sends excessive packets.
         if (now - session.LastPacket > 1000) { session.LastPacket = now; session.PacketCount = 0; }
         if (++session.PacketCount > 100) return;
@@ -243,7 +246,8 @@ public sealed class CombatSystem : ModSystem
             EndsIn = (int)Math.Clamp(f.Ends - now, -10000, 10000), Charge = f.Charge,
             Feedback = session.Feedback, ForcePvpCombat = ForcePvpCombat,
             RecoveryAttackPose = f.RecoveryAttackPose,
-            ContactEndsIn = (int)Math.Clamp(f.ContactEnds - now, -10000, 10000)
+            ContactEndsIn = (int)Math.Clamp(f.ContactEnds - now, -10000, 10000),
+            EchoSentAt = session.ClientSentAt, InputReceivedAt = session.InputReceivedAt, ServerSentAt = now
         }, player);
         session.LastSync = now; session.Feedback = "";
         player.Entity.WatchedAttributes.SetInt("warbandDirection", (int)f.Direction);

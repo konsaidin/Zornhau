@@ -13,6 +13,8 @@ internal sealed class CombatClient : IRenderer
     private readonly long tick;
     private readonly CameraDiagnostics? cameraDiagnostics;
     internal readonly Fighter Fighter = new();
+    private readonly CombatPresentation presentation = new();
+    private EntityPlayer? animatedPlayer;
     internal Direction Direction;
     internal bool Enabled = true;
     private bool forcePvpCombat;
@@ -90,8 +92,10 @@ internal sealed class CombatClient : IRenderer
     {
         if (!channel.Connected) return;
         var item = api.World.Player?.Entity.RightHandItemSlot.Itemstack?.Collectible;
-        if (item != null) Fighter.Apply(command, Direction, Now, CombatSystem.Timing(item));
-        channel.SendPacket(new InputPacket { Command = (int)command, Direction = (int)Direction, Sequence = ++sequence });
+        if (item != null && Fighter.Apply(command, Direction, Now, CombatSystem.Timing(item)) && command == Command.Begin)
+            presentation.Begin();
+        channel.SendPacket(new InputPacket { Command = (int)command, Direction = (int)Direction,
+            Sequence = ++sequence, SentAt = Now });
     }
 
     private void MouseDown(MouseEvent e)
@@ -164,7 +168,17 @@ internal sealed class CombatClient : IRenderer
             if (right) Send(Command.Block);
             else if (left) Send(Command.Begin);
         }
-        if (api.World.Player?.Entity is { } entity) CombatAnimations.Update(entity, Fighter, Now);
+        if (api.World.Player?.Entity is { } entity)
+        {
+            if (!ReferenceEquals(animatedPlayer, entity))
+            {
+                DetachAnimationHooks();
+                animatedPlayer = entity;
+                entity.TpAnimManager.OnStartAnimation += CombatAnimations.OnLocalAnimationStart;
+                entity.SelfFpAnimManager.OnStartAnimation += CombatAnimations.OnLocalAnimationStart;
+            }
+            CombatAnimations.Update(entity, Fighter, Now, presentation);
+        }
     }
 
     private void OnState(StatePacket packet)
@@ -173,8 +187,13 @@ internal sealed class CombatClient : IRenderer
         forcePvpCombat = packet.ForcePvpCombat;
         if (forcePvpCombat) Enabled = true;
         if (packet.Sequence == sequence)
+        {
+            int age = CombatPresentation.SnapshotAge(Now, packet.EchoSentAt, packet.InputReceivedAt, packet.ServerSentAt);
             Fighter.Restore((Phase)packet.Phase, (Direction)packet.Direction, Now,
-                packet.Elapsed, packet.HitIn, packet.EndsIn, packet.Charge, packet.RecoveryAttackPose, packet.ContactEndsIn);
+                packet.Elapsed + age, packet.HitIn - age, packet.EndsIn - age, packet.Charge,
+                packet.RecoveryAttackPose, packet.ContactEndsIn - age);
+            Fighter.Advance(Now);
+        }
         if (!string.IsNullOrEmpty(packet.Feedback))
         {
             feedback = Lang.Get(packet.Feedback); feedbackUntil = Now + 800;
@@ -188,6 +207,7 @@ internal sealed class CombatClient : IRenderer
 
     private void LeaveWorld()
     {
+        DetachAnimationHooks(); presentation.Reset();
         cameraDiagnostics?.Reset();
         Fighter.Reset(); left = right = false; ownedSlot = -1; ownedStack = null;
         sequence = 0; feedbackUntil = 0;
@@ -252,6 +272,7 @@ internal sealed class CombatClient : IRenderer
 
     public void Dispose()
     {
+        DetachAnimationHooks();
         api.Event.MouseDown -= MouseDown;
         api.Event.MouseUp -= MouseUp;
         api.Event.MouseMove -= MouseMove;
@@ -261,5 +282,13 @@ internal sealed class CombatClient : IRenderer
         api.Input.SetHotKeyHandler("warband-toggle", _ => false);
         texture.Dispose(); font.Dispose();
         foreach (var directionTexture in directionTextures) directionTexture.Dispose();
+    }
+
+    private void DetachAnimationHooks()
+    {
+        if (animatedPlayer == null) return;
+        animatedPlayer.TpAnimManager.OnStartAnimation -= CombatAnimations.OnLocalAnimationStart;
+        animatedPlayer.SelfFpAnimManager.OnStartAnimation -= CombatAnimations.OnLocalAnimationStart;
+        animatedPlayer = null;
     }
 }
