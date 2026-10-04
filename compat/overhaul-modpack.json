@@ -1,0 +1,30 @@
+{
+  "gameVersion": "1.22.7",
+  "packages": [
+    {
+      "file": "combatoverhaulfork_0.18.8.zip",
+      "url": "https://mods.vintagestory.at/download/118878/combatoverhaulfork_0.18.8.zip",
+      "sha256": "eb1af1f6e59e22d6c3728b4bed42ee5f0f123bcc477e9cb5a6a9a21213945429"
+    },
+    {
+      "file": "overhaulliblegacycompat_1.2.14.zip",
+      "url": "https://mods.vintagestory.at/download/122016/overhaulliblegacycompat_1.2.14.zip",
+      "sha256": "7cdea0e64b1214df4c4b4849f2f881a29b5eec84f09fb96e098dbe0e8cf5c9d5"
+    },
+    {
+      "file": "jsonpatcheslib_1.5.9.zip",
+      "url": "https://mods.vintagestory.at/download/115496/jsonpatcheslib_1.5.9.zip",
+      "sha256": "b6444d3ac519b8466a7c0f397a9c12ceebd9c52e1ce43c1b0f4993e775442a94"
+    },
+    {
+      "file": "vsimgui_1.2.7.zip",
+      "url": "https://mods.vintagestory.at/download/99543/vsimgui_1.2.7.zip",
+      "sha256": "27cb87de02034a97d154ea2052687aa2c015870bd1ed0bb7a01b813fa57558e3"
+    },
+    {
+      "file": "armoryfork_1.11.3.zip",
+      "url": "https://mods.vintagestory.at/download/122015/armoryfork_1.11.3.zip",
+      "sha256": "b95624fc5353bd64b4e7f423f03f839fafb7ad7661e0c8c02593bac87220b4e2"
+    }
+  ]
+}

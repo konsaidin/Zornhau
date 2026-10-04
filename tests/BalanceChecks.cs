@@ -14,7 +14,9 @@ internal static class BalanceChecks
             count++;
         }
         var timings = new[] { WeaponTiming.Sword, new WeaponTiming(360, 140, 420),
-            new WeaponTiming(420, 170, 480), new WeaponTiming(180, 100, 260) };
+            new WeaponTiming(420, 170, 480), new WeaponTiming(180, 100, 260),
+            WeaponTiming.Overhaul("sword-great-plain-steel"), WeaponTiming.Overhaul("pike-plain-steel"),
+            WeaponTiming.Overhaul("dagger-plain-steel"), WeaponTiming.Overhaul("mace-plain-steel") };
         foreach (var timing in timings)
         foreach (Direction initial in Enum.GetValues<Direction>())
         foreach (Direction final in Enum.GetValues<Direction>())

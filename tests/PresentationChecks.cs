@@ -59,7 +59,8 @@ internal static class PresentationChecks
         var remote = new TestAnimationManager();
         Check(remote.StartAnimation(new AnimationMetaData { Code = "warband-swing-right", Animation = "warband-swing-right" }),
             "Other players keep server animation replication");
-        foreach (var timing in new[] { WeaponTiming.Sword, new WeaponTiming(420, 170, 480), new WeaponTiming(180, 100, 260) })
+        foreach (var timing in new[] { WeaponTiming.Sword, new WeaponTiming(420, 170, 480), new WeaponTiming(180, 100, 260),
+            WeaponTiming.Overhaul("sword-great-plain-steel"), WeaponTiming.Overhaul("pike-plain-steel") })
         foreach (Direction direction in Enum.GetValues<Direction>())
         {
             var player = new TestPlayer();

@@ -22,6 +22,8 @@ internal sealed class CombatClient : IRenderer
     private int sequence;
     private int ownedSlot = -1;
     private ItemStack? ownedStack;
+    private ItemStack? ownedOffhand;
+    private string ownedMode = "";
     private long lastHeartbeat, lastAim;
     private string feedback = "";
     private long feedbackUntil;
@@ -82,9 +84,12 @@ internal sealed class CombatClient : IRenderer
     }
 
     private bool Active => Available && api.Input.MouseGrabbed && !api.IsGamePaused
-        && (!api.World.Player.Entity.Controls.Sneak
+        && (!api.World.Player.Entity.Controls.Sneak || Integration != null
             || forcePvpCombat && api.World.Player.CurrentEntitySelection?.Entity is EntityPlayer)
         && channel.Connected;
+
+    internal bool OwnsMeleeInput => Active;
+    private ICombatIntegration? Integration => api.ModLoader.GetModSystem<CombatSystem>()?.Integration;
 
     private long Now => api.World.ElapsedMilliseconds;
 
@@ -95,7 +100,8 @@ internal sealed class CombatClient : IRenderer
         if (item != null && Fighter.Apply(command, Direction, Now, CombatSystem.Timing(item)) && command == Command.Begin)
             presentation.Begin();
         channel.SendPacket(new InputPacket { Command = (int)command, Direction = (int)Direction,
-            Sequence = ++sequence, SentAt = Now });
+            Sequence = ++sequence, SentAt = Now, WeaponMode = api.World.Player?.Entity is { } player
+                ? Integration?.WeaponMode(player) ?? "" : "" });
     }
 
     private void MouseDown(MouseEvent e)
@@ -103,7 +109,9 @@ internal sealed class CombatClient : IRenderer
         if (e.Handled || !Active || e.Button is not (EnumMouseButton.Left or EnumMouseButton.Right)) return;
         e.Handled = true;
         ownedStack = api.World.Player.Entity.RightHandItemSlot.Itemstack;
+        ownedOffhand = api.World.Player.Entity.LeftHandItemSlot.Itemstack;
         ownedSlot = api.World.Player.InventoryManager.ActiveHotbarSlotNumber;
+        ownedMode = Integration?.WeaponMode(api.World.Player.Entity) ?? "";
         if (e.Button == EnumMouseButton.Left)
         {
             left = true;
@@ -144,10 +152,13 @@ internal sealed class CombatClient : IRenderer
 
     private void Tick(float dt)
     {
-        if (!Active || ownedSlot >= 0 && (ownedSlot != api.World.Player.InventoryManager.ActiveHotbarSlotNumber
-            || !ReferenceEquals(ownedStack, api.World.Player.Entity.RightHandItemSlot.Itemstack)))
+        bool changed = ownedSlot >= 0 && (ownedSlot != api.World.Player.InventoryManager.ActiveHotbarSlotNumber
+            || !ReferenceEquals(ownedStack, api.World.Player.Entity.RightHandItemSlot.Itemstack)
+            || ownedMode != (Integration?.WeaponMode(api.World.Player.Entity) ?? "")
+            || Integration != null && !ReferenceEquals(ownedOffhand, api.World.Player.Entity.LeftHandItemSlot.Itemstack));
+        if (!Active || changed)
         {
-            if (left || right || Fighter.Phase is Phase.Windup or Phase.Block) Cancel();
+            if (left || right || Fighter.Phase is Phase.Windup or Phase.Block || changed && Fighter.Phase == Phase.Swing) Cancel();
         }
         if (Active && (left || right) && Now - lastHeartbeat >= 200)
         {
@@ -177,7 +188,7 @@ internal sealed class CombatClient : IRenderer
                 entity.TpAnimManager.OnStartAnimation += CombatAnimations.OnLocalAnimationStart;
                 entity.SelfFpAnimManager.OnStartAnimation += CombatAnimations.OnLocalAnimationStart;
             }
-            CombatAnimations.Update(entity, Fighter, Now, presentation);
+            CombatAnimations.Update(entity, Fighter, Now, presentation, Integration);
         }
     }
 
@@ -218,6 +229,7 @@ internal sealed class CombatClient : IRenderer
     {
         cameraDiagnostics?.OnFrame(Now, Fighter);
         if (!Available || !api.Input.MouseGrabbed || api.IsGamePaused) return;
+        if (Active) Integration?.Frame(api.World.Player.Entity, Fighter, Now);
         Direction display = Fighter.Phase == Phase.Idle ? Direction : Fighter.Direction;
         float scale = (float)RuntimeEnv.GUIScale;
         float centerX = api.Render.FrameWidth / 2f;

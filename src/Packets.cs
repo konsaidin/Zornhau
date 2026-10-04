@@ -8,6 +8,7 @@ public sealed class InputPacket
     [ProtoMember(1)] public int Command { get; set; }
     [ProtoMember(2)] public int Direction { get; set; }
     [ProtoMember(3)] public int Sequence { get; set; }
+    [ProtoMember(4)] public string WeaponMode { get; set; } = "";
     [ProtoMember(5)] public long SentAt { get; set; }
 }
 

@@ -10,6 +10,7 @@ public sealed class CombatSystem : ModSystem
 {
     internal ICoreClientAPI? Client;
     internal CombatClient? Controls;
+    internal ICombatIntegration? Integration;
     private ICoreServerAPI? server;
     private IServerNetworkChannel? channel;
     private long serverTick;
@@ -19,23 +20,30 @@ public sealed class CombatSystem : ModSystem
     {
         public Fighter Fighter = new();
         public ItemStack? Weapon;
+        public ItemStack? Offhand;
         public int Slot;
         public int Sequence;
         public long LastSync;
         public long LastPacket;
         public int PacketCount;
         public string Feedback = "";
+        public string WeaponMode = "";
         public long ClientSentAt, InputReceivedAt;
     }
+
+    public override double ExecuteOrder() => 1.1;
 
     public override void Start(ICoreAPI api)
     {
         api.Network.RegisterChannel("warbandcombat").RegisterMessageType<InputPacket>().RegisterMessageType<StatePacket>();
     }
 
+    public override void AssetsFinalize(ICoreAPI api) => Integration?.AssetsReady();
+
     public override void StartClientSide(ICoreClientAPI api)
     {
         Client = api;
+        Integration = OverhaulCompat.Create(api);
         Controls = new CombatClient(api);
         api.Logger.Notification("[Warband Combat] Client ready. K toggles combat; Shift uses vanilla interactions.");
     }
@@ -43,6 +51,7 @@ public sealed class CombatSystem : ModSystem
     public override void StartServerSide(ICoreServerAPI api)
     {
         server = api;
+        Integration = OverhaulCompat.Create(api);
         channel = api.Network.GetChannel("warbandcombat").SetMessageHandler<InputPacket>(OnInput);
         api.Event.PlayerDisconnect += OnDisconnect;
         api.Event.OnEntitySpawn += AttachGuard;
@@ -52,7 +61,7 @@ public sealed class CombatSystem : ModSystem
         api.Logger.Notification("[Warband Combat] Server ready. Directional damage validation enabled.");
     }
 
-    private bool ForcePvpCombat => server?.Server.Config.AllowPvP == true;
+    private bool ForcePvpCombat => server?.Server.Config.AllowPvP == true || Integration != null;
 
     private void OnPlayerReady(IServerPlayer player)
     {
@@ -70,13 +79,17 @@ public sealed class CombatSystem : ModSystem
     }
 
     internal static bool Supported(CollectibleObject? item) => item?.Tool is
-        EnumTool.Sword or EnumTool.Spear or EnumTool.Axe or EnumTool.Knife;
+        EnumTool.Sword or EnumTool.Spear or EnumTool.Axe or EnumTool.Knife || OverhaulCompat.IsMelee(item);
 
-    internal static WeaponTiming Timing(CollectibleObject item) => item.Tool switch
+    internal static WeaponTiming Timing(CollectibleObject item) => OverhaulCompat.IsMelee(item)
+        ? WeaponTiming.Overhaul(item.Code?.Path ?? "") : item.Tool switch
     {
         EnumTool.Spear => new(360, 140, 420),
         EnumTool.Axe => new(420, 170, 480),
         EnumTool.Knife => new(180, 100, 260),
+        _ when item.Code?.Path.Contains("pike") == true => new(360, 140, 420),
+        _ when item.Code?.Path.Contains("great") == true => new(380, 170, 450),
+        _ when item.Code?.Path.Contains("mace") == true || item.Code?.Path.Contains("hammer") == true => new(420, 170, 480),
         _ => WeaponTiming.Sword
     };
 
@@ -99,18 +112,27 @@ public sealed class CombatSystem : ModSystem
         // Bound work per player even when a modified client sends excessive packets.
         if (now - session.LastPacket > 1000) { session.LastPacket = now; session.PacketCount = 0; }
         if (++session.PacketCount > 100) return;
+        if (packet.WeaponMode == null || packet.WeaponMode.Length > 64) return;
         var entity = player.Entity;
         AttachGuard(entity);
         var slot = entity.RightHandItemSlot;
         var command = (Command)packet.Command;
+        if (session.WeaponMode != packet.WeaponMode)
+        {
+            session.Fighter.Invalidate(now);
+            session.WeaponMode = packet.WeaponMode;
+            entity.WatchedAttributes.SetString("warbandWeaponMode", packet.WeaponMode);
+        }
         if (!entity.Alive || !Supported(slot.Itemstack?.Collectible) || entity.Controls.Sneak && !ForcePvpCombat)
         {
             session.Fighter.Invalidate(now); SendState(player, session, now); return;
         }
-        if (!ReferenceEquals(session.Weapon, slot.Itemstack) || session.Slot != player.InventoryManager.ActiveHotbarSlotNumber)
+        if (!ReferenceEquals(session.Weapon, slot.Itemstack) || session.Slot != player.InventoryManager.ActiveHotbarSlotNumber
+            || Integration != null && !ReferenceEquals(session.Offhand, entity.LeftHandItemSlot.Itemstack))
         {
             session.Fighter.Invalidate(now);
             session.Weapon = slot.Itemstack;
+            session.Offhand = entity.LeftHandItemSlot.Itemstack;
             session.Slot = player.InventoryManager.ActiveHotbarSlotNumber;
         }
         session.Fighter.Apply(command, (Direction)packet.Direction, now, Timing(slot.Itemstack!.Collectible));
@@ -126,14 +148,18 @@ public sealed class CombatSystem : ModSystem
             if (!sessions.TryGetValue(player.PlayerUID, out var session)) continue;
             var entity = player.Entity;
             var slot = entity.RightHandItemSlot;
+            Integration?.ClearNativeBlock(entity);
             if (!entity.Alive || entity.Controls.Sneak && !ForcePvpCombat || !ReferenceEquals(session.Weapon, slot.Itemstack)
-                || session.Slot != player.InventoryManager.ActiveHotbarSlotNumber)
+                || session.Slot != player.InventoryManager.ActiveHotbarSlotNumber
+                || Integration != null && !ReferenceEquals(session.Offhand, entity.LeftHandItemSlot.Itemstack))
                 session.Fighter.Invalidate(now);
             bool windowExpired = session.Fighter.Phase == Phase.Swing && now > session.Fighter.ContactEnds;
             session.Fighter.Advance(now);
             if (windowExpired) session.Feedback = "warbandcombat:miss";
-            CombatAnimations.Update(entity, session.Fighter, now);
-            if (session.Fighter.CanHit(now)) Strike(player, session, now);
+            CombatAnimations.Update(entity, session.Fighter, now, integration: Integration);
+            if (session.Fighter.CanHit(now)
+                && !(slot.Itemstack != null && Integration?.UsesPhysicalContacts(slot.Itemstack.Collectible) == true))
+                Strike(player, session, now);
             // Resolve a hit immediately on the client instead of waiting for the periodic sync.
             if (windowExpired || !string.IsNullOrEmpty(session.Feedback)) SendState(player, session, now);
             if (now - session.LastSync >= 150) SendState(player, session, now);
@@ -195,9 +221,11 @@ public sealed class CombatSystem : ModSystem
 
     internal void Guard(EntityPlayer defender, DamageSource source, ref float damage)
     {
+        IWarbandDamage? directedDamage = source as IWarbandDamage ?? Integration?.GetValidatedDamage(source);
+        Integration?.ClearNativeBlock(defender);
         // Every PvP melee hit must have passed our server-side state machine.
         // Projectile entities and creature attacks remain separate damage sources.
-        if (CombatRules.RejectVanillaPvpMelee(ForcePvpCombat, source is DirectionalDamage,
+        if (CombatRules.RejectVanillaPvpMelee(ForcePvpCombat, directedDamage != null,
             source.SourceEntity is EntityPlayer,
             source.Type is EnumDamageType.SlashingAttack or EnumDamageType.PiercingAttack or EnumDamageType.BluntAttack))
         {
@@ -219,11 +247,11 @@ public sealed class CombatSystem : ModSystem
         if (attacker.Pos.Dimension != defender.Pos.Dimension
             || !Fighter.Faces(forward.X, forward.Z, attacker.Pos.X - defender.Pos.X,
                 attacker.Pos.Z - defender.Pos.Z)) return;
-        var incoming = source is DirectionalDamage directed ? directed.Direction : Direction.Overhead;
+        var incoming = directedDamage?.AttackDirection ?? Direction.Overhead;
         if (fighter.Direction != Fighter.GuardFor(incoming)) return;
         damage = 0; source.KnockbackStrength = 0;
         session.Feedback = "warbandcombat:parry";
-        if (source is DirectionalDamage directional) directional.Blocked = true;
+        if (directedDamage != null) directedDamage.Blocked = true;
         if (attacker is EntityPlayer enemy && enemy.Player is IServerPlayer enemyPlayer
             && sessions.TryGetValue(enemyPlayer.PlayerUID, out var enemySession))
         {
@@ -252,12 +280,44 @@ public sealed class CombatSystem : ModSystem
         session.LastSync = now; session.Feedback = "";
         player.Entity.WatchedAttributes.SetInt("warbandDirection", (int)f.Direction);
         player.Entity.WatchedAttributes.SetInt("warbandPhase", (int)f.Phase);
-        CombatAnimations.Update(player.Entity, f, now);
+        CombatAnimations.Update(player.Entity, f, now, integration: Integration);
+    }
+
+    internal bool CanAcceptPhysicalContact(IServerPlayer player)
+    {
+        if (server == null || !sessions.TryGetValue(player.PlayerUID, out var session)) return false;
+        var entity = player.Entity;
+        long now = server.World.ElapsedMilliseconds;
+        session.Fighter.Advance(now);
+        return entity.Alive && session.Fighter.CanHit(now)
+            && ReferenceEquals(session.Weapon, entity.RightHandItemSlot.Itemstack)
+            && ReferenceEquals(session.Offhand, entity.LeftHandItemSlot.Itemstack)
+            && session.Slot == player.InventoryManager.ActiveHotbarSlotNumber;
+    }
+
+    internal Direction PhysicalDirection(IServerPlayer player) => GetSession(player).Fighter.Direction;
+
+    internal bool AcceptPhysicalContact(IServerPlayer player, Entity target)
+    {
+        if (server == null || !CanAcceptPhysicalContact(player) || !target.Alive
+            || target.EntityId == player.Entity.EntityId || target.Pos.Dimension != player.Entity.Pos.Dimension) return false;
+        if (target is EntityPlayer && (!server.Server.Config.AllowPvP || !player.HasPrivilege("attackplayers"))) return false;
+        if (target is not EntityPlayer && !player.HasPrivilege("attackcreatures")) return false;
+        return GetSession(player).Fighter.TakeHit(server.World.ElapsedMilliseconds);
+    }
+
+    internal void PhysicalFeedback(IServerPlayer player, bool blocked, bool hit)
+    {
+        if (server == null) return;
+        var session = GetSession(player);
+        if (!blocked) session.Feedback = hit ? "warbandcombat:hit" : "warbandcombat:miss";
+        SendState(player, session, server.World.ElapsedMilliseconds);
     }
 
     public override void Dispose()
     {
         Controls?.Dispose();
+        Integration?.Dispose();
         if (server != null)
         {
             server.Event.UnregisterGameTickListener(serverTick);
@@ -270,10 +330,11 @@ public sealed class CombatSystem : ModSystem
     }
 }
 
-internal sealed class DirectionalDamage : DamageSource
+internal sealed class DirectionalDamage : DamageSource, IWarbandDamage
 {
     public Direction Direction;
-    public bool Blocked;
+    public Direction AttackDirection => Direction;
+    public bool Blocked { get; set; }
 }
 
 internal sealed class GuardBehavior(Entity entity, CombatSystem system) : EntityBehavior(entity)

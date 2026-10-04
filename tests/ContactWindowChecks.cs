@@ -11,7 +11,8 @@ internal static class ContactWindowChecks
             count++;
         }
         var timings = new[] { WeaponTiming.Sword, new WeaponTiming(360, 140, 420),
-            new WeaponTiming(420, 170, 480), new WeaponTiming(180, 100, 260) };
+            new WeaponTiming(420, 170, 480), new WeaponTiming(180, 100, 260),
+            WeaponTiming.Overhaul("sword-great-plain-steel"), WeaponTiming.Overhaul("pike-plain-steel") };
         foreach (var timing in timings)
         foreach (Direction direction in Enum.GetValues<Direction>())
         {
@@ -44,8 +45,8 @@ internal static class ContactWindowChecks
             Check(turned.TakeHit(opens + 40) && turned.Ends == opens + 40 + timing.Recovery,
                 "A turn after an initial miss can connect late within the window");
             turned.Stun(opens + 40, CombatRules.ParryStun);
-            Check(!turned.CanHit(opens + 50) && turned.Ends == opens + 40 + CombatRules.ParryStun,
-                "A late parry must close the window and preserve its longer stun");
+            Check(!turned.CanHit(opens + 50) && turned.Ends == opens + 40 + Math.Max(timing.Recovery, CombatRules.ParryStun),
+                "A late parry must close the window without shortening recovery or stun");
 
             var edge = Swing();
             Check(edge.CanHit(closes) && edge.TakeHit(closes), "The exact final contact deadline is usable");

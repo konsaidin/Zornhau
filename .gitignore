@@ -4,6 +4,8 @@ obj/
 .artifacts/
 tests/bin/
 tests/obj/
+tests/overhaul/bin/
+tests/overhaul/obj/
 dist/
 __pycache__/
 *.py[cod]

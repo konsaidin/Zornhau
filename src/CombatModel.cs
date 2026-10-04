@@ -7,6 +7,20 @@ public enum Command { Begin, Release, Block, Cancel, Aim, KeepAlive }
 public readonly record struct WeaponTiming(int Windup, int Strike, int Recovery)
 {
     public static WeaponTiming Sword => new(280, 140, 360);
+    // CO poses cover a full articulated cut. Use family timings shared by both
+    // sides instead of accelerating them to the standalone prototype's release.
+    public static WeaponTiming Overhaul(string code) => code switch
+    {
+        _ when code.Contains("great") => new(500, 380, 650),
+        _ when code.Contains("pike") => new(450, 320, 580),
+        _ when code.Contains("poleaxe") || code.Contains("halberd") || code.Contains("quarterstaff") => new(500, 360, 600),
+        _ when code.Contains("dagger") || code.Contains("knife") => new(220, 180, 320),
+        _ when code.Contains("axe") || code.Contains("hatchet") => new(450, 300, 550),
+        _ when code.Contains("mace") || code.Contains("hammer") || code.Contains("club") => new(430, 300, 520),
+        _ when code.Contains("spear") || code.Contains("javelin") || code.Contains("trident") => new(380, 280, 450),
+        _ => new(330, 260, 480)
+    };
+    public static readonly int[] StrikeDurations = { 100, 140, 170, 180, 260, 280, 300, 320, 360, 380 };
 }
 
 public static class CombatRules
