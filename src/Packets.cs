@@ -10,6 +10,7 @@ public sealed class InputPacket
     [ProtoMember(3)] public int Sequence { get; set; }
     [ProtoMember(4)] public string WeaponMode { get; set; } = "";
     [ProtoMember(5)] public long SentAt { get; set; }
+    [ProtoMember(6)] public bool HitDiagnostics { get; set; }
 }
 
 [ProtoContract]
@@ -41,4 +42,19 @@ public sealed class ContactPacket
     [ProtoMember(2)] public long Attacker { get; set; }
     [ProtoMember(3)] public long Defender { get; set; }
     [ProtoMember(4)] public ContactKind Kind { get; set; }
+}
+
+[ProtoContract]
+public sealed class DiagnosticsSettingsPacket
+{
+    [ProtoMember(1)] public bool Enabled { get; set; }
+}
+
+[ProtoContract]
+public sealed class HitDiagnosticPacket
+{
+    [ProtoMember(1)] public int AttackId { get; set; }
+    [ProtoMember(2)] public string Result { get; set; } = "";
+    [ProtoMember(3)] public string Detail { get; set; } = "";
+    [ProtoMember(4)] public long Target { get; set; }
 }

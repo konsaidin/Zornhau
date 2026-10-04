@@ -58,3 +58,5 @@ ContactWindowChecks.Run();
 ToolInteractionChecks.Run();
 PresentationChecks.Run();
 ShieldChecks.Run();
+
+HitDiagnosticChecks.Run();

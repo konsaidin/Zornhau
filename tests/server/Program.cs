@@ -154,6 +154,8 @@ try
 finally { predictionPatch.UnpatchAll(predictionPatch.Id); }
 Console.WriteLine($"PASS: {predictionChecks} native prediction and damage presentation checks");
 
+HitDiagnosticChecks.Run();
+
 public class Stub : DispatchProxy
 {
     public static EntityPlayer? CurrentPlayer;

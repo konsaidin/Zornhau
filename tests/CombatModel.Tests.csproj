@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-  <ItemGroup><Compile Include="../src/CombatModel.cs" Link="CombatModel.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../src/CombatModel.cs" Link="CombatModel.cs" /><Compile Include="../src/HitDiagnostics.cs" Link="HitDiagnostics.cs" /></ItemGroup>
   <ItemGroup><Compile Include="../src/CombatPresentation.cs" Link="CombatPresentation.cs" /></ItemGroup>
   <ItemGroup><Compile Include="../src/CombatAnimations.cs" Link="CombatAnimations.cs" /></ItemGroup>
   <ItemGroup><Compile Include="../src/CombatIntegration.cs" Link="CombatIntegration.cs" /></ItemGroup>

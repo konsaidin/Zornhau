@@ -33,6 +33,10 @@ public sealed class CombatSystem : ModSystem
         public string WeaponMode = "";
         public long ClientSentAt, InputReceivedAt;
         public long SwingSoundAt;
+        public int AttackId;
+        public bool HitDiagnostics;
+        public long DiagnosticWindow;
+        public int DiagnosticCount;
     }
 
     public override double ExecuteOrder() => 1.1;
@@ -40,7 +44,7 @@ public sealed class CombatSystem : ModSystem
     public override void Start(ICoreAPI api)
     {
         api.Network.RegisterChannel("warbandcombat").RegisterMessageType<InputPacket>().RegisterMessageType<StatePacket>()
-            .RegisterMessageType<ContactPacket>();
+            .RegisterMessageType<ContactPacket>().RegisterMessageType<DiagnosticsSettingsPacket>().RegisterMessageType<HitDiagnosticPacket>();
         movementPatch = new Harmony("warbandcombat.movement." + api.Side);
         CombatMovement.Patch(movementPatch);
     }
@@ -60,7 +64,8 @@ public sealed class CombatSystem : ModSystem
     {
         server = api;
         Integration = OverhaulCompat.Create(api);
-        channel = api.Network.GetChannel("warbandcombat").SetMessageHandler<InputPacket>(OnInput);
+        channel = api.Network.GetChannel("warbandcombat").SetMessageHandler<InputPacket>(OnInput)
+            .SetMessageHandler<DiagnosticsSettingsPacket>((player, packet) => GetSession(player).HitDiagnostics = packet.Enabled);
         api.Event.PlayerDisconnect += OnDisconnect;
         api.Event.OnEntitySpawn += AttachGuard;
         api.Event.OnEntityLoaded += AttachGuard;
@@ -118,6 +123,7 @@ public sealed class CombatSystem : ModSystem
         if (packet.Sequence <= session.Sequence) return;
         session.Sequence = packet.Sequence;
         session.ClientSentAt = packet.SentAt;
+        session.HitDiagnostics = packet.HitDiagnostics;
         session.InputReceivedAt = now;
         // Bound work per player even when a modified client sends excessive packets.
         if (now - session.LastPacket > 1000) { session.LastPacket = now; session.PacketCount = 0; }
@@ -148,7 +154,9 @@ public sealed class CombatSystem : ModSystem
             session.Slot = player.InventoryManager.ActiveHotbarSlotNumber;
         }
         session.Fighter.SetShield(CombatShields.Equipped(entity), now);
-        session.Fighter.Apply(command, (Direction)packet.Direction, now, slot.Itemstack != null ? Timing(slot.Itemstack.Collectible) : WeaponTiming.Sword);
+        if (session.Fighter.Apply(command, (Direction)packet.Direction, now,
+            slot.Itemstack != null ? Timing(slot.Itemstack.Collectible) : WeaponTiming.Sword) && command == Command.Begin)
+            session.AttackId = packet.Sequence;
         CombatMovement.Enforce(entity, session.Fighter, now);
         SendState(player, session, now);
     }
@@ -353,6 +361,36 @@ public sealed class CombatSystem : ModSystem
             && ReferenceEquals(session.Offhand, entity.LeftHandItemSlot.Itemstack)
             && session.Slot == player.InventoryManager.ActiveHotbarSlotNumber;
     }
+
+    internal int DiagnosticAttackId(IServerPlayer player)
+        => sessions.TryGetValue(player.PlayerUID, out var session) && session.HitDiagnostics ? session.AttackId : 0;
+
+    internal string PhysicalContactState(IServerPlayer player)
+    {
+        if (server == null || !sessions.TryGetValue(player.PlayerUID, out var session)) return "no-session";
+        long now = server.World.ElapsedMilliseconds;
+        var f = session.Fighter;
+        return $"phase={f.Phase} hitIn={f.HitAt - now}ms endIn={f.ContactEnds - now}ms consumed={f.HitDelivered} "
+            + $"main={ReferenceEquals(session.Weapon, player.Entity.RightHandItemSlot.Itemstack)} "
+            + $"offhand={ReferenceEquals(session.Offhand, player.Entity.LeftHandItemSlot.Itemstack)} "
+            + $"slot={session.Slot == player.InventoryManager.ActiveHotbarSlotNumber}";
+    }
+
+    internal void ReportHitDiagnostic(IServerPlayer player, int attackId, long target, string result, string detail)
+    {
+        if (server == null || channel == null || attackId <= 0 || !sessions.TryGetValue(player.PlayerUID, out var session)
+            || !session.HitDiagnostics) return;
+        long now = server.World.ElapsedMilliseconds;
+        if (now - session.DiagnosticWindow >= 1000) { session.DiagnosticWindow = now; session.DiagnosticCount = 0; }
+        if (++session.DiagnosticCount > 20) return;
+        result = CleanDiagnostic(result, 80); detail = CleanDiagnostic(detail, 320);
+        server.Logger.Notification("[Warband Hit] server player={0} attack={1} target={2} result={3} {4}",
+            player.PlayerName, attackId, target, result, detail);
+        channel.SendPacket(new HitDiagnosticPacket { AttackId = attackId, Target = target, Result = result, Detail = detail }, player);
+    }
+
+    private static string CleanDiagnostic(string text, int length)
+        => new string(text.Take(length).Select(c => char.IsControl(c) ? ' ' : c).ToArray());
 
     internal Direction PhysicalDirection(IServerPlayer player) => GetSession(player).Fighter.Direction;
 

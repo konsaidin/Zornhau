@@ -22,6 +22,10 @@ internal sealed class CombatClient : IRenderer
     private bool left, right;
     private bool sprintWanted, sprintWasLocked;
     private int sequence;
+    internal bool HitDiagnosticsEnabled { get; private set; }
+    private readonly HitDiagnostics hitDiagnostics = new();
+    private string diagnosticDetail = "";
+    private readonly Dictionary<int, long> pendingHitDiagnostics = new();
     private int ownedSlot = -1;
     private ItemStack? ownedStack;
     private ItemStack? ownedOffhand;
@@ -41,6 +45,7 @@ internal sealed class CombatClient : IRenderer
     internal CombatClient(ICoreClientAPI api)
     {
         this.api = api;
+        HitDiagnosticsEnabled = api.Settings.Bool["warbandHitDiagnostics"];
         if (api.Settings.Bool["warbandCameraDiagnostics"]) cameraDiagnostics = new CameraDiagnostics(api);
         // GenOrUpdateTextTexture updates an existing wrapper; it does not allocate one.
         texture = new LoadedTexture(api);
@@ -49,7 +54,7 @@ internal sealed class CombatClient : IRenderer
         font.StrokeWidth = 2;
         font.StrokeColor = new double[] { 0, 0, 0, .9 };
         channel = api.Network.GetChannel("warbandcombat").SetMessageHandler<StatePacket>(OnState)
-            .SetMessageHandler<ContactPacket>(OnContact);
+            .SetMessageHandler<ContactPacket>(OnContact).SetMessageHandler<HitDiagnosticPacket>(OnHitDiagnostic);
         api.Input.RegisterHotKey("warband-toggle", Lang.Get("warbandcombat:toggle"), GlKeys.K);
         api.Input.SetHotKeyHandler("warband-toggle", _ =>
         {
@@ -62,6 +67,16 @@ internal sealed class CombatClient : IRenderer
             api.ShowChatMessage(Lang.Get(Enabled ? "warbandcombat:enabled" : "warbandcombat:disabled"));
             return true;
         });
+        api.Input.RegisterHotKey("warband-hit-diagnostics", Lang.Get("warbandcombat:hit-diagnostics-toggle"), GlKeys.F8);
+        api.Input.SetHotKeyHandler("warband-hit-diagnostics", _ =>
+        {
+            HitDiagnosticsEnabled = !HitDiagnosticsEnabled;
+            api.Settings.Bool["warbandHitDiagnostics"] = HitDiagnosticsEnabled;
+            hitDiagnostics.Reset(); diagnosticDetail = ""; pendingHitDiagnostics.Clear();
+            if (channel.Connected) channel.SendPacket(new DiagnosticsSettingsPacket { Enabled = HitDiagnosticsEnabled });
+            api.ShowChatMessage(Lang.Get(HitDiagnosticsEnabled ? "warbandcombat:hit-diagnostics-on" : "warbandcombat:hit-diagnostics-off"));
+            return true;
+        });
         api.Event.MouseDown += MouseDown;
         api.Event.MouseUp += MouseUp;
         api.Event.MouseMove += MouseMove;
@@ -69,6 +84,7 @@ internal sealed class CombatClient : IRenderer
         api.Event.LeaveWorld += LeaveWorld;
         tick = api.Event.RegisterGameTickListener(Tick, 20);
         api.Event.RegisterRenderer(this, EnumRenderStage.Ortho, "warband-hud");
+        api.Event.RegisterRenderer(this, EnumRenderStage.AfterOIT, "warband-hit-collider");
     }
 
     internal bool Available => Enabled && api.World.Player?.Entity is { Alive: true } entity
@@ -116,9 +132,17 @@ internal sealed class CombatClient : IRenderer
         if (CombatShields.AllowsInput(command, weapon, shield, Fighter.Phase)
             && Fighter.Apply(command, Direction, Now, item != null ? CombatSystem.Timing(item) : WeaponTiming.Sword)
             && command == Command.Begin)
+        {
             presentation.Begin();
+            if (HitDiagnosticsEnabled)
+            {
+                hitDiagnostics.Begin(sequence + 1); diagnosticDetail = "";
+                api.Logger.Notification("[Warband Hit] client attack={0} begin direction={1} weapon={2} mode={3}",
+                    sequence + 1, Direction, item?.Code, api.World.Player?.Entity is { } diagnosticPlayer ? Integration?.WeaponMode(diagnosticPlayer) : "");
+            }
+        }
         channel.SendPacket(new InputPacket { Command = (int)command, Direction = (int)Direction,
-            Sequence = ++sequence, SentAt = Now, WeaponMode = api.World.Player?.Entity is { } player
+            Sequence = ++sequence, SentAt = Now, HitDiagnostics = HitDiagnosticsEnabled, WeaponMode = api.World.Player?.Entity is { } player
                 ? Integration?.WeaponMode(player) ?? "" : "" });
     }
 
@@ -191,6 +215,7 @@ internal sealed class CombatClient : IRenderer
             Send(Command.Aim); Send(Command.KeepAlive); lastHeartbeat = Now;
         }
         Fighter.Advance(Now);
+        UpdateHitDiagnostics();
         if (api.World.Player?.Entity is { } shieldOwner) Fighter.SetShield(CombatShields.Equipped(shieldOwner), Now);
         // Only the server knows whether the current aim contacted a target.
         // Prediction lets a miss run through the window instead of consuming it.
@@ -260,6 +285,61 @@ internal sealed class CombatClient : IRenderer
         }
     }
 
+    internal void RecordHitFrame(bool terrain, bool entityContact, bool terrainBlockedTarget, string detail, string terrainDetail)
+    {
+        if (!HitDiagnosticsEnabled) return;
+        if (terrain && !hitDiagnostics.Terrain)
+        {
+            diagnosticDetail = terrainDetail;
+            api.Logger.Notification("[Warband Hit] client attack={0} terrain-intersection {1}", hitDiagnostics.AttackId, terrainDetail);
+        }
+        bool firstBlocked = terrainBlockedTarget && !hitDiagnostics.TerrainBlockedTarget;
+        hitDiagnostics.Sample(terrain, entityContact, terrainBlockedTarget);
+        if (firstBlocked)
+        {
+            diagnosticDetail = detail;
+            api.Logger.Notification("[Warband Hit] client attack={0} terrain-blocked-target {1}", hitDiagnostics.AttackId, detail);
+        }
+    }
+
+    internal void RecordHitSent(string detail)
+    {
+        if (!HitDiagnosticsEnabled) return;
+        hitDiagnostics.ContactSent(Now); diagnosticDetail = detail;
+        pendingHitDiagnostics[hitDiagnostics.AttackId] = Now;
+        api.Logger.Notification("[Warband Hit] client attack={0} contact-sent {1}", hitDiagnostics.AttackId, detail);
+    }
+
+    internal void RecordMissingCollider()
+    {
+        if (HitDiagnosticsEnabled) hitDiagnostics.ServerResult(hitDiagnostics.AttackId, "missing-collider");
+    }
+
+    private void UpdateHitDiagnostics()
+    {
+        if (!HitDiagnosticsEnabled) return;
+        if (hitDiagnostics.Finish(Fighter.Phase))
+            api.Logger.Notification("[Warband Hit] client attack={0} result={1} frames={2} terrain={3} blockedTarget={4} entityContact={5} sent={6} {7}",
+                hitDiagnostics.AttackId, hitDiagnostics.Result, hitDiagnostics.Frames, hitDiagnostics.Terrain,
+                hitDiagnostics.TerrainBlockedTarget, hitDiagnostics.EntityContact, hitDiagnostics.Sent, diagnosticDetail);
+        foreach (var pending in pendingHitDiagnostics.Where(p => Now - p.Value >= 2000).ToArray())
+        {
+            pendingHitDiagnostics.Remove(pending.Key);
+            if (pending.Key == hitDiagnostics.AttackId) hitDiagnostics.Timeout(Now);
+            api.Logger.Notification("[Warband Hit] client attack={0} no-server-reply after 2000ms", pending.Key);
+        }
+    }
+
+    private void OnHitDiagnostic(HitDiagnosticPacket packet)
+    {
+        if (!HitDiagnosticsEnabled) return;
+        pendingHitDiagnostics.Remove(packet.AttackId);
+        api.Logger.Notification("[Warband Hit] server attack={0} target={1} result={2} {3}",
+            packet.AttackId, packet.Target, packet.Result, packet.Detail);
+        // A delayed answer is logged, but cannot overwrite a newer swing's HUD.
+        if (hitDiagnostics.ServerResult(packet.AttackId, packet.Result)) diagnosticDetail = packet.Detail;
+    }
+
     private void Cancel()
     {
         Send(Command.Cancel); Fighter.Invalidate(Now); left = right = false; ownedSlot = -1; ownedStack = null;
@@ -269,6 +349,7 @@ internal sealed class CombatClient : IRenderer
     {
         DetachAnimationHooks(); presentation.Reset();
         cameraDiagnostics?.Reset();
+        hitDiagnostics.Reset(); diagnosticDetail = ""; pendingHitDiagnostics.Clear();
         Fighter.Reset(clearSprint: true); left = right = false; ownedSlot = -1; ownedStack = null;
         sprintWanted = sprintWasLocked = false;
         sequence = 0; feedbackUntil = 0;
@@ -278,9 +359,16 @@ internal sealed class CombatClient : IRenderer
 
     public void OnRenderFrame(float deltaTime, EnumRenderStage stage)
     {
+        if (stage == EnumRenderStage.AfterOIT)
+        {
+            if (HitDiagnosticsEnabled && Available && api.Input.MouseGrabbed && !api.IsGamePaused)
+                Integration?.RenderDiagnostics(api.World.Player.Entity, Now);
+            return;
+        }
         cameraDiagnostics?.OnFrame(Now, Fighter);
         if (!Available || !api.Input.MouseGrabbed || api.IsGamePaused) return;
         if (Active) Integration?.Frame(api.World.Player.Entity, Fighter, Now);
+        UpdateHitDiagnostics();
         Direction display = Fighter.Phase == Phase.Idle ? Direction : Fighter.Direction;
         float scale = (float)RuntimeEnv.GUIScale;
         float centerX = api.Render.FrameWidth / 2f;
@@ -310,6 +398,10 @@ internal sealed class CombatClient : IRenderer
             : Fighter.Phase == Phase.Block && !Fighter.CanGuard(Now)
                 ? "warbandcombat:guard-raise" : "warbandcombat:phase-" + Fighter.Phase.ToString().ToLowerInvariant());
         string text = Now < feedbackUntil ? state + "\n" + feedback : state;
+        if (HitDiagnosticsEnabled)
+            text += "\n" + Lang.Get("warbandcombat:hit-debug-status", hitDiagnostics.AttackId,
+                Lang.Get("warbandcombat:hit-debug-" + hitDiagnostics.Result))
+                + "\n" + Lang.Get("warbandcombat:hit-debug-legend");
         if (text != lastText)
         {
             api.Gui.TextTexture.GenOrUpdateTextTexture(text, font, ref texture);
@@ -352,7 +444,9 @@ internal sealed class CombatClient : IRenderer
         api.Event.LeaveWorld -= LeaveWorld;
         api.Event.UnregisterGameTickListener(tick);
         api.Event.UnregisterRenderer(this, EnumRenderStage.Ortho);
+        api.Event.UnregisterRenderer(this, EnumRenderStage.AfterOIT);
         api.Input.SetHotKeyHandler("warband-toggle", _ => false);
+        api.Input.SetHotKeyHandler("warband-hit-diagnostics", _ => false);
         texture.Dispose(); font.Dispose();
         foreach (var directionTexture in directionTextures) directionTexture.Dispose();
     }

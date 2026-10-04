@@ -2,6 +2,8 @@ using System.Runtime.CompilerServices;
 using CombatOverhaul;
 using CombatOverhaul.Animations;
 using CombatOverhaul.DamageSystems;
+using CombatOverhaul.Colliders;
+using OpenTK.Mathematics;
 using CombatOverhaul.Implementations;
 using CombatOverhaul.Inputs;
 using CombatOverhaul.MeleeSystems;
@@ -30,6 +32,26 @@ internal sealed class OverhaulBridge : ICombatIntegration
     private string? playing, shieldPlaying, collisionKey;
     private MeleeAttack? collisionAttack;
     private bool contactSent;
+    private bool debugTerrainBlocked;
+    private readonly List<(LineSegmentCollider current, LineSegmentCollider previous, float radius)> debugColliders = new();
+    private long debugUntil;
+    private ItemStack? debugWeapon;
+    [ThreadStatic] private static AttackTrace? activeTrace;
+
+    private sealed class AttackTrace(IServerPlayer player, MeleeDamagePacket packet, int id, AttackTrace? previous)
+    {
+        internal readonly IServerPlayer Player = player;
+        internal readonly MeleeDamagePacket Packet = packet;
+        internal readonly int Id = id;
+        internal readonly AttackTrace? Previous = previous;
+        internal bool Reported;
+        internal void Report(string result, string detail)
+        {
+            if (Reported) return;
+            Reported = true;
+            serverBridge?.combat.ReportHitDiagnostic(Player, Id, Packet.TargetEntityId, result, detail);
+        }
+    }
     private static OverhaulBridge? clientBridge, serverBridge;
 
     private sealed class Contact(Direction direction) : IWarbandDamage
@@ -70,7 +92,10 @@ internal sealed class OverhaulBridge : ICombatIntegration
         else
         {
             serverBridge = this;
-            Patch(typeof(MeleeSystemServer), "Attack", nameof(AttackPrefix));
+            harmony.Patch(AccessTools.Method(typeof(MeleeSystemServer), "Attack"),
+                prefix: new HarmonyMethod(typeof(OverhaulBridge), nameof(AttackPrefix)),
+                finalizer: new HarmonyMethod(typeof(OverhaulBridge), nameof(AttackFinished)));
+            Patch(typeof(MeleeSystemServer), "LogRejectedAttackPacket", nameof(NativeRejected));
             var block = AccessTools.Method(typeof(MeleeBlockSystemServer), "HandlePacket",
                 new[] { typeof(IServerPlayer), typeof(DamageBlockPacket) });
             harmony.Patch(block ?? throw new MissingMethodException("CO block handler"),
@@ -251,33 +276,74 @@ internal sealed class OverhaulBridge : ICombatIntegration
             selected.DurabilityDamage, Math.Max(0, selected.Damage.ArmorPiercingTier + buffs.ArmorPiercingBonus));
     }
 
-    private static bool AttackPrefix(IServerPlayer player, MeleeDamagePacket packet)
-        => serverBridge?.ValidatePacket(player, packet) ?? true;
+    private static bool AttackPrefix(IServerPlayer player, MeleeDamagePacket packet, out AttackTrace? __state)
+    {
+        var bridge = serverBridge;
+        int id = bridge?.combat.DiagnosticAttackId(player) ?? 0;
+        __state = id > 0 || activeTrace != null ? new AttackTrace(player, packet, id, activeTrace) : null;
+        if (__state != null) activeTrace = __state;
+        return bridge?.ValidatePacket(player, packet) ?? true;
+    }
+
+    private static Exception? AttackFinished(Exception? __exception, AttackTrace? __state)
+    {
+        if (__state == null) return __exception;
+        try
+        {
+            if (!__state.Reported)
+            {
+                var target = serverBridge?.api.World.GetEntityById(__state.Packet.TargetEntityId);
+                string reason = __exception != null ? "server-exception"
+                    : target is EntityPlayer && serverBridge?.api is ICoreServerAPI api && !api.Server.Config.AllowPvP ? "pvp-disabled"
+                    : target is EntityPlayer && !__state.Player.HasPrivilege("attackplayers") ? "no-player-privilege"
+                    : target is EntityAgent && !__state.Player.HasPrivilege("attackcreatures") ? "no-creature-privilege"
+                    : "native-no-result";
+                __state.Report(reason, __exception?.GetType().Name ?? "No resolved damage event from CO");
+            }
+        }
+        finally { activeTrace = __state.Previous; }
+        return __exception;
+    }
+
+    private static void NativeRejected(IServerPlayer player, MeleeDamagePacket packet, string reason, string details)
+    {
+        if (activeTrace?.Packet == packet && activeTrace.Player == player)
+            activeTrace.Report("co-" + reason, details);
+    }
+
+    private bool RejectPacket(string reason, string detail = "")
+    {
+        activeTrace?.Report(reason, detail);
+        return false;
+    }
 
     private bool ValidatePacket(IServerPlayer player, MeleeDamagePacket packet)
     {
         var item = player.Entity.RightHandItemSlot.Itemstack?.Collectible;
         if (item == null || !CombatSystem.Supported(item)) return true;
-        if (!UsesPhysicalContacts(item) || !packet.MainHand || packet.AttackerEntityId != player.Entity.EntityId
-            || !combat.CanAcceptPhysicalContact(player)) return false;
+        if (!UsesPhysicalContacts(item)) return RejectPacket("not-physical-weapon");
+        if (!packet.MainHand) return RejectPacket("wrong-hand");
+        if (packet.AttackerEntityId != player.Entity.EntityId) return RejectPacket("wrong-attacker");
+        if (!combat.CanAcceptPhysicalContact(player)) return RejectPacket("state-or-equipment", combat.PhysicalContactState(player));
         var target = api.World.GetEntityById(packet.TargetEntityId);
         if (target == null || target.Pos.Dimension != player.Entity.Pos.Dimension || !target.Alive
             || target.EntityId == player.Entity.EntityId || packet.Position == null || packet.Position.Length != 3
-            || packet.Position.Any(x => !double.IsFinite(x))) return false;
+            || packet.Position.Any(x => !double.IsFinite(x))) return RejectPacket("invalid-target-or-position");
         var profile = Profile(player.Entity, target, combat.PhysicalDirection(player), packet.DamageType);
-        if (profile == null) return false;
+        if (profile == null) return RejectPacket("missing-attack-profile");
         var p = profile.Value;
         var pos = player.Entity.Pos;
         double distanceSquared = Enumerable.Range(0, 3).Sum(i => Math.Pow(packet.Position[i]
             - (i == 0 ? pos.X : i == 1 ? pos.Y + player.Entity.LocalEyePos.Y * .65 : pos.Z), 2));
-        if (distanceSquared > Math.Pow(p.Reach + .75, 2)) return false;
+        if (distanceSquared > Math.Pow(p.Reach + .75, 2))
+            return RejectPacket("reach", FormattableString.Invariant($"distance={Math.Sqrt(distanceSquared):F3} allowed={p.Reach + .75:F3}"));
         var bounds = target.CollisionBox;
         if (bounds == null || packet.Position[0] < target.Pos.X + bounds.X1 - .75
             || packet.Position[0] > target.Pos.X + bounds.X2 + .75
             || packet.Position[1] < target.Pos.Y + bounds.Y1 - .75
             || packet.Position[1] > target.Pos.Y + bounds.Y2 + .75
             || packet.Position[2] < target.Pos.Z + bounds.Z1 - .75
-            || packet.Position[2] > target.Pos.Z + bounds.Z2 + .75) return false;
+            || packet.Position[2] > target.Pos.Z + bounds.Z2 + .75) return RejectPacket("outside-target-bounds");
         // The library retains terrain, equipment and typed-damage validation.
         // Replace client claims with stats from the authorized mode/direction.
         packet.Damage = p.Power; packet.Tier = p.Tier; packet.ArmorPiercingTier = p.ArmorPiercing;
@@ -291,7 +357,11 @@ internal sealed class OverhaulBridge : ICombatIntegration
     {
         if (source.SourceEntity is not EntityPlayer attacker || !CombatSystem.Supported(slot?.Itemstack?.Collectible)) return;
         if (attacker.Player is not IServerPlayer player || !combat.AcceptPhysicalContact(player, target))
-        { damage = 0; source.KnockbackStrength = 0; return; }
+        {
+            if (activeTrace?.Packet.AttackerEntityId == attacker.EntityId && activeTrace.Packet.TargetEntityId == target.EntityId)
+                activeTrace.Report("contact-refused", attacker.Player is IServerPlayer p ? combat.PhysicalContactState(p) : "not-server-player");
+            damage = 0; source.KnockbackStrength = 0; return;
+        }
         Direction direction = combat.PhysicalDirection(player);
         contacts.Add(source, new Contact(direction));
         if (direction == Direction.Overhead) damage *= 1.12f;
@@ -304,6 +374,9 @@ internal sealed class OverhaulBridge : ICombatIntegration
         if (!contacts.TryGetValue(args.DamageSource, out var contact)
             || args.DamageSource.SourceEntity is not EntityPlayer attacker || attacker.Player is not IServerPlayer player) return;
         combat.PhysicalFeedback(player, args.Target, contact.Blocked, args.DamageReceived);
+        if (activeTrace?.Player == player && activeTrace.Packet.TargetEntityId == args.Target.EntityId)
+            activeTrace.Report(contact.Blocked ? "blocked" : args.DamageReceived ? "hit" : "no-damage",
+                $"target={args.Target.Code} collider={activeTrace.Packet.Collider} damageReceived={args.DamageReceived}");
     }
 
     public void AssetsReady()
@@ -465,7 +538,17 @@ internal sealed class OverhaulBridge : ICombatIntegration
                     d.Radius += CombatRules.WeaponContactPadding;
                 }
                 collisionAttack = new MeleeAttack(client, contactStats); collisionAttack.Start(player.Player);
-                collisionKey = key; contactSent = false;
+                collisionKey = key; contactSent = false; debugTerrainBlocked = false;
+                if (combat.Controls?.HitDiagnosticsEnabled == true)
+                    api.Logger.Notification("[Warband Hit] collider clip={0} source={1} direction={2} maxReach={3} radii={4}",
+                        clip, source, fighter.Direction, contactStats.MaxReach,
+                        string.Join(",", contactStats.DamageTypes.Select(d => d.Radius.ToString("F3", System.Globalization.CultureInfo.InvariantCulture))));
+                debugColliders.Clear(); debugWeapon = null;
+            }
+            else
+            {
+                collisionAttack = null; debugColliders.Clear();
+                combat.Controls?.RecordMissingCollider();
             }
         }
         return true;
@@ -477,12 +560,102 @@ internal sealed class OverhaulBridge : ICombatIntegration
         var slot = player.RightHandItemSlot;
         if (slot.Itemstack == null) return;
         if (!fighter.CanHit(now)) { collisionAttack.PrepareColliders(player.Player, slot, true); return; }
+        IEnumerable<(Block block, Vector3d point)> terrain;
+        IEnumerable<(Entity entity, Vector3d point)> entities;
         using (CombatPrediction.Begin())
         {
-            contactSent = collisionAttack.Attack(player.Player, slot, true, out _, out _,
+            contactSent = collisionAttack.Attack(player.Player, slot, true, out terrain, out entities,
                 ItemStackMeleeWeaponStats.FromItemStack(slot.Itemstack), NativeDirection(fighter.Direction), true);
         }
+        if (combat.Controls is { HitDiagnosticsEnabled: true } controls)
+        {
+            // Capture the exact samples used above. Rendering never prepares or transforms
+            // the live collider a second time, which would destroy its sweep history.
+            debugColliders.Clear(); debugWeapon = slot.Itemstack; debugUntil = now + 350;
+            foreach (var type in collisionAttack.DamageTypes)
+                debugColliders.Add((type.InWorldCollider, type.PreviousInWorldCollider, type.Radius));
+            bool terrainHit = terrain.Any();
+            string blockedDetail = "";
+            if (terrainHit && !contactSent && !debugTerrainBlocked)
+            {
+                collisionAttack.TryCollideWithTerrain(out _, out double maximumParameter);
+                var client = (ICoreClientAPI)api;
+                float range = client.ModLoader.GetModSystem<CombatOverhaulSystem>().Settings.CollisionRadius + collisionAttack.MaxReach;
+                foreach (var candidate in api.World.GetEntitiesAround(player.Pos.XYZ, range, range))
+                {
+                    if (!candidate.Alive || !candidate.IsCreature || candidate.EntityId == player.EntityId
+                        || candidate.EntityId == player.MountedOn?.Entity?.EntityId) continue;
+                    foreach (var type in collisionAttack.DamageTypes)
+                    {
+                        if (!type.Collide(candidate, out string collider, out _, out double parameter, out _)
+                            || parameter <= maximumParameter) continue;
+                        debugTerrainBlocked = true;
+                        blockedDetail = FormattableString.Invariant($"target={candidate.Code} id={candidate.EntityId} collider={collider} targetParameter={parameter:F4} terrainParameter={maximumParameter:F4}");
+                        break;
+                    }
+                    if (debugTerrainBlocked) break;
+                }
+            }
+            var terrainContact = terrain.FirstOrDefault();
+            string terrainDetail = terrainHit ? FormattableString.Invariant($"block={terrainContact.block.Code} point=({terrainContact.point.X:F3},{terrainContact.point.Y:F3},{terrainContact.point.Z:F3})") : "";
+            controls.RecordHitFrame(terrainHit, entities.Any(), debugTerrainBlocked, blockedDetail, terrainDetail);
+            if (contactSent)
+            {
+                var packet = collisionAttack.LastDamagePackets.First();
+                controls.RecordHitSent(FormattableString.Invariant($"target={api.World.GetEntityById(packet.TargetEntityId)?.Code} id={packet.TargetEntityId} collider={packet.Collider} position=({packet.Position[0]:F3},{packet.Position[1]:F3},{packet.Position[2]:F3})"));
+            }
+        }
         if (contactSent) fighter.TakeHit(now);
+    }
+
+    public void RenderDiagnostics(EntityPlayer player, long now)
+    {
+        if (api is not ICoreClientAPI client || now > debugUntil || !ReferenceEquals(debugWeapon, player.RightHandItemSlot.Itemstack)) return;
+        int currentColor = debugTerrainBlocked ? ColorUtil.ColorFromRgba(255, 100, 60, 255) : ColorUtil.ColorFromRgba(80, 255, 110, 255);
+        int previousColor = ColorUtil.ColorFromRgba(95, 160, 255, 180);
+        foreach (var (current, previous, radius) in debugColliders)
+        {
+            current.Render(client, player, currentColor);
+            previous.Render(client, player, previousColor);
+            new LineSegmentCollider(previous.Position, current.Position - previous.Position).Render(client, player, previousColor);
+            new LineSegmentCollider(previous.Position + previous.Direction,
+                current.Position + current.Direction - previous.Position - previous.Direction).Render(client, player, previousColor);
+            RenderRadius(client, player, current, radius, currentColor);
+        }
+    }
+
+    private static void RenderRadius(ICoreClientAPI client, EntityPlayer player, LineSegmentCollider segment, float radius, int color)
+    {
+        if (segment.Direction.LengthSquared < 1e-10 || radius <= 0) return;
+        var axis = segment.Direction.Normalized();
+        var side = Vector3d.Cross(axis, Math.Abs(axis.Y) < .9 ? Vector3d.UnitY : Vector3d.UnitX).Normalized();
+        var up = Vector3d.Cross(axis, side);
+        const int sides = 12;
+        // Circular end caps and four rails expose the configured radius. Blue is
+        // the previous tested sample; the connecting lines illustrate the sweep.
+        for (int i = 0; i < sides; i++)
+        {
+            double a = i * Math.PI * 2 / sides, b = (i + 1) * Math.PI * 2 / sides;
+            var offset = (side * Math.Cos(a) + up * Math.Sin(a)) * radius;
+            var next = (side * Math.Cos(b) + up * Math.Sin(b)) * radius;
+            foreach (var end in new[] { segment.Position, segment.Position + segment.Direction })
+                new LineSegmentCollider(end + offset, next - offset).Render(client, player, color);
+            if (i % 3 == 0)
+                new LineSegmentCollider(segment.Position + offset, segment.Direction).Render(client, player, color);
+        }
+        // Two perpendicular semicircles at each end complete the capsule caps.
+        foreach (int sign in new[] { -1, 1 })
+        {
+            var end = sign < 0 ? segment.Position : segment.Position + segment.Direction;
+            foreach (var normal in new[] { side, up })
+            for (int i = 0; i < 8; i++)
+            {
+                double a = i * Math.PI / 8, b = (i + 1) * Math.PI / 8;
+                var from = end + radius * (normal * Math.Cos(a) + axis * Math.Sin(a) * sign);
+                var to = end + radius * (normal * Math.Cos(b) + axis * Math.Sin(b) * sign);
+                new LineSegmentCollider(from, to - from).Render(client, player, color);
+            }
+        }
     }
 
     public void Dispose()

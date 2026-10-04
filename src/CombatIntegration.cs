@@ -18,6 +18,7 @@ internal interface ICombatIntegration : IDisposable
     bool Animate(EntityPlayer player, Fighter fighter, long now, string? action);
     bool UsesPhysicalContacts(CollectibleObject item);
     void Frame(EntityPlayer player, Fighter fighter, long now);
+    void RenderDiagnostics(EntityPlayer player, long now);
     string WeaponMode(EntityPlayer player);
     IWarbandDamage? GetValidatedDamage(DamageSource source);
     void AssetsReady();
