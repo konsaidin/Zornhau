@@ -9,6 +9,7 @@
   <ItemGroup>
     <Compile Include="../../src/CombatModel.cs" Link="CombatModel.cs" />
     <Compile Include="../../src/OverhaulPhaseAnimations.cs" Link="OverhaulPhaseAnimations.cs" />
+    <Compile Include="../../src/OverhaulAnimationResolver.cs" Link="OverhaulAnimationResolver.cs" />
     <Reference Include="VintagestoryAPI"><HintPath>$(VSPath)/VintagestoryAPI.dll</HintPath></Reference>
     <Reference Include="VintagestoryLib"><HintPath>$(VSPath)/VintagestoryLib.dll</HintPath></Reference>
     <Reference Include="Newtonsoft.Json"><HintPath>$(VSPath)/Lib/Newtonsoft.Json.dll</HintPath></Reference>

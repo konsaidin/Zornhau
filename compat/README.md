@@ -1,4 +1,4 @@
-# Combat Overhaul / Armory integration (0.3.1)
+# Combat Overhaul / Armory integration (0.3.2)
 
 Target: Vintage Story 1.22.7. The original CO release targets older game versions;
 this pack uses [CO Fork](https://mods.vintagestory.at/show/mod/48376) 0.18.8,
@@ -22,6 +22,10 @@ Reanimated 1.0.0's 23 MIT-licensed clips are embedded with attribution. They are
 split into held windup, swing and recovery and retimed to our server timings;
 native attack callbacks and camera effects are removed. Families/directions not
 covered by those clips use native CO clips or authored Warband fallback poses.
+Two-handed stances use only two-handed attack/guard clips: exact native direction,
+matching family, then a polearm/sword donor. Missing pole directions are adapted
+from poleaxe clips; the embedded Reanimated greatsword provides coverage when
+Armory is absent. Donor grips still need visual checking on different models.
 Body-only vanilla clips accompany CO arm/item animation. Third-person phase codes
 are registered on every client for the native CO animation network.
 

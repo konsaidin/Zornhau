@@ -121,8 +121,11 @@ internal sealed class OverhaulBridge : ICombatIntegration
         return item == null ? "" : ClientModes(item)?.CurrentModeCode ?? "";
     }
 
-    private StanceStats? Stance(EntityPlayer player)
+    private StanceStats? Stance(EntityPlayer player) => Stance(player, out _);
+
+    private StanceStats? Stance(EntityPlayer player, out bool twoHanded)
     {
+        twoHanded = false;
         var stack = player.RightHandItemSlot.Itemstack;
         if (stack == null || !UsesPhysicalContacts(stack.Collectible)) return null;
         MeleeWeaponStats? stats;
@@ -147,7 +150,8 @@ internal sealed class OverhaulBridge : ICombatIntegration
         }
         if (stats == null) return null;
         string other = player.LeftHandItemSlot.Itemstack?.Collectible.Code.ToString() ?? "";
-        if (other.Length == 0 && stats.TwoHandedStance != null) return stats.TwoHandedStance;
+        if (other.Length == 0 && stats.TwoHandedStance != null)
+        { twoHanded = true; return stats.TwoHandedStance; }
         var dual = stats.MainHandDualWieldStances.FirstOrDefault(kv => WildcardUtil.Match(kv.Key, other)).Value;
         return other.Length > 0 && dual != null ? dual : stats.OneHandedStance;
     }
@@ -269,7 +273,8 @@ internal sealed class OverhaulBridge : ICombatIntegration
             { animations.Animations[phaseCode] = phase.ToAnimation(); count++; }
             if (code.EndsWith("-tp", StringComparison.Ordinal))
                 foreach (var (phaseCode, phase) in OverhaulPhaseAnimations.Split(code[..^3],
-                    author.GetValueOrDefault(code[..^3]) ?? clip))
+                    author.GetValueOrDefault(code[..^3])
+                        ?? (code.Contains("-2h") ? source.GetValueOrDefault(code[..^3]) : null) ?? clip))
                     animations.Animations[phaseCode + "-tp"] = phase.ToAnimation();
         }
         foreach (var (code, clip) in JsonConvert.DeserializeObject<Dictionary<string, AnimationJson>>(
@@ -323,8 +328,15 @@ internal sealed class OverhaulBridge : ICombatIntegration
             return physical;
         }
         if (fp == null || tp == null || animations == null) return false;
-        var stance = Stance(player);
-        string source = Source(stance, fighter.Direction, action == "block");
+        var stance = Stance(player, out bool twoHanded);
+        string? source = twoHanded && stance != null
+            ? OverhaulAnimationResolver.TwoHanded(stance, fighter.Direction, action == "block",
+                player.RightHandItemSlot.Itemstack!.Collectible.Code.Path,
+                code => animations.Animations.ContainsKey(OverhaulPhaseAnimations.Code(code, "windup")))
+            : Source(stance, fighter.Direction, action == "block");
+        // A missing optional package must never make a two-handed stance silently
+        // animate with the old one-handed arms.
+        if (source == null) return twoHanded;
         string clip;
         bool fallback = source.StartsWith("warbandcombat:warband-");
         if (fallback) clip = "warbandcombat:warband-" + action + "-" + fighter.Direction.ToString().ToLowerInvariant();
