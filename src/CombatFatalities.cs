@@ -27,7 +27,7 @@ internal sealed class CombatFatalities : IDisposable
     private readonly Dictionary<long, Effect> effects = new();
     private readonly long tick;
     private long sequence, lastFrame;
-    private sealed record Contact(EntityPlayer Target, FatalityKind Kind, Direction Direction,
+    private sealed record Contact(EntityAgent Target, FatalityKind Kind, Direction Direction,
         ItemSlot? HelmetSlot, ItemStack? Helmet, string HelmetPrefix, double Yaw);
     private sealed record Effect(FatalityPacket Packet, long Created, FatalityBody[] Bodies)
     {
@@ -55,14 +55,17 @@ internal sealed class CombatFatalities : IDisposable
         }
     }
 
+    internal static bool Eligible(Entity entity) => entity is EntityPlayer or TrainingDummy;
+
     internal void RecordContact(Entity target, DamageSource source, Direction direction, Vector3d point, string? element)
     {
-        if (server == null || !config.Enabled || target is not EntityPlayer victim || !victim.Alive
+        if (server == null || !config.Enabled || target is not EntityAgent victim || !Eligible(victim) || !victim.Alive
             || source.SourceEntity is not EntityPlayer attacker) return;
         var origin = new Vector3d(victim.Pos.X, victim.Pos.InternalY, victim.Pos.Z);
         var eye = new Vector3d(victim.LocalEyePos.X, victim.LocalEyePos.Y, victim.LocalEyePos.Z);
         bool head = FatalityRules.HeadElement(element) && FatalityRules.HeadPoint(point - origin, eye, victim.Properties.Client?.Size ?? 1);
-        var inventory = victim.Player?.InventoryManager.GetOwnInventory("character");
+        var inventory = victim is EntityPlayer player ? player.Player?.InventoryManager.GetOwnInventory("character")
+            : victim.GetBehavior<EntityBehaviorContainer>()?.Inventory;
         var slot = inventory != null && inventory.Count > (int)EnumCharacterDressType.ArmorHead
             ? inventory[(int)EnumCharacterDressType.ArmorHead] : null;
         var helmet = slot?.Itemstack;
@@ -72,7 +75,7 @@ internal sealed class CombatFatalities : IDisposable
         contacts.Remove(source); contacts.Add(source, new(victim, kind, direction, slot, helmet, prefix, attacker.Pos.Yaw));
     }
 
-    internal void OnDeath(EntityPlayer victim, DamageSource source)
+    internal void OnDeath(EntityAgent victim, DamageSource source)
     {
         if (server == null || !config.Enabled || victim.Alive || source == null || !contacts.TryGetValue(source, out var contact)
             || !ReferenceEquals(contact.Target, victim) || source is IWarbandDamage { Blocked: true }
@@ -100,10 +103,10 @@ internal sealed class CombatFatalities : IDisposable
         var effect = new Effect(packet, now, bodies); effects.Add(packet.Id, effect);
         foreach (var player in Nearby(packet)) SendEffect(effect, player, now);
         SendFrames();
-        api.Logger.Notification("[Warband Fatality] victim={0} kind={1} direction={2} headContact=true", victim.PlayerUID, contact.Kind, contact.Direction);
+        api.Logger.Notification("[Warband Fatality] victim={0} kind={1} direction={2} headContact=true", victim is EntityPlayer real ? real.PlayerUID : victim.EntityId.ToString(), contact.Kind, contact.Direction);
     }
 
-    internal void Reset(EntityPlayer victim)
+    internal void Reset(EntityAgent victim)
     {
         if (server != null)
         {

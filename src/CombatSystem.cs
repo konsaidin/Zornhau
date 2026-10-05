@@ -18,6 +18,7 @@ public sealed class CombatSystem : ModSystem
     private ICoreServerAPI? server;
     private IServerNetworkChannel? channel;
     private long serverTick;
+    private TrainingDummies? dummies;
     private Harmony? movementPatch;
     private long contactSequence;
     private readonly Dictionary<string, Session> sessions = new();
@@ -47,6 +48,7 @@ public sealed class CombatSystem : ModSystem
 
     public override void Start(ICoreAPI api)
     {
+        api.RegisterEntity(TrainingDummy.ClassName, typeof(TrainingDummy));
         api.Network.RegisterChannel("warbandcombat").RegisterMessageType<InputPacket>().RegisterMessageType<StatePacket>()
             .RegisterMessageType<ContactPacket>().RegisterMessageType<DiagnosticsSettingsPacket>().RegisterMessageType<HitDiagnosticPacket>()
             .RegisterMessageType<BladeContactPacket>().RegisterMessageType<FatalityPacket>().RegisterMessageType<FatalityFrame>();
@@ -55,7 +57,7 @@ public sealed class CombatSystem : ModSystem
     }
 
     public override void AssetsFinalize(ICoreAPI api)
-    { CombatBalance.Load(api); Integration?.AssetsReady(); NativeAnimations?.Load(); Physics?.AssetsReady(); }
+    { TrainingDummy.Register(api); CombatBalance.Load(api); Integration?.AssetsReady(); NativeAnimations?.Load(); Physics?.AssetsReady(); }
 
     public override void StartClientSide(ICoreClientAPI api)
     {
@@ -79,6 +81,7 @@ public sealed class CombatSystem : ModSystem
             .SetMessageHandler<DiagnosticsSettingsPacket>((player, packet) => GetSession(player).HitDiagnostics = packet.Enabled);
         Physics = new StandalonePhysics(api, this);
         channel.SetMessageHandler<BladeContactPacket>(Physics.OnContact);
+        dummies = new TrainingDummies(api, Fatalities);
         api.Event.PlayerDisconnect += OnDisconnect;
         api.Event.OnEntitySpawn += AttachGuard;
         api.Event.OnEntityLoaded += AttachGuard;
@@ -389,6 +392,7 @@ public sealed class CombatSystem : ModSystem
 
     public override void Dispose()
     {
+        dummies?.Dispose();
         Controls?.Dispose();
         Fatalities?.Dispose();
         Physics?.Dispose();

@@ -14,3 +14,5 @@ tests/server/bin/
 tests/server/obj/
 tests/standalone/bin/
 tests/standalone/obj/
+tools/TrainingSmoke/bin/
+tools/TrainingSmoke/obj/

@@ -14,8 +14,8 @@ internal sealed class FatalityRenderer : IRenderer
     private readonly ICoreClientAPI api;
     private readonly bool cameraEnabled;
     private readonly Harmony harmony = new("warbandcombat.fatalities");
-    private readonly ConditionalWeakTable<EntityPlayer, MeshData> snapshots = new();
-    private readonly ConditionalWeakTable<EntityPlayer, Action> listeners = new();
+    private readonly ConditionalWeakTable<EntityAgent, MeshData> snapshots = new();
+    private readonly ConditionalWeakTable<EntityAgent, Action> listeners = new();
     private readonly Dictionary<long, Effect> effects = new();
     private readonly HashSet<long> seen = new();
     private static FatalityRenderer? active;
@@ -55,7 +55,7 @@ internal sealed class FatalityRenderer : IRenderer
     private static void Tesselate(EntityShapeRenderer __instance, ref Action<MeshData> onMeshDataReady)
     {
         var manager = active;
-        if (manager == null || manager.entityField.GetValue(__instance) is not EntityPlayer player || onMeshDataReady == null) return;
+        if (manager == null || manager.entityField.GetValue(__instance) is not EntityAgent player || !CombatFatalities.Eligible(player) || onMeshDataReady == null) return;
         manager.Watch(player);
         var original = onMeshDataReady;
         onMeshDataReady = mesh =>
@@ -82,7 +82,7 @@ internal sealed class FatalityRenderer : IRenderer
         };
     }
 
-    private void Watch(EntityPlayer player)
+    private void Watch(EntityAgent player)
     {
         if (listeners.TryGetValue(player, out _)) return;
         Action changed = player.MarkShapeModified;
@@ -99,7 +99,7 @@ internal sealed class FatalityRenderer : IRenderer
             || packet.HelmetPrefix.Length > 256 || !seen.Add(packet.Id)) return;
         if (effects.Count >= FatalityRules.MaxEffects) Remove(effects.MinBy(e => e.Value.At).Key);
         var effect = new Effect(packet, api.World.ElapsedMilliseconds - packet.AgeMs); effects.Add(packet.Id, effect);
-        if (api.World.GetEntityById(packet.Victim) is EntityPlayer victim)
+        if (api.World.GetEntityById(packet.Victim) is EntityAgent victim && CombatFatalities.Eligible(victim))
         {
             Watch(victim);
             // A late join can receive an old detached head after its owner has
@@ -134,11 +134,11 @@ internal sealed class FatalityRenderer : IRenderer
         }
     }
 
-    private void Prepare(Effect effect, EntityPlayer player)
+    private void Prepare(Effect effect, EntityAgent player)
     {
         if (effect.Ready || !snapshots.TryGetValue(player, out var source)
             || player.Properties.Client.Renderer is not EntityShapeRenderer renderer
-            || (player.TpAnimManager?.Animator ?? player.AnimManager?.Animator) is not ClientAnimator animator) return;
+            || FatalityMesh.Animator(player) is not ClientAnimator animator) return;
         var matrices = animator.TransformationMatrices;
         var ids = FatalityMesh.HeadJoints(player); if (ids.Count == 0) return;
         var pivot = new Vec3d(effect.Packet.Position[0], effect.Packet.Position[1], effect.Packet.Position[2]);
@@ -220,7 +220,7 @@ internal sealed class FatalityRenderer : IRenderer
         foreach (var (id, effect) in effects.ToArray())
         {
             if (now - effect.At >= FatalityRules.LifetimeMs) { Remove(id); continue; }
-            if (!effect.Ready && api.World.GetEntityById(effect.Packet.Victim) is EntityPlayer victim) Prepare(effect, victim);
+            if (!effect.Ready && api.World.GetEntityById(effect.Packet.Victim) is EntityAgent victim && CombatFatalities.Eligible(victim)) Prepare(effect, victim);
             if (effect.Packet.Dimension != owner.Pos.Dimension) continue;
             foreach (var part in effect.Parts)
             {

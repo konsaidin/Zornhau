@@ -7,10 +7,13 @@ namespace WarbandCombat;
 
 internal static class FatalityMesh
 {
-    internal static HashSet<int> HeadJoints(EntityPlayer player)
+    internal static IAnimator? Animator(EntityAgent entity)
+        => (entity as EntityPlayer)?.TpAnimManager?.Animator ?? entity.AnimManager?.Animator;
+
+    internal static HashSet<int> HeadJoints(EntityAgent player)
     {
         var ids = new HashSet<int>();
-        var animator = player.TpAnimManager?.Animator ?? player.AnimManager?.Animator;
+        var animator = Animator(player);
         var pose = animator?.GetPosebyName("Head", StringComparison.OrdinalIgnoreCase);
         if (pose == null) return ids;
         void Add(ElementPose p)
@@ -39,7 +42,7 @@ internal static class FatalityMesh
         }));
     }
 
-    internal static TextureAtlasPosition[] HelmetRegions(ICoreClientAPI api, EntityPlayer player, string prefix)
+    internal static TextureAtlasPosition[] HelmetRegions(ICoreClientAPI api, EntityAgent player, string prefix)
         => prefix.Length == 0 ? [] : player.Properties.Client.Textures
             .Where(kv => kv.Key.StartsWith(prefix, StringComparison.Ordinal) && kv.Value.Baked != null)
             .Select(kv => api.EntityTextureAtlas.Positions[kv.Value.Baked.TextureSubId]).ToArray();

@@ -40,7 +40,7 @@ internal sealed class NativeBodyColliders(ICoreAPI api)
         if (!bodies.TryGetValue(entity, out var body) || body.Animator != animator || !ReferenceEquals(body.Roots, animator.RootPoses))
         {
             var all = Elements(animator.RootPoses).Where(BladeGeometry.BodyElement).ToArray();
-            var configured = Names(entity.Code);
+            var configured = Names(entity is TrainingDummy ? new AssetLocation("game:player") : entity.Code);
             var selected = configured != null ? all.Where(e => configured.Contains(e.Name ?? "")).ToArray() : all;
             // Custom models with a different naming scheme still have real body cuboids.
             if (selected.Length == 0) selected = all;

@@ -18,6 +18,15 @@ def run(args):
     version = json.loads((ROOT / 'modinfo.json').read_text())['version']
     package = ROOT / 'dist' / f'warbandcombat-{version}.zip'
     if not package.exists(): raise FileNotFoundError(f'Build the mod first: {package}')
+    if args.training_smoke:
+        subprocess.run([args.dotnet, 'build', str(ROOT / 'tools/TrainingSmoke/TrainingSmoke.csproj'),
+                        '-c', 'Release', '--nologo', f'-p:VSPath={game}'], check=True)
+        training = ROOT / '.artifacts/trainingsmoke.zip'
+        with zipfile.ZipFile(training, 'w', zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr('modinfo.json', json.dumps(dict(type='code', modid='trainingsmoke',
+                name='Developer training integration check', version='1.0.0', side='server',
+                authors=['Warband Combat developers'], dependencies=dict(warbandcombat=version))))
+            archive.write(ROOT / 'tools/TrainingSmoke/bin/Release/net10.0/TrainingSmoke.dll', 'TrainingSmoke.dll')
     if not args.smoke:
         subprocess.run([args.dotnet, 'build', str(ROOT / 'tools/BalanceAudit/BalanceAudit.csproj'),
                         '-c', 'Release', '--nologo', f'-p:VSPath={game}'], check=True)
@@ -32,6 +41,7 @@ def run(args):
         profile = ROOT / '.artifacts' / f'balance-{"smoke" if args.smoke else "export"}-{context}-{stamp}'
         mods = profile / 'Mods'; mods.mkdir(parents=True)
         shutil.copy2(package, mods / package.name)
+        if args.training_smoke: shutil.copy2(training, mods / training.name)
         if not args.smoke: shutil.copy2(audit, mods / audit.name)
         if context == 'co':
             from importlib.util import spec_from_file_location, module_from_spec
@@ -53,6 +63,8 @@ def run(args):
         output = ROOT / '.artifacts' / f'balance-{context}.json'
         environment = os.environ.copy()
         environment.pop('WARBAND_BALANCE_AUDIT', None)
+        environment.pop('WARBAND_TRAINING_SMOKE', None)
+        if args.training_smoke: environment['WARBAND_TRAINING_SMOKE'] = '1'
         if not args.smoke:
             output.unlink(missing_ok=True)
             environment['WARBAND_BALANCE_AUDIT'] = str(output)
@@ -68,7 +80,8 @@ def run(args):
                     if 'Entering runphase RunGame' in contents:
                         if '[Warband Combat] Loaded ' not in contents: raise RuntimeError('Balance profiles were not loaded')
                         if not args.smoke and not output.exists(): raise RuntimeError('Audit did not export')
-                        break
+                        if not args.training_smoke or '[Training Smoke] PASS:' in contents: break
+                    if '[Training Smoke] FAILED:' in contents: raise RuntimeError(f'Training integration failed: {log}')
                     if process.poll() is not None: raise RuntimeError(f'Server exited early: {log}')
                     time.sleep(.2)
                 else: raise TimeoutError(f'Server did not reach RunGame: {log}')
@@ -95,7 +108,9 @@ if __name__ == '__main__':
     parser.add_argument('--context', choices=('vanilla', 'co', 'both'), default='both')
     parser.add_argument('--port', type=int, default=25568)
     parser.add_argument('--smoke', action='store_true', help='Validate the packaged mod without the audit plugin')
+    parser.add_argument('--training-smoke', action='store_true', help='Also spawn, kill and revive an actual humanoid target')
     parser.add_argument('--refresh', action='store_true', help='Regenerate the committed catalog and tables after exports')
     options = parser.parse_args()
     if options.smoke and options.refresh: parser.error('--refresh requires export mode')
+    if options.training_smoke and not options.smoke: parser.error('--training-smoke requires --smoke')
     run(options)
