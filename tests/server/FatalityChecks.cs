@@ -110,8 +110,8 @@ internal static class FatalityChecks
     {
         var source = Fixture(); var ids = new HashSet<int> { 2 };
         var bloody = FatalityMesh.Blood(source, ids, [], 71);
-        check(bloody.VerticesCount > source.VerticesCount && bloody.VerticesCount <= source.VerticesCount + 36,
-            "Head blood creates bounded, small surface patches rather than recoloring the whole character");
+        check(bloody.VerticesCount > source.VerticesCount && bloody.VerticesCount <= source.VerticesCount + 96,
+            "Head blood creates bounded pools, streaks and droplets rather than recoloring the whole character");
         check(bloody.xyz.Take(source.VerticesCount * 3).SequenceEqual(source.xyz.Take(source.VerticesCount * 3))
             && bloody.Rgba.Take(source.RgbaCount).SequenceEqual(source.Rgba.Take(source.RgbaCount)),
             "Original skin and torso geometry/colors remain untouched beneath the blood patches");
@@ -127,10 +127,42 @@ internal static class FatalityChecks
         check(FatalityMesh.Blood(source, ids, [], 71).xyz.SequenceEqual(bloody.xyz),
             "The same victim has stable blood patches across re-tessellation");
         var detached = FatalityMesh.Filter(bloody, face => FatalityMesh.HeadFace(bloody, ids, face));
-        check(detached.Rgba.Take(detached.RgbaCount).Where((_, i) => i % 4 == 1).Any(g => g == 6),
+        check(detached.Rgba.Take(detached.RgbaCount).Where((_, i) => i % 4 == 1).Any(g => g == 9),
             "Detached heads and helmet geometry retain the blood colors");
+        for (long seed = 1; seed <= 32; seed++)
+        {
+            var stained = FatalityMesh.Blood(source, ids, [], seed);
+            check(stained.CustomInts.Count == stained.VerticesCount && stained.NormalsCount == stained.VerticesCount
+                && stained.Indices.Take(stained.IndicesCount).All(i => i >= 0 && i < stained.VerticesCount),
+                "Irregular stains retain complete bone/normal/index buffers for the engine");
+            bool front = true, uvInside = true;
+            for (int i = source.IndicesCount; i < stained.IndicesCount; i += 3)
+            {
+                int a = stained.Indices[i] * 3, b = stained.Indices[i + 1] * 3, c = stained.Indices[i + 2] * 3;
+                float area = (stained.xyz[b] - stained.xyz[a]) * (stained.xyz[c + 1] - stained.xyz[a + 1])
+                    - (stained.xyz[b + 1] - stained.xyz[a + 1]) * (stained.xyz[c] - stained.xyz[a]);
+                front &= float.IsFinite(area) && area >= -1e-8f;
+            }
+            for (int i = source.VerticesCount * 2; i < stained.UvCount; i++)
+                uvInside &= float.IsFinite(stained.Uv[i]) && stained.Uv[i] >= .1f - 1e-6f && stained.Uv[i] <= .2f + 1e-6f;
+            check(front, "Stain triangles face outwards");
+            check(uvInside, "Stains stay inside the original skin atlas region");
+            check(stained.xyz.Skip(source.VerticesCount * 3).Take(stained.VerticesCount * 3 - source.VerticesCount * 3)
+                .Where((_, i) => i % 3 == 2).All(z => z > 0 && z < .001f),
+                "Blood rests just above the surface instead of forming protruding blocks");
+        }
         var regions = new[] { new TextureAtlasPosition { atlasTextureId = 42, x1 = .09f, x2 = .21f, y1 = .09f, y2 = .21f } };
         check(FatalityMesh.TextureFace(source, 0, regions) && !FatalityMesh.TextureFace(source, 1, regions), "Helmet extraction respects the actual atlas region rather than copying skin faces");
+        var surfaces = new List<int>();
+        var stainedHelmet = FatalityMesh.Blood(source, ids, [], 71, surfaces);
+        var helmetParts = FatalityMesh.HelmetParts(stainedHelmet, ids, regions, surfaces);
+        check(surfaces.Count == stainedHelmet.VerticesCount / 4 && helmetParts[0] == 0 && helmetParts[1] == -1
+            && helmetParts.Skip(2).All(part => part == 0),
+            "Every blood sector stays with its original helmet surface when fragments detach");
+        check(FatalityMesh.Filter(stainedHelmet, face => helmetParts[face] < 0).VerticesCount == 4,
+            "Removing a helmet fragment also removes all its blood from the corpse");
+        var plainParts = FatalityMesh.HelmetParts(source, ids, regions, Enumerable.Range(0, source.VerticesCount / 4).ToArray());
+        check(plainParts.SequenceEqual(new[] { 0, -1 }), "Disabling stains preserves the same helmet fragment assignment");
         var head = FatalityMesh.Filter(source, face => FatalityMesh.HeadFace(source, ids, face));
         var body = FatalityMesh.Filter(source, face => !FatalityMesh.HeadFace(source, ids, face));
         check(head.VerticesCount == 4 && body.VerticesCount == 4 && head.CustomInts.Values.Take(4).All(id => id == 2), "Head separation preserves correct engine joint attributes");
@@ -321,6 +353,10 @@ internal static class FatalityChecks
         }
         check(particles.All(p => p.Quantity <= 52 && p.LifeLength <= 1.3f && p.WithTerrainCollision && p.Bounciness == 0),
             "Gore uses bounded, short-lived particles that collide with terrain");
+        check(particles.All(p => { var rgba = ColorUtil.ToRGBABytes(p.Color); return rgba[0] > rgba[1] * 5 && rgba[0] > rgba[2] * 4; }),
+            "Particle colors decode as blood red in the engine's BGRA integer format");
+        check(particles.All(p => p.ParticleModel == EnumParticleModel.Quad && p.MaxSize <= .28f),
+            "Blood uses small softened billboards instead of large cubic confetti");
         foreach (var switches in new[] { (false, false), (true, false), (false, true) })
         {
             particles.Clear(); sounds.Clear();

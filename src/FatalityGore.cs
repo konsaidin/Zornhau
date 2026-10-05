@@ -41,9 +41,9 @@ internal sealed class FatalityGore(ICoreClientAPI api, bool particles, bool soun
         bool crush = packet.Kind == FatalityKind.HeadCrush;
         if (particles)
         {
-            Spawn(point, impulse, crush ? 52 : 40, .7f, 1.1f, .16f, .42f, 146, 9, 17);
-            Spawn(point, impulse * .6f, crush ? 8 : 5, .5f, 1.3f, .45f, .8f, 82, 12, 19);
-            if (!crush) Spawn(center.AddCopy(0, -.23, 0), new(0, 1.8f, 0), 16, .3f, .85f, .16f, .34f, 166, 11, 19);
+            Spawn(point, impulse, crush ? 52 : 40, .7f, 1.1f, .055f, .18f, 146, 9, 17);
+            Spawn(point, impulse * .6f, crush ? 8 : 5, .5f, 1.3f, .16f, .28f, 82, 12, 19);
+            if (!crush) Spawn(center.AddCopy(0, -.23, 0), new(0, 1.8f, 0), 16, .3f, .85f, .045f, .13f, 166, 11, 19);
         }
         if (sounds)
         {
@@ -67,12 +67,12 @@ internal sealed class FatalityGore(ICoreClientAPI api, bool particles, bool soun
         if (!emission.Landed && now - emission.LastTrail >= 100)
         {
             emission.LastTrail = now;
-            Spawn(head.AddCopy(0, -.10, 0), new(0, -.25f, 0), 3, .08f, .7f, .12f, .27f, 135, 8, 14);
+            Spawn(head.AddCopy(0, -.10, 0), new(0, -.25f, 0), 3, .08f, .7f, .035f, .10f, 135, 8, 14);
         }
         if (now - emission.At < 550 && now - emission.LastNeck >= 130)
         {
             emission.LastNeck = now;
-            Spawn(neck, new(0, 1.4f, 0), 5, .22f, .8f, .15f, .3f, 157, 10, 18);
+            Spawn(neck, new(0, 1.4f, 0), 5, .22f, .8f, .045f, .12f, 157, 10, 18);
         }
     }
 
@@ -84,7 +84,7 @@ internal sealed class FatalityGore(ICoreClientAPI api, bool particles, bool soun
         emission.Landed = true;
         var point = new Vec3d(motion.ImpactPosition[0], motion.ImpactPosition[1], motion.ImpactPosition[2]);
         if (!Visible(emission.Packet, point)) return;
-        if (particles) Spawn(point.AddCopy(0, .03, 0), new(0, .6f, 0), 12, .8f, .65f, .14f, .34f, 124, 8, 14);
+        if (particles) Spawn(point.AddCopy(0, .03, 0), new(0, .6f, 0), 12, .8f, .65f, .04f, .13f, 124, 8, 14);
         if (sounds) Play("land", id, point, Math.Clamp(motion.ImpactSpeed / 6, .35f, .75f));
     }
 
@@ -95,14 +95,16 @@ internal sealed class FatalityGore(ICoreClientAPI api, bool particles, bool soun
     private void Spawn(Vec3d position, Vec3f direction, int count, float spread, float life,
         float minSize, float maxSize, int red, int green, int blue)
     {
-        var properties = new SimpleParticleProperties(count, count, ColorUtil.ColorFromRgba(red, green, blue, 235),
+        // VS particles consume BGRA-packed integers; mesh vertex bytes use RGBA.
+        // Quad billboards have softened corners and do not look like voxel debris.
+        var properties = new SimpleParticleProperties(count, count, ColorUtil.ColorFromRgba(blue, green, red, 235),
             position.AddCopy(-.035, -.035, -.035), position.AddCopy(.035, .035, .035),
             direction - new Vec3f(spread, spread, spread), direction + new Vec3f(spread, spread, spread),
-            life, 1, minSize, maxSize, EnumParticleModel.Cube)
+            life, 1, minSize, maxSize, EnumParticleModel.Quad)
         {
             WithTerrainCollision = true, Bounciness = 0, ShouldDieInLiquid = true,
             WindAffected = false, OpacityEvolve = new(EnumTransformFunction.LINEAR, -170),
-            SizeEvolve = new(EnumTransformFunction.LINEAR, -.06f)
+            SizeEvolve = new(EnumTransformFunction.LINEAR, -.035f)
         };
         api.World.SpawnParticles(properties);
     }

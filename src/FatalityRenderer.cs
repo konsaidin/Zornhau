@@ -67,9 +67,10 @@ internal sealed class FatalityRenderer : IRenderer
             // Keep a pristine snapshot: the death packet can arrive before the
             // corpse is re-tessellated. Prepare stains the detached mesh itself.
             manager.snapshots.Remove(player); manager.snapshots.Add(player, mesh.Clone());
+            var surfaces = Enumerable.Range(0, mesh.VerticesCount / 4).ToList();
             var kind = (FatalityKind)player.WatchedAttributes.GetInt(FatalityRules.Attribute);
             if (manager.bloodStains && kind is FatalityKind.Decapitation or FatalityKind.HeadCrush)
-                mesh = FatalityMesh.Blood(mesh, FatalityMesh.HeadJoints(player), FatalityMesh.NeckJoints(player), player.EntityId);
+                mesh = FatalityMesh.Blood(mesh, FatalityMesh.HeadJoints(player), FatalityMesh.NeckJoints(player), player.EntityId, surfaces);
             if (kind == FatalityKind.Decapitation)
             {
                 var ids = FatalityMesh.HeadJoints(player);
@@ -80,11 +81,9 @@ internal sealed class FatalityRenderer : IRenderer
                 string prefix = player.WatchedAttributes.GetString("warbandCrushedHelmet", "");
                 var regions = FatalityMesh.HelmetRegions(manager.api, player, prefix);
                 var ids = FatalityMesh.HeadJoints(player);
-                var helmetFaces = Enumerable.Range(0, mesh.VerticesCount / 4)
-                    .Where(i => FatalityMesh.HeadFace(mesh, ids, i) && FatalityMesh.TextureFace(mesh, i, regions)).ToArray();
+                var helmetParts = FatalityMesh.HelmetParts(mesh, ids, regions, surfaces);
                 FatalityMesh.Crush(mesh, i => FatalityMesh.HeadFace(mesh, ids, i));
-                var flying = helmetFaces.Where((_, ordinal) => FatalityMesh.FragmentPart(ordinal) >= 0).ToHashSet();
-                if (flying.Count > 0) mesh = FatalityMesh.Filter(mesh, i => !flying.Contains(i));
+                if (helmetParts.Any(part => part >= 0)) mesh = FatalityMesh.Filter(mesh, i => helmetParts[i] < 0);
             }
             original(mesh);
         };
@@ -157,7 +156,8 @@ internal sealed class FatalityRenderer : IRenderer
             || FatalityMesh.Animator(player) is not ClientAnimator animator) return;
         var matrices = animator.TransformationMatrices;
         var ids = FatalityMesh.HeadJoints(player); if (ids.Count == 0) return;
-        if (bloodStains) source = FatalityMesh.Blood(source, ids, FatalityMesh.NeckJoints(player), player.EntityId);
+        var surfaces = Enumerable.Range(0, source.VerticesCount / 4).ToList();
+        if (bloodStains) source = FatalityMesh.Blood(source, ids, FatalityMesh.NeckJoints(player), player.EntityId, surfaces);
         var pivot = new Vec3d(effect.Packet.Position[0], effect.Packet.Position[1], effect.Packet.Position[2]);
         renderer.loadModelMatrix(player, 0, false);
         var model = (float[])renderer.ModelMat.Clone();
@@ -175,15 +175,15 @@ internal sealed class FatalityRenderer : IRenderer
             var regions = FatalityMesh.HelmetRegions(api, player, effect.Packet.HelmetPrefix);
             var crushed = source.Clone();
             FatalityMesh.Crush(crushed, i => FatalityMesh.HeadFace(crushed, ids, i));
-            var helmet = FatalityMesh.Filter(crushed, i => FatalityMesh.HeadFace(crushed, ids, i) && FatalityMesh.TextureFace(crushed, i, regions));
-            if (helmet.VerticesCount == 0)
+            var helmetParts = FatalityMesh.HelmetParts(source, ids, regions, surfaces);
+            if (!helmetParts.Any(part => part >= 0))
             {
                 effect.Ready = true; return;
             }
             for (int part = 0; part < effect.Parts.Length; part++)
             {
                 int slice = part;
-                var fragment = FatalityMesh.Filter(helmet, face => FatalityMesh.FragmentPart(face) == slice);
+                var fragment = FatalityMesh.Filter(crushed, face => helmetParts[face] == slice);
                 if (fragment.VerticesCount == 0) continue;
                 FatalityMesh.Bake(fragment, matrices, model, origin, pivot);
                 FatalityMesh.Recenter(fragment);
