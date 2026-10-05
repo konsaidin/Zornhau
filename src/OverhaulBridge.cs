@@ -398,6 +398,8 @@ internal sealed class OverhaulBridge : ICombatIntegration
         if (profile == null) { damage = 0; source.KnockbackStrength = 0; return; }
         contacts.Add(source, new Contact(direction));
         damage = profile.Value.Power * CombatBalance.DirectionBonus(slot?.Itemstack?.Collectible.Tool, direction);
+        if (source is DirectionalTypedDamageSource typed)
+            combat.Fatalities?.RecordContact(target, source, direction, typed.Position, typed.Collider);
         ClearNativeBlock(attacker);
         if (target is EntityPlayer victim) ClearNativeBlock(victim);
     }

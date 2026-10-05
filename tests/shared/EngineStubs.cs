@@ -9,6 +9,7 @@ public class Stub : DispatchProxy
 {
     public static EntityPlayer? CurrentPlayer;
     public static bool Privileges;
+    public static IPlayerInventoryManager? InventoryManager;
     public static IServerPlayer Player(EntityPlayer entity)
     {
         CurrentPlayer = entity;
@@ -39,6 +40,10 @@ public class Stub : DispatchProxy
             else if (method.Name == "get_PlayerUID") il.Emit(OpCodes.Ldstr, "guard-test");
             else if (method.Name == "get_InventoryManager")
             {
+                var fallback = il.DefineLabel();
+                il.Emit(OpCodes.Ldsfld, typeof(Stub).GetField(nameof(InventoryManager))!);
+                il.Emit(OpCodes.Dup); il.Emit(OpCodes.Brfalse_S, fallback); il.Emit(OpCodes.Ret);
+                il.MarkLabel(fallback); il.Emit(OpCodes.Pop);
                 il.Emit(OpCodes.Ldtoken, method.ReturnType); il.Emit(OpCodes.Call, typeof(Type).GetMethod(nameof(Type.GetTypeFromHandle))!);
                 il.Emit(OpCodes.Call, typeof(Stub).GetMethod(nameof(Nested))!); il.Emit(OpCodes.Castclass, method.ReturnType);
             }

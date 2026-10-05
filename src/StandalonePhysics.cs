@@ -194,7 +194,7 @@ internal sealed class StandalonePhysics : IDisposable
             {
                 AttackId = attackId, Target = contact.Entity.EntityId, Blade = contact.Blade,
                 Previous = previous[contact.Blade].Segment.Pack(), Current = current[contact.Blade].Segment.Pack(),
-                Fraction = contact.Fraction, Point = new[] { contact.Point.X, contact.Point.Y, contact.Point.Z }
+                Fraction = contact.Fraction, Point = new[] { contact.Point.X, contact.Point.Y, contact.Point.Z }, Element = contact.Element
             });
             combat.Controls?.RecordHitSent($"engine=co-port target={contact.Entity.Code} collider={contact.Element} point={contact.Point}");
             fighter.TakeHit(now);
@@ -241,6 +241,7 @@ internal sealed class StandalonePhysics : IDisposable
         var stack = player.Entity.RightHandItemSlot.Itemstack;
         if (stack == null || !OwnWeapon(stack.Collectible)) { Reject("not-physical-weapon"); return; }
         if (packet.Previous?.Length != 6 || packet.Current?.Length != 6 || packet.Point?.Length != 3
+            || packet.Element == null || packet.Element.Length > 128
             || packet.Previous.Concat(packet.Current).Concat(packet.Point).Any(v => !double.IsFinite(v))
             || !double.IsFinite(packet.Fraction) || packet.Fraction < 0 || packet.Fraction > 1)
         { Reject("invalid-target-or-position"); return; }
@@ -277,10 +278,11 @@ internal sealed class StandalonePhysics : IDisposable
         var damage = new DirectionalDamage
         {
             Direction = direction, Source = EnumDamageSource.Player, SourceEntity = player.Entity,
-            Type = direction == Direction.Thrust ? EnumDamageType.PiercingAttack : EnumDamageType.SlashingAttack,
+            Type = CombatBalance.StandaloneDamageType(player.Entity, direction),
             DamageTier = stack.Collectible.GetToolTier(player.Entity.RightHandItemSlot),
             HitPosition = new(point.X - target.Pos.X, point.Y - target.Pos.InternalY, point.Z - target.Pos.Z), KnockbackStrength = .6f
         };
+        combat.Fatalities?.RecordContact(target, damage, direction, point, packet.Element);
         bool hit = target.ReceiveDamage(damage, CombatBalance.Power(player.Entity, direction,
             stack.Collectible.GetAttackPower(stack)) * multiplier);
         stack.Collectible.OnAttackingWith(api.World, player.Entity, target, player.Entity.RightHandItemSlot);

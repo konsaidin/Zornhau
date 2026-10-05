@@ -157,3 +157,4 @@ Console.WriteLine($"PASS: {predictionChecks} native prediction and damage presen
 HitDiagnosticChecks.Run();
 ContactBoundsChecks.Run();
 BalanceIntegrationChecks.Run();
+FatalityChecks.Run();

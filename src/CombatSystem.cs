@@ -14,6 +14,7 @@ public sealed class CombatSystem : ModSystem
     internal ICombatIntegration? Integration;
     internal StandalonePhysics? Physics;
     internal StandaloneAnimations? NativeAnimations;
+    internal CombatFatalities? Fatalities;
     private ICoreServerAPI? server;
     private IServerNetworkChannel? channel;
     private long serverTick;
@@ -48,7 +49,7 @@ public sealed class CombatSystem : ModSystem
     {
         api.Network.RegisterChannel("warbandcombat").RegisterMessageType<InputPacket>().RegisterMessageType<StatePacket>()
             .RegisterMessageType<ContactPacket>().RegisterMessageType<DiagnosticsSettingsPacket>().RegisterMessageType<HitDiagnosticPacket>()
-            .RegisterMessageType<BladeContactPacket>();
+            .RegisterMessageType<BladeContactPacket>().RegisterMessageType<FatalityPacket>().RegisterMessageType<FatalityFrame>();
         movementPatch = new Harmony("warbandcombat.movement." + api.Side);
         CombatMovement.Patch(movementPatch);
     }
@@ -59,6 +60,7 @@ public sealed class CombatSystem : ModSystem
     public override void StartClientSide(ICoreClientAPI api)
     {
         Client = api;
+        Fatalities = new CombatFatalities(api);
         if (movementPatch != null) CombatPrediction.Patch(movementPatch);
         Integration = OverhaulCompat.Create(api);
         NativeAnimations = new(api, this);
@@ -70,6 +72,7 @@ public sealed class CombatSystem : ModSystem
     public override void StartServerSide(ICoreServerAPI api)
     {
         server = api;
+        Fatalities = new CombatFatalities(api);
         Integration = OverhaulCompat.Create(api);
         NativeAnimations = new(api, this);
         channel = api.Network.GetChannel("warbandcombat").SetMessageHandler<InputPacket>(OnInput)
@@ -387,6 +390,7 @@ public sealed class CombatSystem : ModSystem
     public override void Dispose()
     {
         Controls?.Dispose();
+        Fatalities?.Dispose();
         Physics?.Dispose();
         NativeAnimations?.Clear();
         Integration?.Dispose();
@@ -415,4 +419,7 @@ internal sealed class GuardBehavior(Entity entity, CombatSystem system) : Entity
     public override string PropertyName() => "warbandguard";
     public override void OnEntityReceiveDamage(DamageSource damageSource, ref float damage)
         => system.Guard((EntityPlayer)entity, damageSource, ref damage);
+    public override void OnEntityDeath(DamageSource damageSource)
+        => system.Fatalities?.OnDeath((EntityPlayer)entity, damageSource);
+    public override void OnEntityRevive() => system.Fatalities?.Reset((EntityPlayer)entity);
 }

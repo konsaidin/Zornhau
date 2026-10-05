@@ -70,4 +70,32 @@ public sealed class BladeContactPacket
     [ProtoMember(5)] public double[] Current { get; set; } = Array.Empty<double>();
     [ProtoMember(6)] public double Fraction { get; set; }
     [ProtoMember(7)] public double[] Point { get; set; } = Array.Empty<double>();
+    [ProtoMember(8)] public string Element { get; set; } = "";
+}
+
+[ProtoContract]
+public sealed class FatalityPacket
+{
+    [ProtoMember(1)] public long Id { get; set; }
+    [ProtoMember(2)] public long Victim { get; set; }
+    [ProtoMember(3)] public FatalityKind Kind { get; set; }
+    [ProtoMember(4)] public int Dimension { get; set; }
+    [ProtoMember(5)] public double[] Position { get; set; } = [];
+    [ProtoMember(6)] public string HelmetPrefix { get; set; } = "";
+    [ProtoMember(7)] public int AgeMs { get; set; }
+}
+
+[ProtoContract]
+public sealed class FatalityMotion
+{
+    [ProtoMember(1)] public long Id { get; set; }
+    [ProtoMember(2)] public int Part { get; set; }
+    [ProtoMember(3)] public double[] Position { get; set; } = [];
+    [ProtoMember(4)] public double[] Rotation { get; set; } = [];
+}
+
+[ProtoContract]
+public sealed class FatalityFrame
+{
+    [ProtoMember(1)] public FatalityMotion[] Bodies { get; set; } = [];
 }

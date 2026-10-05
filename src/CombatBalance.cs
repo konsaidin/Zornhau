@@ -85,4 +85,14 @@ internal static class CombatBalance
 
     internal static float DirectionBonus(EnumTool? tool, Direction direction)
         => direction == Direction.Overhead ? 1.12f : direction == Direction.Thrust && tool == EnumTool.Spear ? 1.15f : 1;
+
+    internal static EnumDamageType StandaloneDamageType(EntityPlayer player, Direction direction)
+    {
+        string family = For(player)?.Family ?? "";
+        if (family.Length == 0) family = player.RightHandItemSlot.Itemstack?.Collectible.Code?.Path ?? "";
+        bool blunt = new[] { "mace", "club", "staff", "hammer" }
+            .Any(name => family.Contains(name, StringComparison.OrdinalIgnoreCase));
+        return blunt ? EnumDamageType.BluntAttack : direction == Direction.Thrust
+            ? EnumDamageType.PiercingAttack : EnumDamageType.SlashingAttack;
+    }
 }

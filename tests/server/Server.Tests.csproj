@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><TargetFramework>net10.0</TargetFramework><OutputType>Exe</OutputType><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><VSPath Condition="'$(VSPath)' == ''">/home/dead/Documents/vintagestory</VSPath></PropertyGroup>
   <ItemGroup>
+    <Reference Include="VSEssentials"><HintPath>$(VSPath)/Mods/VSEssentials.dll</HintPath></Reference>
     <Compile Include="../shared/EngineStubs.cs" Link="EngineStubs.cs" />
     <Reference Include="WarbandCombat"><HintPath>../../bin/Release/net10.0/WarbandCombat.dll</HintPath></Reference>
     <Reference Include="VintagestoryAPI"><HintPath>$(VSPath)/VintagestoryAPI.dll</HintPath></Reference>
