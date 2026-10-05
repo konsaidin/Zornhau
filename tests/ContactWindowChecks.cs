@@ -30,7 +30,8 @@ internal static class ContactWindowChecks
             Check(!early.CanHit(opens - 1) && !early.TakeHit(opens - 1), "No early contact while raising or moving the weapon");
             Check(early.TakeHit(opens) && early.Phase == Phase.Recovery && early.RecoveryAttackPose,
                 "The first contact must immediately end the swing");
-            Check(early.Ends == opens + timing.Recovery, "Recovery starts at actual contact, without waiting for the remaining window");
+            Check(early.Ends == (timing.PhysicalContacts ? closes : opens) + timing.Recovery,
+                "Contact ends the cut immediately, while physical attacks retain their committed cadence");
             Check(!early.CanHit(opens + 20) && !early.TakeHit(opens + 20), "Another entity cannot be hit by the spent swing");
 
             var turned = Swing();
@@ -42,10 +43,11 @@ internal static class ContactWindowChecks
             }
             Check(!turned.Apply(Command.Aim, (Direction)(((int)direction + 1) % 4), opens + 21, timing)
                 && turned.Direction == direction, "Camera turning must not switch the committed attack direction");
-            Check(turned.TakeHit(opens + 40) && turned.Ends == opens + 40 + timing.Recovery,
+            Check(turned.TakeHit(opens + 40) && turned.Ends == (timing.PhysicalContacts ? closes : opens + 40) + timing.Recovery,
                 "A turn after an initial miss can connect late within the window");
             turned.Stun(opens + 40, CombatRules.ParryStun);
-            Check(!turned.CanHit(opens + 50) && turned.Ends == opens + 40 + Math.Max(timing.Recovery, CombatRules.ParryStun),
+            Check(!turned.CanHit(opens + 50) && turned.Ends == Math.Max(
+                (timing.PhysicalContacts ? closes : opens + 40) + timing.Recovery, opens + 40 + CombatRules.ParryStun),
                 "A late parry must close the window without shortening recovery or stun");
 
             var edge = Swing();

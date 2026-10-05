@@ -254,10 +254,13 @@ internal sealed class OverhaulBridge : ICombatIntegration
     {
         if (stance?.CanAttack != true) return null;
         if (stance.DirectionalAttacks?.TryGetValue(NativeDirection(direction).ToString(), out var attack) == true) return attack;
+        if (direction is Direction.Right or Direction.Left && stance.DirectionalAttacks != null)
+            foreach (string diagonal in new[] { "Bottom" + NativeDirection(direction), "Top" + NativeDirection(direction) })
+                if (stance.DirectionalAttacks.TryGetValue(diagonal, out attack)) return attack;
         return stance.Attack ?? stance.DirectionalAttacks?.Values.FirstOrDefault();
     }
 
-    private AttackProfile? Profile(EntityPlayer attacker, Entity target, Direction direction, string? damageType)
+    private AttackProfile? Profile(EntityPlayer attacker, Entity target, Direction direction, string? damageType, bool balanced = false)
     {
         var stats = AttackStats(Stance(attacker), direction);
         var stack = attacker.RightHandItemSlot.Itemstack;
@@ -266,7 +269,10 @@ internal sealed class OverhaulBridge : ICombatIntegration
             : stats.DamageTypes.FirstOrDefault(d => d.Damage.DamageType == damageType);
         if (selected == null || !Enum.TryParse<EnumDamageType>(selected.Damage.DamageType, out var type)) return null;
         var buffs = ItemStackMeleeWeaponStats.FromItemStack(stack);
-        float power = selected.Damage.Damage * attacker.Stats.GetBlended("meleeWeaponsDamage");
+        float basePower = selected.Damage.Damage;
+        if (balanced) basePower = CombatBalance.Power(attacker, direction, basePower,
+            api.Side == EnumAppSide.Client ? WeaponMode(attacker) : attacker.WatchedAttributes.GetString("warbandWeaponMode", ""));
+        float power = basePower * attacker.Stats.GetBlended("meleeWeaponsDamage");
         if (target.Properties.Attributes?["isMechanical"].AsBool() == true)
             power *= attacker.Stats.GetBlended("mechanicalsDamage");
         power = (power + buffs.DamageBonus) * buffs.DamageMultiplier;
@@ -386,9 +392,12 @@ internal sealed class OverhaulBridge : ICombatIntegration
             damage = 0; source.KnockbackStrength = 0; return;
         }
         Direction direction = combat.PhysicalDirection(player);
+        // CO validates its native damage ceiling before this event. Normalize
+        // only after that validation, retaining flat bonuses after base scaling.
+        var profile = Profile(attacker, target, direction, source.Type.ToString(), balanced: true);
+        if (profile == null) { damage = 0; source.KnockbackStrength = 0; return; }
         contacts.Add(source, new Contact(direction));
-        if (direction == Direction.Overhead) damage *= 1.12f;
-        if (direction == Direction.Thrust && slot?.Itemstack?.Collectible.Tool == EnumTool.Spear) damage *= 1.15f;
+        damage = profile.Value.Power * CombatBalance.DirectionBonus(slot?.Itemstack?.Collectible.Tool, direction);
         ClearNativeBlock(attacker);
         if (target is EntityPlayer victim) ClearNativeBlock(victim);
     }

@@ -127,13 +127,14 @@ internal sealed class CombatClient : IRenderer
     private void Send(Command command)
     {
         if (!channel.Connected) return;
-        var item = api.World.Player?.Entity.RightHandItemSlot.Itemstack?.Collectible;
-        if (api.World.Player?.Entity is { } playerEntity)
-            Fighter.SetShield(CombatShields.Equipped(playerEntity), Now);
+        if (api.World.Player?.Entity is not { } playerEntity) return;
+        var item = playerEntity.RightHandItemSlot.Itemstack?.Collectible;
+        Fighter.SetShield(CombatShields.Equipped(playerEntity), Now);
         bool weapon = CombatSystem.Supported(item);
         bool shield = api.World.Player?.Entity is { } owner && CombatShields.Equipped(owner);
         if (CombatShields.AllowsInput(command, weapon, shield, Fighter.Phase)
-            && Fighter.Apply(command, Direction, Now, item != null ? CombatSystem.Timing(item) : WeaponTiming.Sword)
+            && (command != Command.Begin || CombatBalance.CanAttack(playerEntity, Integration?.WeaponMode(playerEntity)))
+            && Fighter.Apply(command, Direction, Now, CombatSystem.Timing(playerEntity, Integration?.WeaponMode(playerEntity)))
             && command == Command.Begin)
         {
             CurrentAttackId = sequence + 1;

@@ -8,6 +8,7 @@
     <Reference Include="Newtonsoft.Json"><HintPath>$(VSPath)/Lib/Newtonsoft.Json.dll</HintPath></Reference>
     <Reference Include="0Harmony"><HintPath>$(VSPath)/Lib/0Harmony.dll</HintPath></Reference>
     <Reference Include="VintagestoryLib"><HintPath>$(VSPath)/VintagestoryLib.dll</HintPath></Reference>
+    <Reference Include="VSSurvivalMod"><HintPath>$(VSPath)/Mods/VSSurvivalMod.dll</HintPath></Reference>
     <Reference Include="OpenTK.Mathematics"><HintPath>$(VSPath)/Lib/OpenTK.Mathematics.dll</HintPath></Reference>
     <Reference Include="OverhaullibLegacyCompat"><HintPath>../../.artifacts/compat/references/OverhaullibLegacyCompat.dll</HintPath></Reference>
   </ItemGroup>

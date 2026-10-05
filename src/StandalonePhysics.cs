@@ -273,7 +273,7 @@ internal sealed class StandalonePhysics : IDisposable
         if (target is not EntityPlayer && !player.HasPrivilege("attackcreatures")) { Reject("no-creature-privilege"); return; }
         if (!combat.AcceptPhysicalContact(player, target)) { Reject("contact-refused"); return; }
         Direction direction = combat.PhysicalDirection(player);
-        float multiplier = direction == Direction.Overhead ? 1.12f : direction == Direction.Thrust && stack.Collectible.Tool == EnumTool.Spear ? 1.15f : 1;
+        float multiplier = CombatBalance.DirectionBonus(stack.Collectible.Tool, direction);
         var damage = new DirectionalDamage
         {
             Direction = direction, Source = EnumDamageSource.Player, SourceEntity = player.Entity,
@@ -281,7 +281,8 @@ internal sealed class StandalonePhysics : IDisposable
             DamageTier = stack.Collectible.GetToolTier(player.Entity.RightHandItemSlot),
             HitPosition = new(point.X - target.Pos.X, point.Y - target.Pos.InternalY, point.Z - target.Pos.Z), KnockbackStrength = .6f
         };
-        bool hit = target.ReceiveDamage(damage, stack.Collectible.GetAttackPower(stack) * multiplier);
+        bool hit = target.ReceiveDamage(damage, CombatBalance.Power(player.Entity, direction,
+            stack.Collectible.GetAttackPower(stack)) * multiplier);
         stack.Collectible.OnAttackingWith(api.World, player.Entity, target, player.Entity.RightHandItemSlot);
         if (hit && !damage.Blocked && target is EntityAgent victim) player.Entity.DidAttack(damage, victim);
         combat.PhysicalFeedback(player, target, damage.Blocked, hit);

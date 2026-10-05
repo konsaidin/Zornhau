@@ -54,7 +54,7 @@ public sealed class CombatSystem : ModSystem
     }
 
     public override void AssetsFinalize(ICoreAPI api)
-    { Integration?.AssetsReady(); NativeAnimations?.Load(); Physics?.AssetsReady(); }
+    { CombatBalance.Load(api); Integration?.AssetsReady(); NativeAnimations?.Load(); Physics?.AssetsReady(); }
 
     public override void StartClientSide(ICoreClientAPI api)
     {
@@ -106,7 +106,11 @@ public sealed class CombatSystem : ModSystem
     internal static bool Supported(CollectibleObject? item) => item?.Tool is
         EnumTool.Sword or EnumTool.Spear or EnumTool.Axe or EnumTool.Knife || OverhaulCompat.IsMelee(item);
 
-    internal static WeaponTiming Timing(CollectibleObject item) => WeaponTiming.Overhaul(
+    internal static WeaponTiming Timing(EntityPlayer player, string? mode = null)
+        => CombatBalance.For(player, mode)?.Timing
+            ?? (player.RightHandItemSlot.Itemstack is { } stack ? Timing(stack.Collectible) : WeaponTiming.Sword);
+
+    internal static WeaponTiming Timing(CollectibleObject item) => CombatBalance.DefaultTiming(item) ?? WeaponTiming.Overhaul(
         OverhaulCompat.IsMelee(item) ? item.Code?.Path ?? "" : item.Tool switch
         {
             EnumTool.Spear => "spear",
@@ -161,8 +165,10 @@ public sealed class CombatSystem : ModSystem
             session.Slot = player.InventoryManager.ActiveHotbarSlotNumber;
         }
         session.Fighter.SetShield(CombatShields.Equipped(entity), now);
+        if (command == Command.Begin && !CombatBalance.CanAttack(entity, session.WeaponMode))
+        { SendState(player, session, now); return; }
         if (session.Fighter.Apply(command, (Direction)packet.Direction, now,
-            slot.Itemstack != null ? Timing(slot.Itemstack.Collectible) : WeaponTiming.Sword) && command == Command.Begin)
+            Timing(entity, session.WeaponMode)) && command == Command.Begin)
             session.AttackId = packet.Sequence;
         CombatMovement.Enforce(entity, session.Fighter, now);
         SendState(player, session, now);

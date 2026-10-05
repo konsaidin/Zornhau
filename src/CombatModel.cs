@@ -140,7 +140,9 @@ public sealed class Fighter
         if (!CanHit(now)) return false;
         HitDelivered = true; RecoveryAttackPose = true; Phase = Phase.Recovery;
         SprintUntil = now + CombatRules.SprintCooldown;
-        Ends = now + Timing.Recovery;
+        // A contact ends the active cut immediately, but cannot accelerate the
+        // committed attack cadence by skipping the rest of its strike window.
+        Ends = Timing.PhysicalContacts ? ContactEnds + Timing.Recovery : now + Timing.Recovery;
         return true;
     }
 

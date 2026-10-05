@@ -140,7 +140,7 @@ internal sealed class StandaloneAnimations(ICoreAPI api, CombatSystem combat) : 
             if (state.RemoteRevision != revision)
             {
                 state.RemoteRevision = revision; state.RemoteAt = now;
-                state.Remote.Reset(); state.Remote.Apply(Command.Begin, Direction.Right, now, CombatSystem.Timing(player.RightHandItemSlot.Itemstack!.Collectible));
+                state.Remote.Reset(); state.Remote.Apply(Command.Begin, Direction.Right, now, CombatSystem.Timing(player));
                 state.Remote.Restore((Phase)attrs.GetInt("warbandPhase"), (Direction)attrs.GetInt("warbandDirection"), now,
                     attrs.GetInt("warbandElapsed"), attrs.GetInt("warbandHitIn"), attrs.GetInt("warbandEndsIn"), 0,
                     attrs.GetBool("warbandRecoveryAttackPose"), attrs.GetInt("warbandContactEndsIn"));

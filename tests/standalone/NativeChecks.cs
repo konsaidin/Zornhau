@@ -13,6 +13,7 @@ static class NativeChecks
     internal static void Run(string root, Action<bool, string> check)
     {
         GuardAnimationChecks.Run(root, check);
+        WeaponBalanceChecks.Run(root, check);
         var source = JsonConvert.DeserializeObject<Dictionary<string, AnimationJson>>(
             File.ReadAllText(Path.Combine(root, "third-party/reanimated/clips.json")))!;
         // A connected client receives the mod config, but no original entity JSON.

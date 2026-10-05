@@ -6,6 +6,7 @@ SDK_BIN="${VS_DOTNET:-/home/dead/.local/share/vs-combat-dotnet/dotnet}"
 export DOTNET_CLI_TELEMETRY_OPTOUT=1
 python3 scripts/fetch-overhaul.py
 python3 scripts/generate-animations.py
+python3 scripts/generate-balance.py
 "$SDK_BIN" build WarbandCombat.csproj -c Release --nologo "$@"
 "$SDK_BIN" run --project tests/CombatModel.Tests.csproj -c Release --nologo
 "$SDK_BIN" run --project tests/server/Server.Tests.csproj -c Release --nologo
