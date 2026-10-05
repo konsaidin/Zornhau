@@ -23,6 +23,7 @@ internal static class CombatBalance
     {
         internal readonly WeaponBalanceProfile[] Profiles = profiles;
         internal readonly string DefaultMode = profiles[0].Mode;
+        internal readonly bool SingleMode = profiles.All(p => p.Mode.Length == 0);
     }
     private static readonly ConditionalWeakTable<CollectibleObject, Definition> definitions = new();
 
@@ -54,6 +55,9 @@ internal static class CombatBalance
         if (player.RightHandItemSlot.Itemstack?.Collectible is not { } item
             || !definitions.TryGetValue(item, out var definition)) return null;
         mode ??= player.WatchedAttributes.GetString("warbandWeaponMode", "");
+        // Single-mode items have no alternate mode to authorize. Ignore CO's
+        // internal "default" name and a previous item's stale watched mode.
+        if (definition.SingleMode) mode = "";
         if (mode.Length == 0) mode = definition.DefaultMode;
         var profiles = definition.Profiles.Where(p => p.Mode == mode).ToArray();
         string offhand = player.LeftHandItemSlot.Itemstack?.Collectible.Code.ToString() ?? "";

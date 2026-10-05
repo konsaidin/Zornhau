@@ -207,7 +207,9 @@ internal sealed class OverhaulBridge : ICombatIntegration
     public string WeaponMode(EntityPlayer player)
     {
         var item = player.RightHandItemSlot.Itemstack?.Collectible;
-        return item == null ? "" : ClientModes(item)?.CurrentModeCode ?? "";
+        // CO creates an internal "default" client mode even when the item has
+        // no selectable Modes. Our audited single-mode profile uses "".
+        return item?.Attributes?.KeyExists("Modes") == true ? ClientModes(item)?.CurrentModeCode ?? "" : "";
     }
 
     private StanceStats? Stance(EntityPlayer player) => Stance(player, out _);
