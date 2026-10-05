@@ -7,6 +7,7 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
+using Vintagestory.API.Util;
 using WarbandCombat;
 
 internal static class FatalityChecks
@@ -44,12 +45,24 @@ internal static class FatalityChecks
         Mesh(Check);
         Server(Check);
         Camera(Check);
+        Gore(Check);
+        StockDummyVoice(Check);
         var packet = new FatalityPacket { Id = 9, Victim = 14, Kind = FatalityKind.HeadCrush, Dimension = 1,
-            Position = [2, 3, 4], HelmetPrefix = "steelhelmet", AgeMs = 120 };
+            Position = [2, 3, 4], HelmetPrefix = "steelhelmet", AgeMs = 120,
+            Impulse = [1, 2, 3], SprayPosition = [2, 3.1, 4] };
         using var stream = new MemoryStream(); Serializer.Serialize(stream, packet); stream.Position = 0;
         var decoded = Serializer.Deserialize<FatalityPacket>(stream);
         Check(decoded.Id == 9 && decoded.Kind == FatalityKind.HeadCrush && decoded.Position.SequenceEqual(packet.Position)
-            && decoded.HelmetPrefix == packet.HelmetPrefix && decoded.AgeMs == 120, "Fatality protocol preserves event and appearance metadata");
+            && decoded.HelmetPrefix == packet.HelmetPrefix && decoded.AgeMs == 120
+            && decoded.Impulse.SequenceEqual(packet.Impulse) && decoded.SprayPosition.SequenceEqual(packet.SprayPosition),
+            "Fatality protocol preserves event, appearance and validated blood impulse/contact metadata");
+        using var movementStream = new MemoryStream();
+        var movement = new FatalityMotion { Id = 4, Part = 0, Position = [1, 2, 3], Rotation = [0, 1, 0],
+            Impact = 1, ImpactSpeed = 4.5f, ImpactPosition = [1, 0, 3] };
+        Serializer.Serialize(movementStream, movement); movementStream.Position = 0;
+        var received = Serializer.Deserialize<FatalityMotion>(movementStream);
+        Check(received.Impact == 1 && received.ImpactSpeed == 4.5f && received.ImpactPosition.SequenceEqual(movement.ImpactPosition),
+            "Authoritative collision metadata survives the real protobuf protocol");
         Console.WriteLine($"PASS: {checks} production fatality rules, physics, mesh and death-hook checks");
     }
 
@@ -59,6 +72,11 @@ internal static class FatalityChecks
         var fallen = new FatalityBody(new(0, 2, 0), new(2, 1.7, 0), .18);
         for (int i = 0; i < 3000; i++) { fallen.Advance(.01, Ground); check(fallen.Position.Y >= .18 - 1e-9, "Head cannot fall through terrain"); }
         check(fallen.Resting && fallen.Position.Y < .19 && fallen.Position.X > .1, "Head falls, moves, bounces and eventually rests");
+        check(fallen.Impact == 1 && fallen.ImpactSpeed >= 1.2 && Math.Abs(fallen.ImpactPosition.Y) < .03,
+            "Falling head reports one substantial contact at the real ground surface");
+        var quiet = new FatalityBody(new(0, .18, 0), Vector3d.Zero, .18);
+        for (int i = 0; i < 100; i++) quiet.Advance(.01, Ground);
+        check(quiet.Impact == 0, "Tiny resting floor contacts cannot produce repeated wet landing sounds");
         var thinWall = new FatalityBody(new(0, 1, 0), new(100, 0, 0), .07);
         thinWall.Advance(.02, (p, r) => p.X + r > .45 && p.X - r < .5);
         check(thinWall.Position.X < .45 && thinWall.Velocity.X < 0, "Fast fragments cannot tunnel through a thin wall");
@@ -91,11 +109,33 @@ internal static class FatalityChecks
     private static void Mesh(Action<bool, string> check)
     {
         var source = Fixture(); var ids = new HashSet<int> { 2 };
+        var bloody = FatalityMesh.Blood(source, ids, [], 71);
+        check(bloody.VerticesCount > source.VerticesCount && bloody.VerticesCount <= source.VerticesCount + 36,
+            "Head blood creates bounded, small surface patches rather than recoloring the whole character");
+        check(bloody.xyz.Take(source.VerticesCount * 3).SequenceEqual(source.xyz.Take(source.VerticesCount * 3))
+            && bloody.Rgba.Take(source.RgbaCount).SequenceEqual(source.Rgba.Take(source.RgbaCount)),
+            "Original skin and torso geometry/colors remain untouched beneath the blood patches");
+        check(bloody.CustomInts.Count == bloody.VerticesCount
+            && bloody.CustomInts.Values.Skip(source.VerticesCount).Take(bloody.VerticesCount - source.VerticesCount).All(i => i == 2),
+            "All blood patches stay attached to the correct head animation joint");
+        check(FatalityMesh.Filter(bloody, face => !FatalityMesh.HeadFace(bloody, ids, face)).VerticesCount == 4,
+            "Decapitation removes the blood-covered head from the corpse, preserving the torso");
+        var neck = FatalityMesh.Blood(source, [], new HashSet<int> { 3 }, 71);
+        check(neck.VerticesCount > source.VerticesCount
+            && neck.CustomInts.Values.Skip(source.VerticesCount).Take(neck.VerticesCount - source.VerticesCount).All(i => i == 3),
+            "Neck blood uses its own joint and remains on the corpse after head separation");
+        check(FatalityMesh.Blood(source, ids, [], 71).xyz.SequenceEqual(bloody.xyz),
+            "The same victim has stable blood patches across re-tessellation");
+        var detached = FatalityMesh.Filter(bloody, face => FatalityMesh.HeadFace(bloody, ids, face));
+        check(detached.Rgba.Take(detached.RgbaCount).Where((_, i) => i % 4 == 1).Any(g => g == 6),
+            "Detached heads and helmet geometry retain the blood colors");
         var regions = new[] { new TextureAtlasPosition { atlasTextureId = 42, x1 = .09f, x2 = .21f, y1 = .09f, y2 = .21f } };
         check(FatalityMesh.TextureFace(source, 0, regions) && !FatalityMesh.TextureFace(source, 1, regions), "Helmet extraction respects the actual atlas region rather than copying skin faces");
         var head = FatalityMesh.Filter(source, face => FatalityMesh.HeadFace(source, ids, face));
         var body = FatalityMesh.Filter(source, face => !FatalityMesh.HeadFace(source, ids, face));
         check(head.VerticesCount == 4 && body.VerticesCount == 4 && head.CustomInts.Values.Take(4).All(id => id == 2), "Head separation preserves correct engine joint attributes");
+        check(body.CustomInts.Count == body.VerticesCount && body.CustomInts.Values.Take(body.CustomInts.Count).All(id => id == 3)
+            && body.NormalsCount == body.VerticesCount, "Filtering with byte strides keeps the body's own bones and normal count");
         var crushed = source.Clone(); FatalityMesh.Crush(crushed, face => FatalityMesh.HeadFace(crushed, ids, face));
         check(crushed.xyz[7] < source.xyz[7], "Crushing actually deforms the face");
         check(crushed.xyz.Skip(12).Take(12).SequenceEqual(source.xyz.Skip(12).Take(12)), "Torso geometry is not deformed");
@@ -230,6 +270,94 @@ internal static class FatalityChecks
         victim.Alive = true; victim.WatchedAttributes.SetInt(FatalityRules.Attribute, 0);
         renderer.Receive(new FatalityPacket { Id = 3, Victim = 71, Kind = FatalityKind.Decapitation, Position = [10, 21, 30], AgeMs = 10000 });
         check(victim.WatchedAttributes.GetInt(FatalityRules.Attribute) == 0, "Receiving an old severed head never removes a respawned player's head");
+    }
+
+    private static void Gore(Action<bool, string> check)
+    {
+        long now = 1000;
+        var particles = new List<SimpleParticleProperties>(); var sounds = new List<AssetLocation>();
+        var owner = new Holder { Alive = true, EntityId = 71 }; owner.Pos.SetPos(10, 20, 30);
+        var player = (Vintagestory.Client.NoObf.ClientPlayer)RuntimeHelpers.GetUninitializedObject(typeof(Vintagestory.Client.NoObf.ClientPlayer));
+        var data = Vintagestory.Client.NoObf.ClientWorldPlayerData.CreateNew(); data.EntityPlayer = owner;
+        typeof(Vintagestory.Client.NoObf.ClientPlayer).GetField("worlddata", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(player, data);
+        var world = Stub.Make<FatalityTestWorld>((m, a) =>
+        {
+            if (m.Name == "get_Player") return player;
+            if (m.Name == "get_ElapsedMilliseconds") return now;
+            if (m.Name == "SpawnParticles" && a![0] is SimpleParticleProperties p) particles.Add(p);
+            if (m.Name == "PlaySoundAt" && a![0] is AssetLocation s) sounds.Add(s);
+            return Stub.Default(m.ReturnType);
+        });
+        var events = Stub.Make<IClientEventAPI>((m, a) => Stub.Default(m.ReturnType));
+        var api = Stub.Make<ICoreClientAPI>((m, a) => m.Name switch
+        { "get_World" => world, "get_Event" => events, _ => Stub.Default(m.ReturnType) });
+        FatalityPacket Packet(long id, FatalityKind kind = FatalityKind.Decapitation, int age = 0, int dimension = 0)
+            => new() { Id = id, Victim = 72, Kind = kind, AgeMs = age, Dimension = dimension,
+                Position = [10, 21.6, 30], SprayPosition = [10.1, 21.6, 30], Impulse = [2, 1.7, .8] };
+        using (var renderer = new FatalityRenderer(api, false))
+        {
+            var packet = Packet(1); renderer.Receive(packet);
+            int count = particles.Count, audio = sounds.Count;
+            check(count == 3 && audio == 2, "One fresh severing emits blood, tissue, neck blood and positional wet audio");
+            renderer.Receive(packet);
+            check(particles.Count == count && sounds.Count == audio, "Duplicate death packets cannot repeat gore");
+            renderer.Receive(Packet(2, age: 500)); renderer.Receive(Packet(3, dimension: 1));
+            var far = Packet(4); far.Position = [1000, 21, 1000]; far.SprayPosition = [];
+            renderer.Receive(far);
+            check(particles.Count == count && sounds.Count == audio, "Late observers, other dimensions and distant events do not replay gore");
+            var invalid = Packet(5); invalid.Impulse = [double.NaN, 0, 0]; renderer.Receive(invalid);
+            invalid = Packet(6); invalid.SprayPosition = [500, 21, 30]; renderer.Receive(invalid);
+            check(particles.Count == count && sounds.Count == audio, "Invalid vectors or remote spray contact cannot emit particles or audio");
+            var hit = new FatalityMotion { Id = 1, Part = 0, Position = [10, 20.18, 30], Rotation = [0, 0, 0],
+                Impact = 1, ImpactSpeed = 5, ImpactPosition = [10, 20, 30] };
+            renderer.Receive(new FatalityFrame { Bodies = [hit] });
+            check(particles.Count == count + 1 && sounds.Count == audio + 1 && sounds.Last().Path.Contains("land"),
+                "A server-confirmed substantial terrain collision emits one wet landing and splash");
+            renderer.Receive(new FatalityFrame { Bodies = [hit] });
+            check(particles.Count == count + 1 && sounds.Count == audio + 1, "Repeated movement snapshots cannot repeat the landing sound");
+            var crush = Packet(7, FatalityKind.HeadCrush); crush.HelmetPrefix = "ironhelmet"; renderer.Receive(crush);
+            check(sounds.Last().Path.Contains("shieldblock-metal") && particles.Count == count + 3,
+                "Helmet crush layers metal with flesh; no decapitated neck stream");
+        }
+        check(particles.All(p => p.Quantity <= 52 && p.LifeLength <= 1.3f && p.WithTerrainCollision && p.Bounciness == 0),
+            "Gore uses bounded, short-lived particles that collide with terrain");
+        foreach (var switches in new[] { (false, false), (true, false), (false, true) })
+        {
+            particles.Clear(); sounds.Clear();
+            var gore = new FatalityGore(api, switches.Item1, switches.Item2); gore.Begin(Packet(8));
+            check((particles.Count > 0) == switches.Item1 && (sounds.Count > 0) == switches.Item2,
+                "Blood and flesh audio can be disabled independently");
+        }
+        int AtFps(int fps)
+        {
+            particles.Clear(); sounds.Clear(); now = 1000;
+            var gore = new FatalityGore(api, true, false); gore.Begin(Packet(9));
+            int initial = particles.Count;
+            for (int frame = 0; frame < fps * 2; frame++)
+            { now = 1000 + frame * 1000 / fps; gore.Trail(9, new(10, 21, 30), new(10, 21.37, 30), now); }
+            int trails = particles.Count - initial;
+            gore.Remove(9); now = 1200; gore.Trail(9, new(10, 21, 30), new(10, 21.37, 30), now);
+            check(particles.Count - initial == trails, "Removing an effect immediately stops its blood emission");
+            return trails;
+        }
+        foreach (int fps in new[] { 30, 60, 144 }) check(AtFps(fps) is >= 13 and <= 17,
+            "Blood trail stays bounded at different render rates and expires after 1.2 seconds");
+    }
+
+    private static void StockDummyVoice(Action<bool, string> check)
+    {
+        int packetId = 0; byte[]? message = null;
+        var network = Stub.Make<IServerNetworkAPI>((m, a) =>
+        {
+            if (m.Name == "BroadcastEntityPacket") { packetId = (int)a![1]!; message = (byte[])a[2]!; }
+            return Stub.Default(m.ReturnType);
+        });
+        var server = Stub.Make<ICoreServerAPI>((m, a) => m.Name == "get_Network" ? network : Stub.Default(m.ReturnType));
+        var dummy = new TrainingDummy { Api = server, EntityId = 8 };
+        dummy.PlayEntitySound("death");
+        check(packetId == 1231 && message != null
+            && Vintagestory.API.Util.SerializerUtil.Deserialize<EnumTalkType>(message) == EnumTalkType.Death,
+            "Dummy death sends the stock character voice event instead of the recorded male NPC scream");
     }
 }
 

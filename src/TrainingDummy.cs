@@ -1,9 +1,11 @@
 using Newtonsoft.Json.Linq;
+using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
+using Vintagestory.API.Util;
 using Vintagestory.GameContent;
 
 namespace WarbandCombat;
@@ -15,8 +17,54 @@ public sealed class TrainingDummy : EntityPlayerBot
     internal static readonly AssetLocation TypeCode = new("game:warband-trainingdummy");
     internal const string ClassName = "WarbandTrainingDummy";
     internal long ReviveAt;
+    private ILoadedSound? deathVoice;
+    private long deathVoiceAt;
+    private float voicePitch = 1;
     public override bool StoreWithChunk => false;
     public override bool ShouldDespawn => DespawnReason != null && DespawnReason.Reason != EnumDespawnReason.Death;
+
+    public override void PlayEntitySound(string type, IPlayer? dualCallByPlayer = null)
+    {
+        if (type != "death") { base.PlayEntitySound(type, dualCallByPlayer); return; }
+        // PlayerBot otherwise uses the old recorded male NPC scream. The real
+        // player uses an instrumental voice and a falling pitch on death.
+        if (Api is ICoreServerAPI server)
+            server.Network.BroadcastEntityPacket(EntityId, 1231, SerializerUtil.Serialize(EnumTalkType.Death));
+    }
+
+    public override void OnReceivedServerPacket(int packetid, byte[] data)
+    {
+        if (packetid != 1231) { base.OnReceivedServerPacket(packetid, data); return; }
+        if (SerializerUtil.Deserialize<EnumTalkType>(data) != EnumTalkType.Death || Api is not ICoreClientAPI client) return;
+        StopVoice();
+        string type = WatchedAttributes.GetString("voicetype", "altoflute") ?? "altoflute";
+        var skin = GetBehavior<EntityBehaviorExtraSkinnable>();
+        var location = skin?.AvailableSkinPartsByCode.GetValueOrDefault("voicetype")?.VariantsByCode.GetValueOrDefault(type)?.Sound
+            ?? new AssetLocation("game:sounds/voice/altoflute");
+        voicePitch = WatchedAttributes.GetString("voicepitch", "medium") switch
+        { "verylow" => .6f, "low" => .8f, "high" => 1.2f, "veryhigh" => 1.4f, _ => 1 };
+        // Same death envelope as the base game's EntityTalkUtil. Keep our
+        // disposable NPC voice on its entity tick, without permanent renderers.
+        deathVoice = client.World.LoadSound(new SoundParams { Location = location, Pitch = .75f * voicePitch,
+            Volume = .8f, Position = Pos.XYZ.ToVec3f().Add(0, (float)LocalEyePos.Y, 0),
+            Range = 8, ShouldLoop = false, DisposeOnFinish = false });
+        deathVoiceAt = World.ElapsedMilliseconds;
+        deathVoice?.Start();
+    }
+
+    public override void OnGameTick(float dt)
+    {
+        base.OnGameTick(dt);
+        if (deathVoice == null) return;
+        float progress = (World.ElapsedMilliseconds - deathVoiceAt) / 2300f;
+        if (progress >= 1 || !deathVoice.IsPlaying) { StopVoice(); return; }
+        deathVoice.SetPitch((.75f - .45f * progress) * voicePitch);
+        deathVoice.SetVolume(.8f - .64f * progress);
+    }
+
+    private void StopVoice() { deathVoice?.Stop(); deathVoice?.Dispose(); deathVoice = null; }
+    public override void OnEntityDespawn(EntityDespawnData despawn)
+    { StopVoice(); base.OnEntityDespawn(despawn); }
 
     public override void Die(EnumDespawnReason reason = EnumDespawnReason.Death, DamageSource? damageSourceForDeath = null)
     {
@@ -119,6 +167,8 @@ internal sealed class TrainingDummies : IDisposable
         dummy.WatchedAttributes["nametag"] = new TreeAttribute();
         dummy.WatchedAttributes.GetTreeAttribute("nametag").SetString("name", mode == "helmet" ? "Болванчик · шлем" : "Болванчик");
         api.World.SpawnEntity(dummy);
+        dummy.WatchedAttributes.SetString("voicetype", player.Entity.WatchedAttributes.GetString("voicetype", "altoflute"));
+        dummy.WatchedAttributes.SetString("voicepitch", player.Entity.WatchedAttributes.GetString("voicepitch", "medium"));
         owned[player.PlayerUID] = dummy;
         Restore(dummy);
         return TextCommandResult.Success(mode == "normal" ? "Болванчик: 15 HP. Возрождение через 8 с. /wbdummy fatal — 1 HP, helmet — со шлемом, clear — удалить."

@@ -47,6 +47,9 @@ internal sealed class FatalityBody(Vector3d position, Vector3d velocity, double 
     internal Vector3d Position = position, Velocity = velocity, Rotation, Spin = new(2.5, 1.7, 3.1);
     internal readonly double Radius = radius;
     internal bool Resting;
+    internal int Impact;
+    internal float ImpactSpeed;
+    internal Vector3d ImpactPosition;
     private double remainder, quiet;
 
     internal void Advance(double seconds, System.Func<Vector3d, double, bool> solid)
@@ -66,6 +69,14 @@ internal sealed class FatalityBody(Vector3d position, Vector3d velocity, double 
                 {
                     var next = Position; next[axis] += distance / slices;
                     if (!solid(next, Radius)) { Position = next; continue; }
+                    // Report the first substantial contact, rather than the tiny
+                    // repeated floor contacts while settling. It is cosmetic only.
+                    if (Impact == 0 && Math.Abs(Velocity[axis]) >= 1.2)
+                    {
+                        Impact = 1; ImpactSpeed = (float)Math.Min(20, Math.Abs(Velocity[axis]));
+                        ImpactPosition = Position;
+                        ImpactPosition[axis] += Math.Sign(Velocity[axis]) * Radius;
+                    }
                     if (axis == 1 && Velocity.Y < 0) floor = true;
                     Velocity[axis] *= -.22;
                     break;

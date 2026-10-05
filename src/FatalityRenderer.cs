@@ -13,6 +13,8 @@ internal sealed class FatalityRenderer : IRenderer
 {
     private readonly ICoreClientAPI api;
     private readonly bool cameraEnabled;
+    private readonly bool bloodStains;
+    private readonly FatalityGore gore;
     private readonly Harmony harmony = new("warbandcombat.fatalities");
     private readonly ConditionalWeakTable<EntityAgent, MeshData> snapshots = new();
     private readonly ConditionalWeakTable<EntityAgent, Action> listeners = new();
@@ -42,9 +44,11 @@ internal sealed class FatalityRenderer : IRenderer
         internal Vec3d Rotation(long now) => RotationFrom.AddCopy(RotationTo.SubCopy(RotationFrom).Mul(Math.Clamp((now - At) / 100d, 0, 1)));
     }
 
-    internal FatalityRenderer(ICoreClientAPI api, bool cameraEnabled)
+    internal FatalityRenderer(ICoreClientAPI api, bool cameraEnabled, bool bloodParticles = true, bool fleshSounds = true, bool bloodStains = true)
     {
         this.api = api; this.cameraEnabled = cameraEnabled; active = this;
+        this.bloodStains = bloodStains;
+        gore = new FatalityGore(api, bloodParticles, fleshSounds);
         harmony.Patch(AccessTools.Method(typeof(EntityShapeRenderer), "TesselateShape", [typeof(Action<MeshData>), typeof(string[])]),
             prefix: new HarmonyMethod(typeof(FatalityRenderer), nameof(Tesselate)));
         var camera = AccessTools.TypeByName("Vintagestory.Client.NoObf.Camera");
@@ -60,8 +64,12 @@ internal sealed class FatalityRenderer : IRenderer
         var original = onMeshDataReady;
         onMeshDataReady = mesh =>
         {
+            // Keep a pristine snapshot: the death packet can arrive before the
+            // corpse is re-tessellated. Prepare stains the detached mesh itself.
             manager.snapshots.Remove(player); manager.snapshots.Add(player, mesh.Clone());
             var kind = (FatalityKind)player.WatchedAttributes.GetInt(FatalityRules.Attribute);
+            if (manager.bloodStains && kind is FatalityKind.Decapitation or FatalityKind.HeadCrush)
+                mesh = FatalityMesh.Blood(mesh, FatalityMesh.HeadJoints(player), FatalityMesh.NeckJoints(player), player.EntityId);
             if (kind == FatalityKind.Decapitation)
             {
                 var ids = FatalityMesh.HeadJoints(player);
@@ -96,9 +104,14 @@ internal sealed class FatalityRenderer : IRenderer
         if (packet.Id <= 0 || packet.Victim <= 0 || packet.Kind is not (FatalityKind.Decapitation or FatalityKind.HeadCrush)
             || packet.Position?.Length != 3 || packet.Position.Any(v => !double.IsFinite(v))
             || packet.AgeMs < 0 || packet.AgeMs >= FatalityRules.LifetimeMs || packet.HelmetPrefix == null
-            || packet.HelmetPrefix.Length > 256 || !seen.Add(packet.Id)) return;
+            || packet.HelmetPrefix.Length > 256 || !FatalityGore.ValidVector(packet.Impulse, true)
+            || packet.Impulse.Any(v => Math.Abs(v) > 16) || !FatalityGore.ValidVector(packet.SprayPosition, true)
+            || packet.SprayPosition.Length == 3 && new Vec3d(packet.SprayPosition[0], packet.SprayPosition[1], packet.SprayPosition[2])
+                .SquareDistanceTo(new Vec3d(packet.Position[0], packet.Position[1], packet.Position[2])) > 2.5 * 2.5
+            || !seen.Add(packet.Id)) return;
         if (effects.Count >= FatalityRules.MaxEffects) Remove(effects.MinBy(e => e.Value.At).Key);
         var effect = new Effect(packet, api.World.ElapsedMilliseconds - packet.AgeMs); effects.Add(packet.Id, effect);
+        gore.Begin(packet);
         if (api.World.GetEntityById(packet.Victim) is EntityAgent victim && CombatFatalities.Eligible(victim))
         {
             Watch(victim);
@@ -131,6 +144,9 @@ internal sealed class FatalityRenderer : IRenderer
             part.From = part.Received ? part.Position(now) : position.Clone();
             part.RotationFrom = part.Received ? part.Rotation(now) : new Vec3d(motion.Rotation[0], motion.Rotation[1], motion.Rotation[2]);
             part.To = position; part.RotationTo = new(motion.Rotation[0], motion.Rotation[1], motion.Rotation[2]); part.At = now; part.Received = true;
+            if (motion.ImpactPosition is { Length: 3 } && FatalityGore.ValidVector(motion.ImpactPosition)
+                && new Vec3d(motion.ImpactPosition[0], motion.ImpactPosition[1], motion.ImpactPosition[2])
+                    .SquareDistanceTo(position) <= 4 * 4) gore.Impact(motion.Id, motion);
         }
     }
 
@@ -141,6 +157,7 @@ internal sealed class FatalityRenderer : IRenderer
             || FatalityMesh.Animator(player) is not ClientAnimator animator) return;
         var matrices = animator.TransformationMatrices;
         var ids = FatalityMesh.HeadJoints(player); if (ids.Count == 0) return;
+        if (bloodStains) source = FatalityMesh.Blood(source, ids, FatalityMesh.NeckJoints(player), player.EntityId);
         var pivot = new Vec3d(effect.Packet.Position[0], effect.Packet.Position[1], effect.Packet.Position[2]);
         renderer.loadModelMatrix(player, 0, false);
         var model = (float[])renderer.ModelMat.Clone();
@@ -222,6 +239,11 @@ internal sealed class FatalityRenderer : IRenderer
             if (now - effect.At >= FatalityRules.LifetimeMs) { Remove(id); continue; }
             if (!effect.Ready && api.World.GetEntityById(effect.Packet.Victim) is EntityAgent victim && CombatFatalities.Eligible(victim)) Prepare(effect, victim);
             if (effect.Packet.Dimension != owner.Pos.Dimension) continue;
+            if (effect.Packet.Kind == FatalityKind.Decapitation && effect.Parts[0].Received)
+            {
+                var neck = new Vec3d(effect.Packet.Position[0], effect.Packet.Position[1] - .23, effect.Packet.Position[2]);
+                gore.Trail(id, effect.Parts[0].Position(now), neck, now);
+            }
             foreach (var part in effect.Parts)
             {
                 if (part.Mesh == null || !part.Received || ReferenceEquals(cameraEffect, effect) && !owner.Alive) continue;
@@ -245,6 +267,7 @@ internal sealed class FatalityRenderer : IRenderer
     private void Remove(long id)
     {
         if (!effects.Remove(id, out var effect)) return;
+        gore.Remove(id);
         foreach (var part in effect.Parts) part.Mesh?.Dispose();
         if (ReferenceEquals(cameraEffect, effect)) cameraEffect = null;
     }

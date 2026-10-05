@@ -83,6 +83,8 @@ public sealed class FatalityPacket
     [ProtoMember(5)] public double[] Position { get; set; } = [];
     [ProtoMember(6)] public string HelmetPrefix { get; set; } = "";
     [ProtoMember(7)] public int AgeMs { get; set; }
+    [ProtoMember(8)] public double[] Impulse { get; set; } = [];
+    [ProtoMember(9)] public double[] SprayPosition { get; set; } = [];
 }
 
 [ProtoContract]
@@ -92,6 +94,9 @@ public sealed class FatalityMotion
     [ProtoMember(2)] public int Part { get; set; }
     [ProtoMember(3)] public double[] Position { get; set; } = [];
     [ProtoMember(4)] public double[] Rotation { get; set; } = [];
+    [ProtoMember(5)] public int Impact { get; set; }
+    [ProtoMember(6)] public float ImpactSpeed { get; set; }
+    [ProtoMember(7)] public double[] ImpactPosition { get; set; } = [];
 }
 
 [ProtoContract]

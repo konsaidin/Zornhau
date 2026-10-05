@@ -24,8 +24,100 @@ internal static class FatalityMesh
         Add(pose); return ids;
     }
 
+    internal static HashSet<int> NeckJoints(EntityAgent player)
+    {
+        var pose = Animator(player)?.GetPosebyName("Neck", StringComparison.OrdinalIgnoreCase);
+        return pose?.ForElement == null ? [] : [pose.ForElement.JointId];
+    }
+
+    // Small surface patches retain the original UVs, normals, bone indices and
+    // custom attributes. They tint the actual face/hair/helmet texture rather
+    // than changing a shared skin asset or painting the whole head uniformly.
+    internal static MeshData Blood(MeshData source, HashSet<int> head, HashSet<int> neck, long seed)
+    {
+        if (source.Rgba == null || source.Uv == null) return source;
+        var result = source.Clone();
+        for (int face = 0; face < source.VerticesCount / 4; face++)
+        {
+            bool isNeck = HeadFace(source, neck, face);
+            if (!isNeck && !HeadFace(source, head, face)) continue;
+            var original = Filter(source, i => i == face);
+            var a = new Vec3f(original.xyz[3] - original.xyz[0], original.xyz[4] - original.xyz[1], original.xyz[5] - original.xyz[2]);
+            var b = new Vec3f(original.xyz[9] - original.xyz[0], original.xyz[10] - original.xyz[1], original.xyz[11] - original.xyz[2]);
+            var normal = a.Cross(b);
+            if (normal.Length() < .000001) continue;
+            normal.Normalize();
+            for (int y = 0; y < 3; y++)
+            for (int x = 0; x < 3; x++)
+            {
+                uint hash = unchecked((uint)(seed ^ (face * 16777619L) ^ (x * 374761393L) ^ (y * 668265263L)));
+                hash ^= hash >> 13; hash *= 1274126177; hash ^= hash >> 16;
+                if (hash % 100 >= (isNeck ? 70 : 43)) continue;
+                var patch = original.Clone();
+                // Inset edges leave an irregular outline instead of a red grid.
+                float inset = .015f + (hash % 11) * .003f;
+                float left = x / 3f + inset, right = (x + 1) / 3f - inset;
+                float bottom = y / 3f + inset, top = (y + 1) / 3f - inset;
+                float Blend(float[] values, int stride, int axis, float u, float v)
+                    => values[axis] * (1 - u) * (1 - v) + values[stride + axis] * u * (1 - v)
+                        + values[2 * stride + axis] * u * v + values[3 * stride + axis] * (1 - u) * v;
+                var corners = new[] { (left, bottom), (right, bottom), (right, top), (left, top) };
+                for (int vertex = 0; vertex < 4; vertex++)
+                {
+                    var (u, v) = corners[vertex];
+                    for (int axis = 0; axis < 3; axis++)
+                        patch.xyz[vertex * 3 + axis] = Blend(original.xyz, 3, axis, u, v)
+                            + (axis == 0 ? normal.X : axis == 1 ? normal.Y : normal.Z) * .0008f;
+                    for (int axis = 0; axis < 2; axis++) patch.Uv[vertex * 2 + axis] = Blend(original.Uv, 2, axis, u, v);
+                    patch.Rgba[vertex * 4] = (byte)(100 + hash % 55);
+                    patch.Rgba[vertex * 4 + 1] = 6;
+                    patch.Rgba[vertex * 4 + 2] = 13;
+                    patch.Rgba[vertex * 4 + 3] = original.Rgba[vertex * 4 + 3];
+                }
+                result.AddMeshData(patch);
+            }
+        }
+        if (result.Normals != null) result.NormalsCount = result.VerticesCount;
+        return result;
+    }
+
     internal static MeshData Filter(MeshData source, System.Func<int, bool> face)
-    { var result = source.EmptyClone(); result.AddMeshData(source, i => face(i)); return result; }
+    {
+        var selected = Enumerable.Range(0, source.VerticesCount / 4).Where(face).ToHashSet();
+        var result = source.EmptyClone(); result.AddMeshData(source, selected.Contains);
+        if (result.Normals != null) result.NormalsCount = result.VerticesCount;
+        // The engine's face selector treats byte InterleaveStride as an element
+        // count when copying custom attributes. Copy the selected vertices with
+        // the actual number of values instead, preserving their animation bones.
+        void Copy(int count, Action<int> add)
+        {
+            int stride = source.VerticesCount == 0 ? 0 : count / source.VerticesCount;
+            foreach (int f in selected.Order())
+                for (int vertex = f * 4; vertex < f * 4 + 4; vertex++)
+                    for (int component = 0; component < stride; component++) add(vertex * stride + component);
+        }
+        if (source.CustomInts != null)
+        {
+            result.CustomInts = source.CustomInts.EmptyClone();
+            Copy(source.CustomInts.Count, i => result.CustomInts.Add(source.CustomInts.Values[i]));
+        }
+        if (source.CustomFloats != null)
+        {
+            result.CustomFloats = source.CustomFloats.EmptyClone();
+            Copy(source.CustomFloats.Count, i => result.CustomFloats.Add(source.CustomFloats.Values[i]));
+        }
+        if (source.CustomShorts != null)
+        {
+            result.CustomShorts = source.CustomShorts.EmptyClone();
+            Copy(source.CustomShorts.Count, i => result.CustomShorts.Add(source.CustomShorts.Values[i]));
+        }
+        if (source.CustomBytes != null)
+        {
+            result.CustomBytes = source.CustomBytes.EmptyClone();
+            Copy(source.CustomBytes.Count, i => result.CustomBytes.Add(source.CustomBytes.Values[i]));
+        }
+        return result;
+    }
 
     internal static bool HeadFace(MeshData source, HashSet<int> ids, int face)
         => source.CustomInts?.Values is { } joints && face * 4 < joints.Length && ids.Contains(joints[face * 4]);

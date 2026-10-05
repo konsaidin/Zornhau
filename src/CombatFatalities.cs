@@ -13,6 +13,9 @@ public sealed class FatalityConfig
 {
     public bool Enabled = true;
     public bool DeathCamera = true;
+    public bool BloodParticles = true;
+    public bool BloodStains = true;
+    public bool FleshSounds = true;
     public float HelmetDurabilityLoss = .35f;
 }
 
@@ -28,7 +31,7 @@ internal sealed class CombatFatalities : IDisposable
     private readonly long tick;
     private long sequence, lastFrame;
     private sealed record Contact(EntityAgent Target, FatalityKind Kind, Direction Direction,
-        ItemSlot? HelmetSlot, ItemStack? Helmet, string HelmetPrefix, double Yaw);
+        ItemSlot? HelmetSlot, ItemStack? Helmet, string HelmetPrefix, double Yaw, Vector3d Point);
     private sealed record Effect(FatalityPacket Packet, long Created, FatalityBody[] Bodies)
     {
         internal readonly HashSet<string> Viewers = new();
@@ -49,7 +52,7 @@ internal sealed class CombatFatalities : IDisposable
         }
         else if (api is ICoreClientAPI capi)
         {
-            renderer = new FatalityRenderer(capi, config.DeathCamera);
+            renderer = new FatalityRenderer(capi, config.DeathCamera, config.BloodParticles, config.FleshSounds, config.BloodStains);
             capi.Network.GetChannel("warbandcombat").SetMessageHandler<FatalityPacket>(renderer.Receive)
                 .SetMessageHandler<FatalityFrame>(renderer.Receive);
         }
@@ -72,7 +75,7 @@ internal sealed class CombatFatalities : IDisposable
         var kind = FatalityRules.Choose(head, source.Type, direction);
         if (kind == FatalityKind.None) return;
         string prefix = helmet == null ? "" : IAttachableToEntity.FromCollectible(helmet.Collectible)?.GetTexturePrefixCode(helmet) ?? "";
-        contacts.Remove(source); contacts.Add(source, new(victim, kind, direction, slot, helmet, prefix, attacker.Pos.Yaw));
+        contacts.Remove(source); contacts.Add(source, new(victim, kind, direction, slot, helmet, prefix, attacker.Pos.Yaw, point));
     }
 
     internal void OnDeath(EntityAgent victim, DamageSource source)
@@ -98,7 +101,8 @@ internal sealed class CombatFatalities : IDisposable
             impulse + new Vector3d((count == 1 ? 0 : i - 1) * .8, i * .35, (count == 1 ? 0 : i - 1) * .4),
             contact.Kind == FatalityKind.Decapitation ? FatalityRules.HeadRadius : FatalityRules.FragmentRadius)).ToArray();
         var packet = new FatalityPacket { Id = ++sequence, Victim = victim.EntityId, Kind = contact.Kind,
-            Position = [position.X, position.Y, position.Z], Dimension = victim.Pos.Dimension, HelmetPrefix = contact.HelmetPrefix };
+            Position = [position.X, position.Y, position.Z], Dimension = victim.Pos.Dimension, HelmetPrefix = contact.HelmetPrefix,
+            Impulse = [impulse.X, impulse.Y, impulse.Z], SprayPosition = [contact.Point.X, contact.Point.Y, contact.Point.Z] };
         if (effects.Count >= FatalityRules.MaxEffects) effects.Remove(effects.MinBy(e => e.Value.Created).Key);
         var effect = new Effect(packet, now, bodies); effects.Add(packet.Id, effect);
         foreach (var player in Nearby(packet)) SendEffect(effect, player, now);
@@ -136,7 +140,7 @@ internal sealed class CombatFatalities : IDisposable
         var original = effect.Packet;
         channel!.SendPacket(new FatalityPacket { Id = original.Id, Victim = original.Victim, Kind = original.Kind,
             Dimension = original.Dimension, Position = original.Position, HelmetPrefix = original.HelmetPrefix,
-            AgeMs = (int)(now - effect.Created) }, player);
+            AgeMs = (int)(now - effect.Created), Impulse = original.Impulse, SprayPosition = original.SprayPosition }, player);
         effect.Viewers.Add(player.PlayerUID);
     }
 
@@ -179,7 +183,8 @@ internal sealed class CombatFatalities : IDisposable
                 if (!effect.Viewers.Contains(player.PlayerUID)) SendEffect(effect, player, api.World.ElapsedMilliseconds);
             var bodies = visible.SelectMany(e => e.Bodies.Select((b, i) =>
                 new FatalityMotion { Id = e.Packet.Id, Part = i, Position = [b.Position.X, b.Position.Y, b.Position.Z],
-                    Rotation = [b.Rotation.X, b.Rotation.Y, b.Rotation.Z] })).ToArray();
+                    Rotation = [b.Rotation.X, b.Rotation.Y, b.Rotation.Z], Impact = b.Impact, ImpactSpeed = b.ImpactSpeed,
+                    ImpactPosition = b.Impact == 0 ? [] : [b.ImpactPosition.X, b.ImpactPosition.Y, b.ImpactPosition.Z] })).ToArray();
             if (bodies.Length > 0) channel!.SendPacket(new FatalityFrame { Bodies = bodies }, player);
         }
     }
