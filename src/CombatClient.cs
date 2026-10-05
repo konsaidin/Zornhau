@@ -118,6 +118,9 @@ internal sealed class CombatClient : IRenderer
     internal bool OwnsMeleeInput => Active
         && (right || Fighter.Phase == Phase.Block || CombatSystem.Supported(api.World.Player.Entity.RightHandItemSlot.Itemstack?.Collectible));
     private ICombatIntegration? Integration => api.ModLoader.GetModSystem<CombatSystem>()?.Integration;
+    private StandalonePhysics? Physics => api.ModLoader.GetModSystem<CombatSystem>()?.Physics;
+    private StandaloneAnimations? NativeAnimations => api.ModLoader.GetModSystem<CombatSystem>()?.NativeAnimations;
+    internal int CurrentAttackId { get; private set; }
 
     private long Now => api.World.ElapsedMilliseconds;
 
@@ -133,6 +136,7 @@ internal sealed class CombatClient : IRenderer
             && Fighter.Apply(command, Direction, Now, item != null ? CombatSystem.Timing(item) : WeaponTiming.Sword)
             && command == Command.Begin)
         {
+            CurrentAttackId = sequence + 1;
             presentation.Begin();
             if (HitDiagnosticsEnabled)
             {
@@ -248,7 +252,7 @@ internal sealed class CombatClient : IRenderer
                 entity.TpAnimManager.OnStartAnimation += CombatAnimations.OnLocalAnimationStart;
                 entity.SelfFpAnimManager.OnStartAnimation += CombatAnimations.OnLocalAnimationStart;
             }
-            CombatAnimations.Update(entity, Fighter, Now, presentation, Integration);
+            CombatAnimations.Update(entity, Fighter, Now, presentation, Integration, NativeAnimations);
         }
     }
 
@@ -362,12 +366,19 @@ internal sealed class CombatClient : IRenderer
         if (stage == EnumRenderStage.AfterOIT)
         {
             if (HitDiagnosticsEnabled && Available && api.Input.MouseGrabbed && !api.IsGamePaused)
+            {
                 Integration?.RenderDiagnostics(api.World.Player.Entity, Now);
+                Physics?.RenderDiagnostics(api.World.Player.Entity, Now);
+            }
             return;
         }
         cameraDiagnostics?.OnFrame(Now, Fighter);
         if (!Available || !api.Input.MouseGrabbed || api.IsGamePaused) return;
-        if (Active) Integration?.Frame(api.World.Player.Entity, Fighter, Now);
+        if (Active)
+        {
+            Integration?.Frame(api.World.Player.Entity, Fighter, Now);
+            Physics?.Frame(api.World.Player.Entity, Fighter, Now, CurrentAttackId);
+        }
         UpdateHitDiagnostics();
         Direction display = Fighter.Phase == Phase.Idle ? Direction : Fighter.Direction;
         float scale = (float)RuntimeEnv.GUIScale;

@@ -13,6 +13,11 @@ internal interface IWarbandDamage
 internal readonly record struct AttackProfile(float Power, float Reach, int Tier,
     EnumDamageType Type, float Knockback, int Durability, int ArmorPiercing = 0);
 
+internal interface ICombatAnimation
+{
+    bool Animate(EntityPlayer player, Fighter fighter, long now, string? action);
+}
+
 internal interface ICombatIntegration : IDisposable
 {
     bool Animate(EntityPlayer player, Fighter fighter, long now, string? action);

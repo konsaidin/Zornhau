@@ -9,6 +9,7 @@ python3 scripts/generate-animations.py
 "$SDK_BIN" build WarbandCombat.csproj -c Release --nologo "$@"
 "$SDK_BIN" run --project tests/CombatModel.Tests.csproj -c Release --nologo
 "$SDK_BIN" run --project tests/server/Server.Tests.csproj -c Release --nologo
+"$SDK_BIN" run --project tests/standalone/Standalone.Tests.csproj -c Release --nologo
 "$SDK_BIN" run --project tests/overhaul/Overhaul.Tests.csproj -c Release --nologo
 if [[ -n "${VS_EDITOR_MODEL:-}" ]]; then
     python3 scripts/import-editor-animations.py "$VS_EDITOR_MODEL"
@@ -22,7 +23,7 @@ version = json.loads((root / 'modinfo.json').read_text())['version']
 out = root / 'dist' / f'warbandcombat-{version}.zip'
 out.parent.mkdir(exist_ok=True)
 with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as archive:
-    for path in [root / 'modinfo.json', root / 'third-party/reanimated/LICENSE', root / 'bin/Release/net10.0/WarbandCombat.dll',
+    for path in [root / 'modinfo.json', root / 'third-party/reanimated/LICENSE', root / 'third-party/overhaul-core/LICENSE', root / 'third-party/overhaul-core/README.md', root / 'bin/Release/net10.0/WarbandCombat.dll',
                  *sorted((root / 'assets').rglob('*'))]:
         if path.is_file():
             name = path.name if path.suffix == '.dll' else str(path.relative_to(root))

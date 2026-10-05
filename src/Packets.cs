@@ -58,3 +58,16 @@ public sealed class HitDiagnosticPacket
     [ProtoMember(3)] public string Detail { get; set; } = "";
     [ProtoMember(4)] public long Target { get; set; }
 }
+
+// No damage, radius or timing claims: those come from the held server item and Fighter.
+[ProtoContract]
+public sealed class BladeContactPacket
+{
+    [ProtoMember(1)] public int AttackId { get; set; }
+    [ProtoMember(2)] public long Target { get; set; }
+    [ProtoMember(3)] public int Blade { get; set; }
+    [ProtoMember(4)] public double[] Previous { get; set; } = Array.Empty<double>();
+    [ProtoMember(5)] public double[] Current { get; set; } = Array.Empty<double>();
+    [ProtoMember(6)] public double Fraction { get; set; }
+    [ProtoMember(7)] public double[] Point { get; set; } = Array.Empty<double>();
+}

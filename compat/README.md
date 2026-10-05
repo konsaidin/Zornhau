@@ -34,10 +34,17 @@ server checks the authorized window, held weapon/mode/offhand, permitted damage
 profile, reach, contact proximity, terrain and PvP permissions, and consumes only
 one contact. It overwrites client damage/armor-piercing/knockback values. It does
 not independently replay the entire animated mesh; this is not complete anti-cheat
-or lag compensation. Vanilla weapons without CO melee stats still use the
-existing server ray contact check. Successful-hit attack interruption remains a
+or lag compensation. Vanilla weapons without CO melee stats now use Warband's
+embedded MIT-ported CO composer, hand/line transforms and animated body
+colliders, including terrain checks. These work without the five external runtime packages. Standalone
+contact packets carry an exact attack ID and blade geometry; damage, radius and
+timing come from the server's held item and Fighter. The server validates geometry,
+reach, target model envelope/recent positions, terrain and permissions, but does
+not independently replay the client's animated pose. Successful-hit attack interruption remains a
 separate requested task in PVP-BALANCE.md.
 
 Build: `VS_EDITOR_MODEL=editor/seraph-combat-completed.json bash scripts/build.sh`.
 The optional bridge is loaded only when `combatoverhaulfork` exists. Standalone
 Warband installs do not need the five external runtime packages.
+
+Embedded source provenance and adaptations: [overhaul-core](../third-party/overhaul-core/README.md).

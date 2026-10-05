@@ -12,6 +12,8 @@ public sealed class CombatSystem : ModSystem
     internal ICoreClientAPI? Client;
     internal CombatClient? Controls;
     internal ICombatIntegration? Integration;
+    internal StandalonePhysics? Physics;
+    internal StandaloneAnimations? NativeAnimations;
     private ICoreServerAPI? server;
     private IServerNetworkChannel? channel;
     private long serverTick;
@@ -35,6 +37,7 @@ public sealed class CombatSystem : ModSystem
         public long SwingSoundAt;
         public int AttackId;
         public bool HitDiagnostics;
+        public int PoseRevision;
         public long DiagnosticWindow;
         public int DiagnosticCount;
     }
@@ -44,18 +47,22 @@ public sealed class CombatSystem : ModSystem
     public override void Start(ICoreAPI api)
     {
         api.Network.RegisterChannel("warbandcombat").RegisterMessageType<InputPacket>().RegisterMessageType<StatePacket>()
-            .RegisterMessageType<ContactPacket>().RegisterMessageType<DiagnosticsSettingsPacket>().RegisterMessageType<HitDiagnosticPacket>();
+            .RegisterMessageType<ContactPacket>().RegisterMessageType<DiagnosticsSettingsPacket>().RegisterMessageType<HitDiagnosticPacket>()
+            .RegisterMessageType<BladeContactPacket>();
         movementPatch = new Harmony("warbandcombat.movement." + api.Side);
         CombatMovement.Patch(movementPatch);
     }
 
-    public override void AssetsFinalize(ICoreAPI api) => Integration?.AssetsReady();
+    public override void AssetsFinalize(ICoreAPI api)
+    { Integration?.AssetsReady(); NativeAnimations?.Load(); Physics?.AssetsReady(); }
 
     public override void StartClientSide(ICoreClientAPI api)
     {
         Client = api;
         if (movementPatch != null) CombatPrediction.Patch(movementPatch);
         Integration = OverhaulCompat.Create(api);
+        NativeAnimations = new(api, this);
+        Physics = new StandalonePhysics(api, this);
         Controls = new CombatClient(api);
         api.Logger.Notification("[Warband Combat] Client ready. K toggles combat; Shift uses vanilla interactions.");
     }
@@ -64,8 +71,11 @@ public sealed class CombatSystem : ModSystem
     {
         server = api;
         Integration = OverhaulCompat.Create(api);
+        NativeAnimations = new(api, this);
         channel = api.Network.GetChannel("warbandcombat").SetMessageHandler<InputPacket>(OnInput)
             .SetMessageHandler<DiagnosticsSettingsPacket>((player, packet) => GetSession(player).HitDiagnostics = packet.Enabled);
+        Physics = new StandalonePhysics(api, this);
+        channel.SetMessageHandler<BladeContactPacket>(Physics.OnContact);
         api.Event.PlayerDisconnect += OnDisconnect;
         api.Event.OnEntitySpawn += AttachGuard;
         api.Event.OnEntityLoaded += AttachGuard;
@@ -96,17 +106,14 @@ public sealed class CombatSystem : ModSystem
     internal static bool Supported(CollectibleObject? item) => item?.Tool is
         EnumTool.Sword or EnumTool.Spear or EnumTool.Axe or EnumTool.Knife || OverhaulCompat.IsMelee(item);
 
-    internal static WeaponTiming Timing(CollectibleObject item) => OverhaulCompat.IsMelee(item)
-        ? WeaponTiming.Overhaul(item.Code?.Path ?? "") : item.Tool switch
-    {
-        EnumTool.Spear => new(360, 140, 420),
-        EnumTool.Axe => new(420, 170, 480),
-        EnumTool.Knife => new(180, 100, 260),
-        _ when item.Code?.Path.Contains("pike") == true => new(360, 140, 420),
-        _ when item.Code?.Path.Contains("great") == true => new(380, 170, 450),
-        _ when item.Code?.Path.Contains("mace") == true || item.Code?.Path.Contains("hammer") == true => new(420, 170, 480),
-        _ => WeaponTiming.Sword
-    };
+    internal static WeaponTiming Timing(CollectibleObject item) => WeaponTiming.Overhaul(
+        OverhaulCompat.IsMelee(item) ? item.Code?.Path ?? "" : item.Tool switch
+        {
+            EnumTool.Spear => "spear",
+            EnumTool.Axe => "axe",
+            EnumTool.Knife => "knife",
+            _ => (item.Code?.Path ?? "").Replace("claymore", "great", StringComparison.Ordinal)
+        });
 
     private Session GetSession(IServerPlayer player)
     {
@@ -182,68 +189,11 @@ public sealed class CombatSystem : ModSystem
             CombatMovement.Bind(entity, session.Fighter);
             CombatMovement.Enforce(entity, session.Fighter, now);
             if (windowExpired) session.Feedback = "warbandcombat:miss";
-            CombatAnimations.Update(entity, session.Fighter, now, integration: Integration);
-            if (session.Fighter.CanHit(now)
-                && !(slot.Itemstack != null && Integration?.UsesPhysicalContacts(slot.Itemstack.Collectible) == true))
-                Strike(player, session, now);
+            CombatAnimations.Update(entity, session.Fighter, now, integration: Integration, standalone: NativeAnimations);
             // Resolve a hit immediately on the client instead of waiting for the periodic sync.
             if (windowExpired || !string.IsNullOrEmpty(session.Feedback)) SendState(player, session, now);
             if (now - session.LastSync >= 150) SendState(player, session, now);
         }
-    }
-
-    private void Strike(IServerPlayer player, Session session, long now)
-    {
-        if (server == null || session.Weapon == null) return;
-        var attacker = player.Entity;
-        var item = session.Weapon.Collectible;
-        float reach = Math.Clamp(item.GetAttackRange(session.Weapon), 1.5f, 4.5f);
-        var origin = attacker.Pos.XYZ.Add(attacker.LocalEyePos);
-        EntitySelection? selected = null;
-        // A small sweep gives slashes a wider contact area; thrusts need accurate aim.
-        float[] offsets = session.Fighter.Direction is Direction.Left or Direction.Right
-            ? new[] { 0f, -.10f, .10f, -.20f, .20f } : new[] { 0f };
-        foreach (float offset in offsets)
-        {
-            var view = EntityPos.GetViewVector(attacker.Pos.Pitch, attacker.Pos.Yaw + offset);
-            var end = origin.AddCopy(view.X * reach, view.Y * reach, view.Z * reach);
-            BlockSelection? block = null;
-            EntitySelection? entity = null;
-            server.World.RayTraceForSelection(origin, end, ref block, ref entity,
-                (pos, candidate) => candidate.GetCollisionBoxes(server.World.BlockAccessor, pos)?.Length > 0,
-                candidate => candidate is EntityAgent && candidate.EntityId != attacker.EntityId
-                    && candidate.Alive && candidate.Pos.Dimension == attacker.Pos.Dimension);
-            // Vintage Story already rejects an entity behind the first blocking surface.
-            if (entity != null) { selected = entity; break; }
-        }
-        // Empty space is a probe, not a spent attack: later ticks use the new view direction.
-        if (selected == null) return;
-        var target = selected.Entity;
-        if (target is EntityPlayer && (!server.Server.Config.AllowPvP || !player.HasPrivilege("attackplayers"))) return;
-        if (target is not EntityPlayer && !player.HasPrivilege("attackcreatures")) return;
-        // Consume before ReceiveDamage: a parry can extend this recovery, and
-        // invulnerable targets must not allow this swing to hit a second entity.
-        if (!session.Fighter.TakeHit(now)) return;
-        var direction = session.Fighter.Direction;
-        // A quick click still waits the full windup, so it deserves the same
-        // damage as holding through that identical preparation time.
-        float multiplier = 1;
-        if (direction == Direction.Overhead) multiplier *= 1.12f;
-        if (direction == Direction.Thrust && item.Tool == EnumTool.Spear) multiplier *= 1.15f;
-        var damage = new DirectionalDamage
-        {
-            Direction = direction, Source = EnumDamageSource.Player, SourceEntity = attacker,
-            Type = direction == Direction.Thrust ? EnumDamageType.PiercingAttack : EnumDamageType.SlashingAttack,
-            DamageTier = item.GetToolTier(attacker.RightHandItemSlot),
-            HitPosition = selected.HitPosition.Clone(),
-            KnockbackStrength = .6f
-        };
-        bool hit = target.ReceiveDamage(damage, item.GetAttackPower(session.Weapon) * multiplier);
-        // Consume normal attack durability for both hits and successful parries.
-        item.OnAttackingWith(server.World, attacker, target, attacker.RightHandItemSlot);
-        if (hit && !damage.Blocked && target is EntityAgent victim) attacker.DidAttack(damage, victim);
-        if (!damage.Blocked) session.Feedback = hit ? "warbandcombat:hit" : "warbandcombat:miss";
-        if (hit && !damage.Blocked) EmitContact(attacker, target, ContactKind.Hit);
     }
 
     internal void Guard(EntityPlayer defender, DamageSource source, ref float damage)
@@ -347,7 +297,14 @@ public sealed class CombatSystem : ModSystem
         session.LastSync = now; session.Feedback = "";
         player.Entity.WatchedAttributes.SetInt("warbandDirection", (int)f.Direction);
         player.Entity.WatchedAttributes.SetInt("warbandPhase", (int)f.Phase);
-        CombatAnimations.Update(player.Entity, f, now, integration: Integration);
+        player.Entity.WatchedAttributes.SetInt("warbandAttackId", session.AttackId);
+        player.Entity.WatchedAttributes.SetInt("warbandElapsed", (int)Math.Clamp(now - f.Started, 0, 10000));
+        player.Entity.WatchedAttributes.SetInt("warbandHitIn", (int)Math.Clamp(f.HitAt - now, -10000, 10000));
+        player.Entity.WatchedAttributes.SetInt("warbandEndsIn", (int)Math.Clamp(f.Ends - now, -10000, 10000));
+        player.Entity.WatchedAttributes.SetInt("warbandContactEndsIn", (int)Math.Clamp(f.ContactEnds - now, -10000, 10000));
+        player.Entity.WatchedAttributes.SetBool("warbandRecoveryAttackPose", f.RecoveryAttackPose);
+        player.Entity.WatchedAttributes.SetInt("warbandPoseRevision", ++session.PoseRevision);
+        CombatAnimations.Update(player.Entity, f, now, integration: Integration, standalone: NativeAnimations);
     }
 
     internal bool CanAcceptPhysicalContact(IServerPlayer player)
@@ -368,6 +325,9 @@ public sealed class CombatSystem : ModSystem
 
     internal int DiagnosticAttackId(IServerPlayer player)
         => sessions.TryGetValue(player.PlayerUID, out var session) && session.HitDiagnostics ? session.AttackId : 0;
+
+    internal int PhysicalAttackId(IServerPlayer player)
+        => sessions.TryGetValue(player.PlayerUID, out var session) ? session.AttackId : 0;
 
     internal string PhysicalContactState(IServerPlayer player)
     {
@@ -421,6 +381,8 @@ public sealed class CombatSystem : ModSystem
     public override void Dispose()
     {
         Controls?.Dispose();
+        Physics?.Dispose();
+        NativeAnimations?.Clear();
         Integration?.Dispose();
         if (movementPatch != null) movementPatch.UnpatchAll(movementPatch.Id);
         if (server != null)

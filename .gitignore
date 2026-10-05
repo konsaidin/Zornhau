@@ -12,3 +12,5 @@ __pycache__/
 editor/textures/
 tests/server/bin/
 tests/server/obj/
+tests/standalone/bin/
+tests/standalone/obj/

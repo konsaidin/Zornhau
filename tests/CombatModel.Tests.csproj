@@ -11,7 +11,7 @@
   <ItemGroup><Compile Include="../src/CombatIntegration.cs" Link="CombatIntegration.cs" /></ItemGroup>
   <ItemGroup><Compile Include="../src/CombatShields.cs" Link="CombatShields.cs" /></ItemGroup>
   <ItemGroup><Compile Include="../src/CombatAim.cs" Link="CombatAim.cs" /></ItemGroup>
-  <ItemGroup><Compile Remove="overhaul/**/*.cs" /><Compile Remove="server/**/*.cs" /></ItemGroup>
+  <ItemGroup><Compile Remove="overhaul/**/*.cs" /><Compile Remove="server/**/*.cs" /><Compile Remove="standalone/**/*.cs" /><Compile Remove="shared/**/*.cs" /></ItemGroup>
   <PropertyGroup><VSPath Condition="'$(VSPath)' == ''">/home/dead/Documents/vintagestory</VSPath></PropertyGroup>
   <ItemGroup><Reference Include="VintagestoryAPI"><HintPath>$(VSPath)/VintagestoryAPI.dll</HintPath></Reference></ItemGroup>
 </Project>
