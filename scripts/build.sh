@@ -9,12 +9,12 @@ python3 scripts/generate-animations.py
 "$SDK_BIN" build WarbandCombat.csproj -c Release --nologo "$@"
 "$SDK_BIN" run --project tests/CombatModel.Tests.csproj -c Release --nologo
 "$SDK_BIN" run --project tests/server/Server.Tests.csproj -c Release --nologo
-"$SDK_BIN" run --project tests/standalone/Standalone.Tests.csproj -c Release --nologo
-"$SDK_BIN" run --project tests/overhaul/Overhaul.Tests.csproj -c Release --nologo
 if [[ -n "${VS_EDITOR_MODEL:-}" ]]; then
     python3 scripts/import-editor-animations.py "$VS_EDITOR_MODEL"
 fi
 python3 scripts/generate-overhaul-animations.py
+"$SDK_BIN" run --project tests/standalone/Standalone.Tests.csproj -c Release --nologo
+"$SDK_BIN" run --project tests/overhaul/Overhaul.Tests.csproj -c Release --nologo
 python3 - <<'PY'
 from pathlib import Path
 import json, zipfile

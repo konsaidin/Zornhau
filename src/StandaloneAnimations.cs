@@ -94,7 +94,7 @@ internal sealed class StandaloneAnimations(ICoreAPI api, CombatSystem combat) : 
         bool twoHanded = TwoHanded(player);
         string source = Source(stack.Collectible, fighter.Direction, twoHanded);
         string clip;
-        if (action == "block") clip = "warbandcombat:warband-block-" + direction;
+        if (action == "block") clip = CombatGuardAnimations.Code(fighter.Direction, twoHanded);
         else if (action == null)
         {
             clip = twoHanded && stack.Collectible.Tool == EnumTool.Spear ? "combatoverhaul:spear-ready-2h"

@@ -33,6 +33,10 @@ foreach (Direction direction in Enum.GetValues<Direction>())
         direction + ": authored guard drives weapon arm and stays held");
     Check(guard.PlayerKeyFrames.All(f => !f.Elements.ContainsKey("Head") && !f.Elements.ContainsKey("Neck")),
         direction + ": guard arm clip does not alter camera");
+    string twoHandedGuardCode = OverhaulAnimationResolver.Guard(direction, true);
+    Check(stock.TryGetValue(twoHandedGuardCode, out var bothHands), direction + ": two-handed guard is available to CO");
+    Check(bothHands!.Hold && bothHands.PlayerKeyFrames.All(f => f.Elements.ContainsKey("UpperArmL")
+        && f.Elements.ContainsKey("LowerArmL")), direction + ": CO guard keeps a jointed left grip");
 }
 int twoHandedStances = 0;
 var coveredWeapons = new HashSet<string>();
@@ -55,7 +59,7 @@ foreach (string file in items)
         foreach (Direction direction in Enum.GetValues<Direction>())
         foreach (bool block in new[] { false, true })
         {
-            string? code = block ? OverhaulAnimationResolver.Guard(direction)
+            string? code = block ? OverhaulAnimationResolver.Guard(direction, true)
                 : OverhaulAnimationResolver.TwoHanded(stance, direction, false,
                 Path.GetFileNameWithoutExtension(file), source.ContainsKey);
             if (block)

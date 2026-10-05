@@ -517,7 +517,7 @@ internal sealed class OverhaulBridge : ICombatIntegration
         }
         if (fp == null || tp == null || animations == null) return false;
         var stance = Stance(player, out bool twoHanded);
-        string? source = action == "block" ? OverhaulAnimationResolver.Guard(fighter.Direction)
+        string? source = action == "block" ? OverhaulAnimationResolver.Guard(fighter.Direction, twoHanded)
             : twoHanded && stance != null
             ? OverhaulAnimationResolver.TwoHanded(stance, fighter.Direction, action == "block",
                 player.RightHandItemSlot.Itemstack!.Collectible.Code.Path,
@@ -528,8 +528,9 @@ internal sealed class OverhaulBridge : ICombatIntegration
         if (source == null) return twoHanded;
         string clip;
         bool fallback = source.StartsWith("warbandcombat:warband-");
-        if (fallback) clip = "warbandcombat:warband-" + (action == "recovery" ? "return" : action) + "-"
-            + fighter.Direction.ToString().ToLowerInvariant();
+        if (fallback) clip = action == "block" ? source
+            : "warbandcombat:warband-" + (action == "recovery" ? "return" : action) + "-"
+                + fighter.Direction.ToString().ToLowerInvariant();
         else clip = OverhaulPhaseAnimations.Code(source,
             action == "block" ? "block-" + fighter.Direction.ToString().ToLowerInvariant()
                 : action == "recovery" ? "return" : action, fighter.Timing.Strike);

@@ -2,7 +2,9 @@
 """Package MIT Reanimated poses and joint-only fallback clips for the CO renderer."""
 from copy import deepcopy
 import json
+import os
 from pathlib import Path
+from twohanded_guards import twohanded_guard
 
 root = Path(__file__).resolve().parent.parent
 assets = root / 'assets/warbandcombat'
@@ -46,6 +48,11 @@ for patch in patches:
         for field in ('elementWeight', 'elementBlendMode'):
             v[field] = {k: pose for k, pose in v.get(field, {}).items() if k in ('UpperTorso', 'Neck', 'Head')}
     body.append(partial)
+game = Path(os.environ.get('VSPath', os.environ.get('VS_GAME_DIR', '/home/dead/Documents/vintagestory')))
+rig = json.loads((game / 'assets/game/shapes/entity/humanoid/seraph.json').read_text())
+for direction in ('overhead', 'right', 'left', 'thrust'):
+    code = 'warbandcombat:warband-block-' + direction
+    fallback['warbandcombat:warband-block-2h-' + direction] = twohanded_guard(fallback[code], rig)
 (assets / 'patches/overhaul-body.json').write_text(json.dumps(body, separators=(',', ':')) + '\n')
 (assets / 'config/overhaul-fallback.json').write_text(json.dumps(fallback, separators=(',', ':')) + '\n')
 print(f'Packaged {len(poses)} Reanimated clips, {len(fallback)} fallbacks, {len(body)} body patches')
