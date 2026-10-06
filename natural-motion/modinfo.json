@@ -1,0 +1,12 @@
+{
+  "type": "code",
+  "modid": "naturalmotion",
+  "name": "Natural Motion",
+  "authors": ["dead"],
+  "description": "Directional player steps, smooth body turns and an airborne jump pose. Client-side visual mod.",
+  "version": "0.1.0",
+  "side": "Client",
+  "requiredOnClient": false,
+  "requiredOnServer": false,
+  "dependencies": { "game": "1.22.7" }
+}
