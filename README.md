@@ -2,7 +2,7 @@
 
 Запуск: ярлык **Vintage Story — Warband Combat** на рабочем столе или `bash scripts/play.sh`.
 Редактор анимаций: `bash scripts/edit-animations.sh`; [инструкция](editor/README.md).
-Мод установлен в `/home/dead/Games/vintagestory/Mods/warbandcombat-0.7.6.zip`.
+Мод установлен в `/home/dead/.config/VintagestoryData-Warband/Mods/warbandcombat-0.7.6.zip`.
 `scripts/play.sh` использует отдельный профиль `/home/dead/.config/VintagestoryData-Warband`.
 Для пробы создай творческий мир и возьми меч, копьё, топор или нож.
 
@@ -162,17 +162,17 @@ CO/Armory остаются необязательным набором пред�
 
 Сборка с сохранёнными авторскими позами: `VS_EDITOR_MODEL=editor/seraph-combat-completed.json bash scripts/build.sh`. Установка: `bash scripts/install.sh [путь_профиля]`.
 `VSPath` задаёт путь к игре для сборки, `VS_DOTNET` — путь к .NET SDK.
-Для установки игры в `/home/dead/Games/vintagestory`:
+Для установки игры в `/home/dead/Documents/vintagestory`:
 
 ```bash
-VSPath=/home/dead/Games/vintagestory VS_EDITOR_MODEL=editor/seraph-combat-completed.json bash scripts/build.sh
+VSPath=/home/dead/Documents/vintagestory VS_EDITOR_MODEL=editor/seraph-combat-completed.json bash scripts/build.sh
 ```
 
 Готовый архив: `dist/warbandcombat-0.7.6.zip`. Скопируй его в `Mods` нужного профиля
 клиента и сервера. Проверка архива в отдельных тестовых мирах с CO и без него:
 
 ```bash
-python3 scripts/audit-balance.py --game /home/dead/Games/vintagestory --smoke --training-smoke
+python3 scripts/audit-balance.py --game /home/dead/Documents/vintagestory --smoke --training-smoke
 ```
 
 Сборка проверяет боевую логику, направление кромки и переходы анимаций через матрицы игры.
