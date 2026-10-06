@@ -31,6 +31,7 @@ internal sealed class MotionState
     private double quietVertical;
     internal double Cycle, FlightCycle, Speed, RelativeDirection, Turn;
     internal float GroundBlend, AirBlend;
+    internal float ForwardWeight = 1, BackWeight, LeftWeight, RightWeight, SprintBlend;
     internal bool Combat, Sneak, Sprint;
     internal bool Active => GroundBlend > .001f || AirBlend > .001f || Math.Abs(Turn) > .0001;
 
@@ -70,6 +71,16 @@ internal sealed class MotionState
             ? -Math.Atan2(right, Math.Abs(forward)) / (Math.PI / 2) * config.BodyTurnDegrees * Math.PI / 180
                 * (input.Sneak ? .5 : 1) : 0;
         Turn += (targetTurn - Turn) * amount;
+        if (speed > .08)
+        {
+            double direction = RelativeDirection + Turn;
+            double f = Math.Cos(direction), s = Math.Sin(direction), total = Math.Abs(f) + Math.Abs(s);
+            ForwardWeight += ((float)(Math.Max(0, f) / total) - ForwardWeight) * (float)amount;
+            BackWeight += ((float)(Math.Max(0, -f) / total) - BackWeight) * (float)amount;
+            LeftWeight += ((float)(Math.Max(0, -s) / total) - LeftWeight) * (float)amount;
+            RightWeight += ((float)(Math.Max(0, s) / total) - RightWeight) * (float)amount;
+        }
+        SprintBlend += ((input.Sprint ? 1 : 0) - SprintBlend) * (float)amount;
         Cycle = (Cycle + Speed * dt / (input.Sprint ? config.SprintStride : config.WalkStride)) % 1;
         if (airborne) FlightCycle = (FlightCycle + dt / 1.3) % 1;
         else if (AirBlend < .001f) FlightCycle = 0;
@@ -79,5 +90,6 @@ internal sealed class MotionState
     {
         initialized = false; airborne = false; quietVertical = 0;
         Cycle = FlightCycle = Speed = RelativeDirection = Turn = 0; GroundBlend = AirBlend = 0;
+        ForwardWeight = 1; BackWeight = LeftWeight = RightWeight = SprintBlend = 0;
     }
 }

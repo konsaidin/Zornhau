@@ -14,6 +14,9 @@ internal readonly record struct BonePose(float X, float Y, float Z, float TX, fl
         pose.degX = X; pose.degY = Y; pose.degZ = Z;
         pose.translateX = TX; pose.translateY = TY; pose.translateZ = TZ;
     }
+    public static BonePose operator +(BonePose a, BonePose b) => new(a.X + b.X, a.Y + b.Y, a.Z + b.Z, a.TX + b.TX, a.TY + b.TY, a.TZ + b.TZ);
+    public static BonePose operator -(BonePose a, BonePose b) => new(a.X - b.X, a.Y - b.Y, a.Z - b.Z, a.TX - b.TX, a.TY - b.TY, a.TZ - b.TZ);
+    public static BonePose operator *(BonePose a, float weight) => new(a.X * weight, a.Y * weight, a.Z * weight, a.TX * weight, a.TY * weight, a.TZ * weight);
 }
 
 // Read the installed game's authored clips, without packaging any game asset.
@@ -23,7 +26,7 @@ internal sealed class StockPoses(IEnumerable<Animation> animations)
     private readonly Dictionary<string, Animation> clips = animations
         .Where(a => a.Code != null).GroupBy(a => a.Code!, StringComparer.OrdinalIgnoreCase)
         .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<(string Clip, string Bone), Curve[]> curves = new();
+    private readonly Dictionary<(string Clip, string Bone, bool Gait), Curve[]> curves = new();
     internal bool Available => clips.ContainsKey("walk") && clips.ContainsKey("walkleft") && clips.ContainsKey("walkright")
         && clips.ContainsKey("walkback") && clips.ContainsKey("creativefly");
     private readonly record struct Key(float Frame, float Value);
@@ -46,37 +49,38 @@ internal sealed class StockPoses(IEnumerable<Animation> animations)
         }
     }
 
-    internal BonePose Sample(string code, string bone, double cycle)
+    internal BonePose Sample(string code, string bone, double cycle, bool gait = false)
     {
         if (!clips.TryGetValue(code, out var clip) || clip.QuantityFrames <= 0 || clip.KeyFrames == null) return default;
-        if (!curves.TryGetValue((code, bone), out var channels))
+        // The authored lateral clips contain two strides (52 frames), while
+        // walk/sprint/back contain one. Use one 26-frame lateral stride.
+        int length = gait && code is ("walkleft" or "walkright") ? clip.QuantityFrames / 2 : clip.QuantityFrames;
+        if (!curves.TryGetValue((code, bone, gait), out var channels))
         {
             var keys = Enumerable.Range(0, 6).Select(_ => new List<Key>()).ToArray();
             foreach (var keyframe in clip.KeyFrames.OrderBy(k => k.Frame))
             {
+                if (keyframe.Frame >= length) continue;
                 var element = keyframe.Elements.FirstOrDefault(k => k.Key.Equals(bone, StringComparison.OrdinalIgnoreCase)).Value;
                 if (element == null) continue;
                 double?[] values = [element.RotationX, element.RotationY, element.RotationZ, element.OffsetX, element.OffsetY, element.OffsetZ];
                 for (int i = 0; i < 6; i++)
                     if (values[i] is { } value && double.IsFinite(value)) keys[i].Add(new(keyframe.Frame, (float)(i < 3 ? value : value / 16)));
             }
-            curves[(code, bone)] = channels = keys.Select((keys, i) => new Curve(keys.ToArray(), i < 3)).ToArray();
+            curves[(code, bone, gait)] = channels = keys.Select((keys, i) => new Curve(keys.ToArray(), i < 3)).ToArray();
         }
-        float frame = (float)((cycle - Math.Floor(cycle)) * clip.QuantityFrames);
-        return new(channels[0].At(frame, clip.QuantityFrames), channels[1].At(frame, clip.QuantityFrames),
-            channels[2].At(frame, clip.QuantityFrames), channels[3].At(frame, clip.QuantityFrames),
-            channels[4].At(frame, clip.QuantityFrames), channels[5].At(frame, clip.QuantityFrames));
+        float frame = (float)((cycle - Math.Floor(cycle)) * length);
+        return new(channels[0].At(frame, length), channels[1].At(frame, length),
+            channels[2].At(frame, length), channels[3].At(frame, length),
+            channels[4].At(frame, length), channels[5].At(frame, length));
     }
 
     internal BonePose Walk(string bone, MotionState state)
     {
-        // Positive model Y rotation turns toward world-left, while direction
-        // is positive toward world-right. Subtract the actual pelvis heading.
-        double direction = state.RelativeDirection + state.Turn;
-        double forward = Math.Cos(direction), sideways = Math.Sin(direction);
-        string forwardClip = forward < 0 ? "walkback" : state.Sprint && clips.ContainsKey("sprint") ? "sprint" : "walk";
-        string sideClip = sideways < 0 ? "walkleft" : "walkright";
-        float sideWeight = (float)(Math.Abs(sideways) / (Math.Abs(forward) + Math.Abs(sideways)));
-        return BonePose.Blend(Sample(forwardClip, bone, state.Cycle), Sample(sideClip, bone, state.Cycle), sideWeight);
+        var forward = Sample("walk", bone, state.Cycle, true);
+        if (clips.ContainsKey("sprint")) forward = BonePose.Blend(forward, Sample("sprint", bone, state.Cycle, true), state.SprintBlend);
+        return forward * state.ForwardWeight + Sample("walkback", bone, state.Cycle, true) * state.BackWeight
+            + Sample("walkleft", bone, state.Cycle, true) * state.LeftWeight
+            + Sample("walkright", bone, state.Cycle, true) * state.RightWeight;
     }
 }

@@ -101,6 +101,16 @@ for (int frame = 0; frame < 200; frame++)
     Check(float.IsFinite(pose.X + pose.Y + pose.Z + pose.TX + pose.TY + pose.TZ), "all actual leg curves remain finite");
 }
 Check(library.Sample("walkleft", "UpperFootR", 0) != library.Sample("walkright", "UpperFootR", 0), "side steps differ");
+// A lateral stride takes 26 frames, not both strides of the 52-frame asset.
+Near(library.Sample("walkright", "UpperFootL", .5, true).Z,
+    library.Sample("walkright", "UpperFootL", .25).Z, .001, "side gait advances one stride at the common phase");
+var reversal = Settle(Input(0, vx: 2, vz: 0));
+var oldWeight = reversal.RightWeight;
+reversal.Update(Input(2017, vx: -2, vz: 0), config);
+Check(reversal.RightWeight > oldWeight * .7 && reversal.LeftWeight < .2,
+    "direction reversal crossfades instead of instantly replacing the leg pose");
+Near(reversal.ForwardWeight + reversal.BackWeight + reversal.LeftWeight + reversal.RightWeight, 1, .0001,
+    "direction weights remain normalized during reversal");
 var moving = Settle(Input(0, vx: 2));
 var arm = new ElementPose { degZ = 23, degY = 12 }; var baseline = BonePose.From(arm);
 NaturalMotionSystem.Apply(moving, library, "UpperArmR", arm, true, false);
@@ -111,7 +121,8 @@ Check(torso.degY == 13 && torso.translateY == .4f, "immersive first-person camer
 var pelvis = new ElementPose(); var chest = new ElementPose();
 NaturalMotionSystem.Apply(moving, library, "LowerTorso", pelvis, true, false);
 NaturalMotionSystem.Apply(moving, library, "UpperTorso", chest, true, false);
-Near(pelvis.degY + chest.degY, 0, .0001, "occupied-hand torso cancels pelvis turn");
+Near(pelvis.degY + chest.degY, (library.Walk("LowerTorso", moving).Y + library.Walk("UpperTorso", moving).Y) * moving.GroundBlend,
+    .0001, "occupied-hand torso adds no extra yaw beyond the shared gait");
 Check(File.ReadAllText(Path.Combine(game, "assets/game/shapes/entity/humanoid/seraph-faceless.json")) == text, "game asset not rewritten");
 
 // Exercise the actual Harmony scope and engine matrix method, not only the math helpers.
@@ -158,8 +169,7 @@ var nativeLeg = nativeAnimator.GetPosebyName("UpperFootR");
 Check(nativeLeg != null && Math.Abs(nativeLeg.degX) + Math.Abs(nativeLeg.degY) + Math.Abs(nativeLeg.degZ) > 1,
     "actual ClientAnimator applies directional gait on full stock skeleton");
 Check(nativeLeg!.AnimModelMatrix.All(float.IsFinite), "actual animated leg matrix is finite");
-Near(nativeAnimator.GetPosebyName("LowerTorso").degY + nativeAnimator.GetPosebyName("UpperTorso").degY
-    + nativeAnimator.GetPosebyName("Head").degY, 0, .0001, "native skeleton keeps head heading");
+Check(nativeAnimator.GetPosebyName("Head").AnimModelMatrix.All(float.IsFinite), "shared gait keeps native head matrix finite");
 entity.WatchedAttributes.SetInt("warbandPhase", 2);
 for (int i = 0; i < 90; i++) { now += 17; manager.OnClientFrame(.017f); }
 Near(nativeAnimator.GetPosebyName("LowerTorso").degY, 0, .001, "committed combat returns pelvis to authored heading");
@@ -167,6 +177,67 @@ entity.OnGround = false; entity.Pos.Motion.Set(0, 4d / 60, 0);
 for (int i = 0; i < 20; i++) { now += 17; manager.OnClientFrame(.017f); }
 Check(nativeAnimator.GetPosebyName("UpperFootR").degZ < -60, "native skeleton uses flight legs during ascending jump");
 Near(nativeAnimator.GetPosebyName("UpperArmR").degZ, 0, .001, "flight leaves combat arm untouched");
+
+// Reproduce the user's case: actual native walking is running while our
+// directional correction renders the player. Different native phases must
+// produce the same legs AND torso, during walking and during a jump.
+entity.WatchedAttributes.SetInt("warbandPhase", 0); entity.OnGround = true;
+entity.Pos.Motion.Set(2d / 60, 0, 0);
+var walkClip = shape.Animations.Single(a => a.Code == "walk");
+Check(walkClip.PrevNextKeyFrameByFrame == null, "regression exercises lazy frame baking inside the patched player update");
+var secondAnimator = new ClientAnimator(() => 1, shape.Animations, shape.Elements, shape.JointsById);
+var secondManager = new AnimationManager { Animator = secondAnimator }; secondManager.Init(api, entity);
+var walkMeta = new AnimationMetaData { Code = "walk", Animation = "walk", AnimationSpeed = 1.3f }.Init();
+manager.StartAnimation(walkMeta); secondManager.StartAnimation(walkMeta.Clone());
+string[] ownedBones = ["LowerTorso", "UpperTorso", "Head", "Neck", "UpperFootR", "UpperFootL", "LowerFootR", "LowerFootL", "UpperArmR", "UpperArmL"];
+for (int i = 0; i < 180; i++)
+{
+    now += 17;
+    if (i == 100) { entity.OnGround = false; entity.Pos.Motion.Set(2d / 60, 4d / 60, 0); }
+    if (i == 140) { entity.OnGround = true; entity.Pos.Motion.Set(2d / 60, 0, 0); }
+    if (i > 0)
+    {
+        nativeAnimator.GetAnimationState("walk").CurrentFrame = (i * 3) % 25;
+        secondAnimator.GetAnimationState("walk").CurrentFrame = (i * 7 + 12) % 25;
+    }
+    manager.OnClientFrame(.017f); secondManager.OnClientFrame(.017f);
+    foreach (string name in ownedBones)
+    {
+        var a = BonePose.From(nativeAnimator.GetPosebyName(name)); var b = BonePose.From(secondAnimator.GetPosebyName(name));
+        Near(a.X, b.X, .0001, "native walk phase cannot shake owned bone X");
+        Near(a.Y, b.Y, .0001, "native walk phase cannot shake owned bone Y");
+        Near(a.Z, b.Z, .0001, "native walk phase cannot shake owned bone Z");
+        Near(a.TY, b.TY, .0001, "native walk phase cannot bounce torso/legs");
+    }
+    if (i is >= 125 and < 140)
+    {
+        Near(nativeAnimator.GetPosebyName("LowerTorso").translateY, 0, .001, "airborne pelvis loses walking bob");
+        Check(nativeAnimator.GetPosebyName("LowerTorso").degZ is >= 12.99f and <= 18.01f,
+            "airborne torso stays in the authored flight posture instead of walking sway");
+    }
+}
+// Masking reads the original contributors; it must not mutate network state.
+Check(manager.ActiveAnimationsByAnimCode.ContainsKey("walk") && secondManager.ActiveAnimationsByAnimCode.ContainsKey("walk"),
+    "native animation replication retained after local masking");
+var frameBefore = walkClip.PrevNextKeyFrameByFrame![0][0].RootElementTransforms[0];
+var authoredPose = BonePose.From(frameBefore);
+manager.OnClientFrame(.017f);
+Check(BonePose.From(frameBefore) == authoredPose, "baked frame data remains immutable");
+var referenceShape = JsonConvert.DeserializeObject<Shape>(text)!;
+referenceShape.InitForAnimations(logger, "game:entity/humanoid/seraph-faceless", "Head");
+var referenceClip = referenceShape.Animations.Single(a => a.Code == "walk");
+referenceClip.GenerateAllFrames(referenceShape.Elements, referenceShape.JointsById);
+IEnumerable<ElementPose> Flatten(IEnumerable<ElementPose> poses)
+{
+    foreach (var pose in poses) {
+        yield return pose;
+        foreach (var child in Flatten(pose.ChildElementPoses)) yield return child;
+    }
+}
+var referenceFrame = Flatten(referenceClip.PrevNextKeyFrameByFrame[0][0].RootElementTransforms)
+    .ToDictionary(p => p.ForElement.Name!, p => BonePose.From(p));
+foreach (var pose in Flatten(walkClip.PrevNextKeyFrameByFrame[0][0].RootElementTransforms))
+    Check(BonePose.From(pose) == referenceFrame[pose.ForElement.Name!], "lazy baking cannot capture procedural movement in native clip data");
 mod.Dispose();
 Console.WriteLine($"PASS: {checks} motion, native clip, pose compatibility and Harmony integration checks.");
 
