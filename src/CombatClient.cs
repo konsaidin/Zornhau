@@ -13,6 +13,7 @@ internal sealed class CombatClient : IRenderer
     private readonly long tick;
     private readonly CameraDiagnostics? cameraDiagnostics;
     private readonly CombatTurning turning;
+    private readonly CombatReticle reticle;
     internal readonly Fighter Fighter = new();
     private readonly CombatPresentation presentation = new();
     private EntityPlayer? animatedPlayer;
@@ -34,11 +35,12 @@ internal sealed class CombatClient : IRenderer
     private long lastHeartbeat;
     private string feedback = "";
     private long feedbackUntil;
-    private long lastContact, contactUntil;
+    private long lastContact, contactAt = -CombatHud.FlashMs;
+    private Direction contactDirection;
+    private bool contactOmni;
     private ContactKind contactKind;
     private string lastText = "";
     private LoadedTexture texture;
-    private readonly LoadedTexture[] directionTextures;
     private readonly CairoFont font;
     public double RenderOrder => 1.01;
     public int RenderRange => 9999;
@@ -50,13 +52,13 @@ internal sealed class CombatClient : IRenderer
         if (api.Settings.Bool["warbandCameraDiagnostics"]) cameraDiagnostics = new CameraDiagnostics(api);
         // GenOrUpdateTextTexture updates an existing wrapper; it does not allocate one.
         texture = new LoadedTexture(api);
-        directionTextures = Enumerable.Range(0, 4).Select(_ => new LoadedTexture(api)).ToArray();
         font = CairoFont.WhiteSmallText().WithFontSize(13);
         font.StrokeWidth = 2;
         font.StrokeColor = new double[] { 0, 0, 0, .9 };
         channel = api.Network.GetChannel("warbandcombat").SetMessageHandler<StatePacket>(OnState)
             .SetMessageHandler<ContactPacket>(OnContact).SetMessageHandler<HitDiagnosticPacket>(OnHitDiagnostic);
         turning = new CombatTurning(api, Fighter, () => Available && api.Input.MouseGrabbed && !api.IsGamePaused && channel.Connected);
+        reticle = new CombatReticle(api, () => HudVisible);
         api.Input.RegisterHotKey("warband-toggle", Lang.Get("warbandcombat:toggle"), GlKeys.K);
         api.Input.SetHotKeyHandler("warband-toggle", _ =>
         {
@@ -109,6 +111,9 @@ internal sealed class CombatClient : IRenderer
                 target is { Alive: true }, left || right || Fighter.Phase != Phase.Idle);
         }
     }
+
+    private bool HudVisible => Available && api.Input.MouseGrabbed && !api.IsGamePaused
+        && api.World.Player.WorldData.CurrentGameMode != EnumGameMode.Spectator;
 
     private bool Active => Available && api.Input.MouseGrabbed && !api.IsGamePaused
         && (!api.World.Player.Entity.Controls.Sneak || Integration != null
@@ -288,7 +293,9 @@ internal sealed class CombatClient : IRenderer
         if (impulse > 0) api.World.AddCameraShake(impulse);
         if (packet.Kind != ContactKind.Hit || attacking)
         {
-            contactKind = packet.Kind; contactUntil = Now + 180;
+            contactKind = packet.Kind; contactAt = Now;
+            contactDirection = Fighter.Direction;
+            contactOmni = !attacking && packet.Kind is ContactKind.Shield or ContactKind.ShieldBreak;
         }
     }
 
@@ -360,7 +367,7 @@ internal sealed class CombatClient : IRenderer
         Fighter.Reset(clearSprint: true); left = right = false; ownedSlot = -1; ownedStack = null;
         sprintWanted = sprintWasLocked = false;
         sequence = 0; feedbackUntil = 0;
-        lastContact = contactUntil = 0;
+        lastContact = 0; contactAt = -CombatHud.FlashMs; contactOmni = false;
         forcePvpCombat = false;
     }
 
@@ -376,7 +383,7 @@ internal sealed class CombatClient : IRenderer
             return;
         }
         cameraDiagnostics?.OnFrame(Now, Fighter);
-        if (!Available || !api.Input.MouseGrabbed || api.IsGamePaused) return;
+        if (!HudVisible) return;
         if (Active)
         {
             Integration?.Frame(api.World.Player.Entity, Fighter, Now);
@@ -387,70 +394,28 @@ internal sealed class CombatClient : IRenderer
         float scale = (float)RuntimeEnv.GUIScale;
         float centerX = api.Render.FrameWidth / 2f;
         float centerY = api.Render.FrameHeight / 2f;
-        float radius = 28 * scale, size = 20 * scale;
-        var selectedColor = Fighter.CanGuard(Now)
-            ? new Vec4f(.35f, 1f, .6f, 1f) : new Vec4f(1f, .78f, .3f, 1f);
-        if (Now < contactUntil)
-            selectedColor = contactKind switch
-            {
-                ContactKind.Hit => new Vec4f(.35f, 1f, .45f, 1f),
-                ContactKind.ShieldBreak => new Vec4f(1f, .35f, .15f, 1f),
-                _ => new Vec4f(.3f, .85f, 1f, 1f)
-            };
-        var inactiveColor = new Vec4f(.85f, .9f, .95f, .4f);
-        for (int i = 0; i < directionTextures.Length; i++)
-        {
-            EnsureDirectionTexture(i);
-            float dx = i switch { 1 => radius, 3 => -radius, _ => 0 };
-            float dy = i switch { 0 => -radius, 2 => radius, _ => 0 };
-            api.Render.Render2DTexturePremultipliedAlpha(directionTextures[i].TextureId,
-                centerX + dx - size / 2, centerY + dy - size / 2, size, size, 50,
-                i == (int)display || Fighter.ShieldGuard && Fighter.Phase == Phase.Block ? selectedColor : inactiveColor);
-        }
-        string state = Lang.Get(Fighter.Phase == Phase.Block && Fighter.ShieldGuard
-            ? Fighter.CanGuard(Now) ? "warbandcombat:shield-guard" : "warbandcombat:shield-raise"
-            : Fighter.Phase == Phase.Block && !Fighter.CanGuard(Now)
-                ? "warbandcombat:guard-raise" : "warbandcombat:phase-" + Fighter.Phase.ToString().ToLowerInvariant());
+        reticle.Render(centerX, centerY, display, Fighter.ShieldGuard && Fighter.Phase == Phase.Block,
+            Fighter, Now, contactAt, contactKind, contactDirection, contactOmni);
+        // F8 owns all diagnostic writing below the reticle. The normal combat
+        // view conveys direction and confirmed contacts through the plus alone.
+        if (!HitDiagnosticsEnabled) return;
+        string state = Lang.Get("warbandcombat:" + CombatHud.PhaseKey(Fighter, Now));
         string text = Now < feedbackUntil ? state + "\n" + feedback : state;
-        if (HitDiagnosticsEnabled)
-            text += "\n" + Lang.Get("warbandcombat:hit-debug-status", hitDiagnostics.AttackId,
+        text += "\n" + Lang.Get("warbandcombat:hit-debug-status", hitDiagnostics.AttackId,
                 Lang.Get("warbandcombat:hit-debug-" + hitDiagnostics.Result))
-                + "\n" + Lang.Get("warbandcombat:hit-debug-legend");
+            + "\n" + Lang.Get("warbandcombat:hit-debug-legend");
         if (text != lastText)
         {
             api.Gui.TextTexture.GenOrUpdateTextTexture(text, font, ref texture);
             lastText = text;
         }
         api.Render.Render2DTexturePremultipliedAlpha(texture.TextureId,
-            centerX - texture.Width / 2f, centerY + 48 * scale, texture.Width, texture.Height);
-    }
-
-    private void EnsureDirectionTexture(int index)
-    {
-        if (directionTextures[index].TextureId != 0) return;
-        // Draw geometry instead of Unicode arrows, which the game's font may lack.
-        using var surface = new ImageSurface(Format.Argb32, 32, 32);
-        using var context = new Context(surface);
-        context.Translate(16, 16);
-        context.Rotate(index * Math.PI / 2);
-        context.MoveTo(0, -9);
-        context.LineTo(10, 1);
-        context.LineTo(6, 5);
-        context.LineTo(0, -1);
-        context.LineTo(-6, 5);
-        context.LineTo(-10, 1);
-        context.ClosePath();
-        context.SetSourceRGBA(0, 0, 0, .9);
-        context.LineWidth = 3;
-        context.StrokePreserve();
-        context.SetSourceRGBA(1, 1, 1, 1);
-        context.Fill();
-        api.Gui.LoadOrUpdateCairoTexture(surface, true, ref directionTextures[index]);
+            centerX - texture.Width / 2f, centerY + 16 + 8 * scale, texture.Width, texture.Height);
     }
 
     public void Dispose()
     {
-        turning.Dispose();
+        turning.Dispose(); reticle.Dispose();
         DetachAnimationHooks();
         api.Event.MouseDown -= MouseDown;
         api.Event.MouseUp -= MouseUp;
@@ -463,7 +428,6 @@ internal sealed class CombatClient : IRenderer
         api.Input.SetHotKeyHandler("warband-toggle", _ => false);
         api.Input.SetHotKeyHandler("warband-hit-diagnostics", _ => false);
         texture.Dispose(); font.Dispose();
-        foreach (var directionTexture in directionTextures) directionTexture.Dispose();
     }
 
     private void DetachAnimationHooks()

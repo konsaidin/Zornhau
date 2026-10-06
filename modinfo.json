@@ -6,7 +6,7 @@
     "dead"
   ],
   "description": "Four-direction melee, held windups, manual parries and feints. Experimental combat prototype.",
-  "version": "0.7.6",
+  "version": "0.7.7",
   "side": "Universal",
   "requiredOnClient": true,
   "requiredOnServer": true,

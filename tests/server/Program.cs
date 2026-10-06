@@ -160,3 +160,4 @@ BalanceIntegrationChecks.Run();
 WeaponModeChecks.Run();
 FatalityChecks.Run();
 TurningChecks.Run();
+ReticleChecks.Run();
