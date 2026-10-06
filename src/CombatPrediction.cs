@@ -7,6 +7,7 @@ namespace WarbandCombat;
 internal static class CombatPrediction
 {
     [ThreadStatic] private static int depth;
+    internal static bool Active => depth > 0;
 
     internal static Scope Begin() { depth++; return new Scope(); }
     internal readonly struct Scope : IDisposable

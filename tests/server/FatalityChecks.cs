@@ -266,6 +266,15 @@ internal static class FatalityChecks
                 check(victim.WatchedAttributes.GetInt(FatalityRules.Attribute) == 0 && victim.WatchedAttributes.GetString("warbandCrushedHelmet") == "", "Revival clears mesh deformation metadata");
             }
             sent.Clear();
+            var moving = new Holder { Api = api, World = world, Alive = true, EntityId = 8999 };
+            moving.LocalEyePos.Set(0, 1.6, 0); moving.Pos.X = 1; owner = Stub.Player(moving);
+            var movingSource = new DirectionalDamage { SourceEntity = new Holder(), Type = EnumDamageType.SlashingAttack };
+            manager.RecordHistoricalContact(moving, movingSource, Direction.Left, new(0, 1.6, 0), "Head",
+                new[] { moving.Pos.XYZ, new Vintagestory.API.MathTools.Vec3d(0, 0, 0) });
+            moving.Alive = false; manager.OnDeath(moving, movingSource);
+            check(sent.OfType<FatalityPacket>().Count() == 1,
+                "Lag-compensated head contact remains a head contact when the victim moves before packet arrival");
+            sent.Clear();
             var target = new Holder { Api = api, World = world, Alive = true, EntityId = 9000 };
             target.LocalEyePos.Set(0, 1.6, 0); owner = Stub.Player(target);
             var registered = new DirectionalDamage { SourceEntity = new Holder(), Type = EnumDamageType.SlashingAttack };

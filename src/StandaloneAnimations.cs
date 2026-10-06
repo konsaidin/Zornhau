@@ -141,6 +141,9 @@ internal sealed class StandaloneAnimations(ICoreAPI api, CombatSystem combat) : 
             {
                 state.RemoteRevision = revision; state.RemoteAt = now;
                 state.Remote.Reset(); state.Remote.Apply(Command.Begin, Direction.Right, now, CombatSystem.Timing(player));
+                // Equipment changes invalidate a Fighter. Apply them before the
+                // authoritative pose, so a remote shield block survives its first snapshot.
+                state.Remote.SetShield(CombatShields.Equipped(player), now);
                 state.Remote.Restore((Phase)attrs.GetInt("warbandPhase"), (Direction)attrs.GetInt("warbandDirection"), now,
                     attrs.GetInt("warbandElapsed"), attrs.GetInt("warbandHitIn"), attrs.GetInt("warbandEndsIn"), 0,
                     attrs.GetBool("warbandRecoveryAttackPose"), attrs.GetInt("warbandContactEndsIn"));

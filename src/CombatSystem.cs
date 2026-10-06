@@ -42,6 +42,11 @@ public sealed class CombatSystem : ModSystem
         public int PoseRevision;
         public long DiagnosticWindow;
         public int DiagnosticCount;
+        public long StateRevision;
+        public bool AuthoritativeClock;
+        public Action? PendingContact;
+        public int PendingAttack;
+        public long ContactDue;
     }
 
     public override double ExecuteOrder() => 1.1;
@@ -51,7 +56,8 @@ public sealed class CombatSystem : ModSystem
         api.RegisterEntity(TrainingDummy.ClassName, typeof(TrainingDummy));
         api.Network.RegisterChannel("warbandcombat").RegisterMessageType<InputPacket>().RegisterMessageType<StatePacket>()
             .RegisterMessageType<ContactPacket>().RegisterMessageType<DiagnosticsSettingsPacket>().RegisterMessageType<HitDiagnosticPacket>()
-            .RegisterMessageType<BladeContactPacket>().RegisterMessageType<FatalityPacket>().RegisterMessageType<FatalityFrame>();
+            .RegisterMessageType<BladeContactPacket>().RegisterMessageType<FatalityPacket>().RegisterMessageType<FatalityFrame>()
+            .RegisterMessageType<OverhaulContactPacket>();
         movementPatch = new Harmony("warbandcombat.movement." + api.Side);
         CombatMovement.Patch(movementPatch);
     }
@@ -173,9 +179,12 @@ public sealed class CombatSystem : ModSystem
         session.Fighter.SetShield(CombatShields.Equipped(entity), now);
         if (command == Command.Begin && !CombatBalance.CanAttack(entity, session.WeaponMode))
         { SendState(player, session, now); return; }
-        if (session.Fighter.Apply(command, (Direction)packet.Direction, now,
-            Timing(entity, session.WeaponMode)) && command == Command.Begin)
-            session.AttackId = packet.Sequence;
+        if (session.Fighter.Apply(command, (Direction)packet.Direction, now, Timing(entity, session.WeaponMode)))
+        {
+            if (command == Command.Begin) session.AttackId = packet.Sequence;
+            if (command is Command.Begin or Command.Block && session.Fighter.Phase != Phase.Recovery)
+                session.AuthoritativeClock = false;
+        }
         CombatMovement.Enforce(entity, session.Fighter, now);
         SendState(player, session, now);
     }
@@ -195,6 +204,11 @@ public sealed class CombatSystem : ModSystem
                 || !ReferenceEquals(session.Offhand, entity.LeftHandItemSlot.Itemstack))
                 session.Fighter.Invalidate(now);
             session.Fighter.SetShield(CombatShields.Equipped(entity), now);
+            if (session.PendingContact is { } pending && now >= session.ContactDue)
+            {
+                session.PendingContact = null;
+                if (session.PendingAttack == session.AttackId && CanAcceptPhysicalContact(player)) pending();
+            }
             bool windowExpired = session.Fighter.Phase == Phase.Swing && now > session.Fighter.ContactEnds;
             PlaySwing(player, session, now);
             session.Fighter.Advance(now);
@@ -248,6 +262,7 @@ public sealed class CombatSystem : ModSystem
             && sessions.TryGetValue(enemyPlayer.PlayerUID, out var enemySession))
         {
             enemySession.Fighter.Stun(now, shield ? CombatRules.ShieldBounce : CombatRules.ParryStun);
+            enemySession.AuthoritativeClock = true;
             enemySession.Feedback = "warbandcombat:blocked";
             SendState(enemyPlayer, enemySession, now);
         }
@@ -258,6 +273,7 @@ public sealed class CombatSystem : ModSystem
         if (shield && !CombatShields.Equipped(defender))
         {
             fighter.SetShield(false, now); fighter.Stun(now, CombatRules.ShieldBreak);
+            session.AuthoritativeClock = true;
             session.Feedback = "warbandcombat:shield-break";
         }
         EmitContact(attacker, defender, session.Feedback == "warbandcombat:shield-break" ? ContactKind.ShieldBreak
@@ -297,6 +313,8 @@ public sealed class CombatSystem : ModSystem
         channel?.SendPacket(new StatePacket
         {
             Phase = (int)f.Phase, Direction = (int)f.Direction, Sequence = session.Sequence,
+            Revision = ++session.StateRevision, AttackId = session.AttackId,
+            ContactConsumed = f.HitDelivered, AuthoritativeClock = session.AuthoritativeClock,
             Elapsed = (int)Math.Clamp(now - f.Started, 0, 10000),
             HitIn = (int)Math.Clamp(f.HitAt - now, -10000, 10000),
             EndsIn = (int)Math.Clamp(f.Ends - now, -10000, 10000), Charge = f.Charge,
@@ -334,6 +352,22 @@ public sealed class CombatSystem : ModSystem
     internal bool TracksPhysicalContacts(IServerPlayer player)
         => sessions.TryGetValue(player.PlayerUID, out var session) && session.Fighter.Timing.PhysicalContacts
             && session.Fighter.Phase is Phase.Windup or Phase.Swing;
+
+    // Hold one early proof until the required server windup finishes.
+    internal bool DeferPhysicalContact(IServerPlayer player, int attackId, Action deliver)
+    {
+        if (server == null || !sessions.TryGetValue(player.PlayerUID, out var session)
+            || attackId != session.AttackId || session.Fighter.Phase != Phase.Swing
+            || session.Fighter.HitDelivered) return false;
+        long delay = session.Fighter.HitAt - server.World.ElapsedMilliseconds;
+        if (delay <= 0 || delay > CombatRules.ContactJitterBuffer) return false;
+        if (session.PendingContact == null)
+        {
+            session.PendingContact = deliver; session.PendingAttack = attackId;
+            session.ContactDue = session.Fighter.HitAt;
+        }
+        return true;
+    }
 
     internal int DiagnosticAttackId(IServerPlayer player)
         => sessions.TryGetValue(player.PlayerUID, out var session) && session.HitDiagnostics ? session.AttackId : 0;
@@ -386,7 +420,22 @@ public sealed class CombatSystem : ModSystem
         if (server == null) return;
         var session = GetSession(player);
         if (!blocked) session.Feedback = hit ? "warbandcombat:hit" : "warbandcombat:miss";
-        if (hit && !blocked) EmitContact(player.Entity, target, ContactKind.Hit);
+        if (hit && !blocked)
+        {
+            EmitContact(player.Entity, target, ContactKind.Hit);
+            if (target is EntityPlayer { Alive: true } victim && victim.Player is IServerPlayer defending
+                && sessions.TryGetValue(defending.PlayerUID, out var defender))
+            {
+                defender.Fighter.Advance(server.World.ElapsedMilliseconds);
+                if (defender.Fighter.Phase is Phase.Windup or Phase.Swing)
+                {
+                    defender.PendingContact = null;
+                    defender.Fighter.Stun(server.World.ElapsedMilliseconds, CombatRules.HitStun);
+                    defender.AuthoritativeClock = true;
+                    SendState(defending, defender, server.World.ElapsedMilliseconds);
+                }
+            }
+        }
         SendState(player, session, server.World.ElapsedMilliseconds);
     }
 

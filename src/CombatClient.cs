@@ -16,6 +16,7 @@ internal sealed class CombatClient : IRenderer
     private readonly CombatReticle reticle;
     internal readonly Fighter Fighter = new();
     private readonly CombatPresentation presentation = new();
+    private readonly CombatReconciliation reconciliation = new();
     private EntityPlayer? animatedPlayer;
     internal Direction Direction;
     internal bool Enabled = true;
@@ -139,9 +140,11 @@ internal sealed class CombatClient : IRenderer
         Fighter.SetShield(CombatShields.Equipped(playerEntity), Now);
         bool weapon = CombatSystem.Supported(item);
         bool shield = api.World.Player?.Entity is { } owner && CombatShields.Equipped(owner);
-        if (CombatShields.AllowsInput(command, weapon, shield, Fighter.Phase)
-            && (command != Command.Begin || CombatBalance.CanAttack(playerEntity, Integration?.WeaponMode(playerEntity)))
-            && Fighter.Apply(command, Direction, Now, CombatSystem.Timing(playerEntity, Integration?.WeaponMode(playerEntity)))
+        var timing = CombatSystem.Timing(playerEntity, Integration?.WeaponMode(playerEntity));
+        bool allowed = CombatShields.AllowsInput(command, weapon, shield, Fighter.Phase)
+            && (command != Command.Begin || CombatBalance.CanAttack(playerEntity, Integration?.WeaponMode(playerEntity)));
+        reconciliation.Track(sequence + 1, command, Direction, Now, timing, allowed);
+        if (allowed && Fighter.Apply(command, Direction, Now, timing)
             && command == Command.Begin)
         {
             CurrentAttackId = sequence + 1;
@@ -224,7 +227,7 @@ internal sealed class CombatClient : IRenderer
         }
         if (Active && (left || right) && Now - lastHeartbeat >= 200)
         {
-            Send(Command.Aim); Send(Command.KeepAlive); lastHeartbeat = Now;
+            Send(Command.KeepAlive); lastHeartbeat = Now;
         }
         Fighter.Advance(Now);
         UpdateHitDiagnostics();
@@ -269,14 +272,9 @@ internal sealed class CombatClient : IRenderer
         if (!Enum.IsDefined((Phase)packet.Phase) || !Enum.IsDefined((Direction)packet.Direction)) return;
         forcePvpCombat = packet.ForcePvpCombat;
         if (forcePvpCombat) Enabled = true;
-        if (packet.Sequence == sequence)
-        {
-            int age = CombatPresentation.SnapshotAge(Now, packet.EchoSentAt, packet.InputReceivedAt, packet.ServerSentAt);
-            Fighter.Restore((Phase)packet.Phase, (Direction)packet.Direction, Now,
-                packet.Elapsed + age, packet.HitIn - age, packet.EndsIn - age, packet.Charge,
-                packet.RecoveryAttackPose, packet.ContactEndsIn - age, packet.SprintIn - age);
-            Fighter.Advance(Now);
-        }
+        int attack = CurrentAttackId;
+        if (!reconciliation.Apply(packet, Fighter, Now, ref attack)) return;
+        CurrentAttackId = attack;
         if (!string.IsNullOrEmpty(packet.Feedback))
         {
             feedback = Lang.Get(packet.Feedback); feedbackUntil = Now + 800;
@@ -361,7 +359,7 @@ internal sealed class CombatClient : IRenderer
 
     private void LeaveWorld()
     {
-        DetachAnimationHooks(); presentation.Reset();
+        DetachAnimationHooks(); presentation.Reset(); reconciliation.Reset();
         cameraDiagnostics?.Reset();
         hitDiagnostics.Reset(); diagnosticDetail = ""; pendingHitDiagnostics.Clear();
         Fighter.Reset(clearSprint: true); left = right = false; ownedSlot = -1; ownedStack = null;

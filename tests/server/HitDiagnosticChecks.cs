@@ -82,7 +82,13 @@ internal static class HitDiagnosticChecks
                 prefix: new HarmonyMethod(bridgeType.GetMethod("NativeRejected", statics)!));
             var packet = new MeleeDamagePacket { AttackerEntityId = 72, TargetEntityId = 99, MainHand = true };
             method.Invoke(native, new object[] { player, packet });
+            Check(replies[^1].Result == "unbound-attack", "Raw native contact cannot claim the current Warband attack");
+            bridgeType.GetField("authorizedPlayer", statics)!.SetValue(null, player);
+            bridgeType.GetField("authorizedAttack", statics)!.SetValue(null, 35);
+            method.Invoke(native, new object[] { player, packet });
             Check(replies[^1].Result == "not-physical-weapon", "Actual Harmony prefix returns an exact Warband rejection without running native damage");
+            method.CreateDelegate<Action<IServerPlayer, MeleeDamagePacket>>(native)(player, packet);
+            Check(replies[^1].Result == "not-physical-weapon", "Bound delegate uses the same patched native validation entry");
             Check(traceField.GetValue(null) == null, "Actual finalizer clears diagnostic context after prefix rejection");
             var traceType = bridgeType.GetNestedType("AttackTrace", BindingFlags.NonPublic)!;
             var trace = Activator.CreateInstance(traceType, fields, null, new object?[] { player, packet, 35, null }, null)!;
@@ -94,7 +100,12 @@ internal static class HitDiagnosticChecks
             bridgeType.GetMethod("AttackFinished", statics)!.Invoke(null, new object?[] { null, trace });
             Check(replies.Count == previousCount && traceField.GetValue(null) == null, "Finalizing a reported result cannot send a second outcome");
         }
-        finally { patch.UnpatchAll(patch.Id); staticBridge.SetValue(null, oldBridge); traceField.SetValue(null, null); }
+        finally
+        {
+            patch.UnpatchAll(patch.Id); staticBridge.SetValue(null, oldBridge); traceField.SetValue(null, null);
+            bridgeType.GetField("authorizedPlayer", statics)!.SetValue(null, null);
+            bridgeType.GetField("authorizedAttack", statics)!.SetValue(null, 0);
+        }
         var lines = new List<float[]>();
         var render = Stub.Make<IRenderAPI>((method, args) =>
         {

@@ -2,9 +2,11 @@
 
 Запуск: ярлык **Vintage Story — Warband Combat** на рабочем столе или `bash scripts/play.sh`.
 Редактор анимаций: `bash scripts/edit-animations.sh`; [инструкция](editor/README.md).
-Мод установлен в `/home/dead/.config/VintagestoryData-Warband/Mods/warbandcombat-0.7.7.zip`.
+Мод установлен в `/home/dead/.config/VintagestoryData-Warband/Mods/warbandcombat-0.7.8.zip`.
 `scripts/play.sh` использует отдельный профиль `/home/dead/.config/VintagestoryData-Warband`.
 Для пробы создай творческий мир и возьми меч, копьё, топор или нож.
+
+Сетевые исправления 0.7.8, тайминги и пределы компенсации описаны в [NETCODE.md](NETCODE.md).
 
 В 0.7.7 направление показывает цвет одной из четырёх сторон штатного прицела-плюсика;
 отдельные стрелки убраны. Замах отмечен золотым, выпущенный удар — оранжевым,
@@ -102,7 +104,7 @@
 collision box. Контакты учитывают препятствия; первый контакт завершает удар.
 F8 показывает проверенное движение клинка и ответ сервера.
 
-Для самостоятельной игры достаточно `warbandcombat-0.7.7.zip` на клиенте и сервере.
+Для самостоятельной игры достаточно `warbandcombat-0.7.8.zip` на клиенте и сервере.
 Исходники ядра перенесены под MIT с сохранением авторства:
 [происхождение и изменения](third-party/overhaul-core/README.md).
 CO/Armory остаются необязательным набором предметов, брони и стрелкового оружия
@@ -179,7 +181,7 @@ CO/Armory остаются необязательным набором пред�
 VSPath=/home/dead/Documents/vintagestory VS_EDITOR_MODEL=editor/seraph-combat-completed.json bash scripts/build.sh
 ```
 
-Готовый архив: `dist/warbandcombat-0.7.7.zip`. Скопируй его в `Mods` нужного профиля
+Готовый архив: `dist/warbandcombat-0.7.8.zip`. Скопируй его в `Mods` нужного профиля
 клиента и сервера. Проверка архива в отдельных тестовых мирах с CO и без него:
 
 ```bash

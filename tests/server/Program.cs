@@ -161,3 +161,4 @@ WeaponModeChecks.Run();
 FatalityChecks.Run();
 TurningChecks.Run();
 ReticleChecks.Run();
+NetcodeChecks.Run();

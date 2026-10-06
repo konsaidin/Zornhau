@@ -30,6 +30,8 @@ public static class CombatRules
     public const int GuardRelease = 80;
     public const int FeintRecovery = 120;
     public const int ParryStun = 480;
+    public const int HitStun = 240;
+    public const int ContactJitterBuffer = 75;
     public const int ContactWindow = 50;
     public const int ShieldRaise = 180;
     public const int ShieldBounce = 180;

@@ -10,12 +10,14 @@ public class Stub : DispatchProxy
     public static EntityPlayer? CurrentPlayer;
     public static bool Privileges;
     public static IPlayerInventoryManager? InventoryManager;
-    public static IServerPlayer Player(EntityPlayer entity)
+    public static IServerPlayer Player(EntityPlayer entity, string uid = "guard-test")
     {
         CurrentPlayer = entity;
         var assembly = AssemblyBuilder.DefineDynamicAssembly(new AssemblyName("GuardPlayerMocks"), AssemblyBuilderAccess.Run);
         assembly.SetCustomAttribute(new CustomAttributeBuilder(typeof(IgnoresAccessChecksToAttribute).GetConstructors()[0], new object[] { "VintagestoryAPI" }));
         var type = assembly.DefineDynamicModule("Mocks").DefineType("Player", TypeAttributes.Public);
+        var entityField = type.DefineField("EntityValue", typeof(EntityPlayer), FieldAttributes.Public);
+        var uidField = type.DefineField("UidValue", typeof(string), FieldAttributes.Public);
         type.AddInterfaceImplementation(typeof(IServerPlayer));
         var methods = typeof(IServerPlayer).GetInterfaces().Append(typeof(IServerPlayer))
             .SelectMany(i => i.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)).Where(m => m.IsAbstract).Distinct();
@@ -35,9 +37,9 @@ public class Stub : DispatchProxy
             definition.SetReturnType(returnType);
             definition.SetParameters(method.GetParameters().Select(p => Map(p.ParameterType)).ToArray());
             var il = definition.GetILGenerator();
-            if (method.Name == "get_Entity") il.Emit(OpCodes.Ldsfld, typeof(Stub).GetField(nameof(CurrentPlayer))!);
+            if (method.Name == "get_Entity") { il.Emit(OpCodes.Ldarg_0); il.Emit(OpCodes.Ldfld, entityField); }
             else if (method.Name == "HasPrivilege") il.Emit(OpCodes.Ldsfld, typeof(Stub).GetField(nameof(Privileges))!);
-            else if (method.Name == "get_PlayerUID") il.Emit(OpCodes.Ldstr, "guard-test");
+            else if (method.Name == "get_PlayerUID") { il.Emit(OpCodes.Ldarg_0); il.Emit(OpCodes.Ldfld, uidField); }
             else if (method.Name == "get_InventoryManager")
             {
                 var fallback = il.DefineLabel();
@@ -55,7 +57,11 @@ public class Stub : DispatchProxy
             else if (method.ReturnType != typeof(void)) il.Emit(OpCodes.Ldnull);
             il.Emit(OpCodes.Ret); type.DefineMethodOverride(definition, method);
         }
-        return (IServerPlayer)Activator.CreateInstance(type.CreateType()!)!;
+        var result = (IServerPlayer)Activator.CreateInstance(type.CreateType()!)!;
+        result.GetType().GetField("EntityValue")!.SetValue(result, entity);
+        result.GetType().GetField("UidValue")!.SetValue(result, uid);
+        entity.WatchedAttributes.SetString("playerUID", uid);
+        return result;
     }
     public System.Func<MethodInfo, object?[]?, object?>? Handler;
     protected override object? Invoke(MethodInfo? method, object?[]? args) => Handler!(method!, args);

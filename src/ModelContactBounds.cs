@@ -15,6 +15,13 @@ internal class ModelContactBounds(ICoreAPI api, System.Func<Entity, ISet<string>
     internal void Prune(long now) => history.Prune(now);
     internal void Clear() { geometries.Clear(); assetShapes.Clear(); history.Clear(); }
 
+    internal IEnumerable<Vec3d> Origins(Entity entity, long now, double pingSeconds)
+    {
+        yield return entity.Pos.XYZ;
+        foreach (var sample in history.Recent(entity.EntityId, now, entity.Pos.Dimension, entity.Pos.XYZ,
+            ContactPositionHistory.Lookback(pingSeconds))) yield return new(sample.X, sample.Y, sample.Z);
+    }
+
     private Geometry GeometryFor(Entity target)
     {
         var client = target.Properties.Client;

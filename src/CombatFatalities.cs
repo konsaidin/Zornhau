@@ -61,12 +61,20 @@ internal sealed class CombatFatalities : IDisposable
     internal static bool Eligible(Entity entity) => entity is EntityPlayer or TrainingDummy;
 
     internal void RecordContact(Entity target, DamageSource source, Direction direction, Vector3d point, string? element)
+        => RecordHistoricalContact(target, source, direction, point, element, new[] { target.Pos.XYZ });
+
+    internal void RecordHistoricalContact(Entity target, DamageSource source, Direction direction, Vector3d point,
+        string? element, IEnumerable<Vec3d> origins)
     {
         if (server == null || !config.Enabled || target is not EntityAgent victim || !Eligible(victim) || !victim.Alive
             || source.SourceEntity is not EntityPlayer attacker) return;
-        var origin = new Vector3d(victim.Pos.X, victim.Pos.InternalY, victim.Pos.Z);
         var eye = new Vector3d(victim.LocalEyePos.X, victim.LocalEyePos.Y, victim.LocalEyePos.Z);
-        bool head = FatalityRules.HeadElement(element) && FatalityRules.HeadPoint(point - origin, eye, victim.Properties.Client?.Size ?? 1);
+        double dimensionOffset = victim.Pos.InternalY - victim.Pos.Y;
+        // The same bounded, server-recorded positions that accepted the hit
+        // must also accept its head zone. Comparing only the live position
+        // silently discarded moving head hits after lag compensation.
+        bool head = FatalityRules.HeadElement(element) && origins.Any(origin => FatalityRules.HeadPoint(
+            point - new Vector3d(origin.X, origin.Y + dimensionOffset, origin.Z), eye, victim.Properties.Client?.Size ?? 1));
         var inventory = victim is EntityPlayer player ? player.Player?.InventoryManager.GetOwnInventory("character")
             : victim.GetBehavior<EntityBehaviorContainer>()?.Inventory;
         var slot = inventory != null && inventory.Count > (int)EnumCharacterDressType.ArmorHead

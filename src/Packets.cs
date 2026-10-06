@@ -31,6 +31,19 @@ public sealed class StatePacket
     [ProtoMember(13)] public long InputReceivedAt { get; set; }
     [ProtoMember(14)] public long ServerSentAt { get; set; }
     [ProtoMember(15)] public int SprintIn { get; set; }
+    [ProtoMember(16)] public long Revision { get; set; }
+    [ProtoMember(17)] public int AttackId { get; set; }
+    [ProtoMember(18)] public bool ContactConsumed { get; set; }
+    [ProtoMember(19)] public bool AuthoritativeClock { get; set; }
+}
+
+// The optional CO packet is wrapped, so contacts cannot migrate to another
+// Warband attack. No CO type enters the standalone assembly's public protocol.
+[ProtoContract]
+public sealed class OverhaulContactPacket
+{
+    [ProtoMember(1)] public int AttackId { get; set; }
+    [ProtoMember(2)] public byte[] Payload { get; set; } = [];
 }
 
 public enum ContactKind { Hit, Parry, Shield, ShieldBreak }

@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using ProtoBuf;
 using CombatOverhaul;
 using CombatOverhaul.Animations;
 using CombatOverhaul.DamageSystems;
@@ -25,6 +26,10 @@ internal sealed class OverhaulBridge : ICombatIntegration
     private readonly CombatSystem combat;
     private readonly Harmony harmony;
     private readonly MeleeSystemServer? meleeServer;
+    private readonly Action<IServerPlayer, MeleeDamagePacket>? receiveContact;
+    private readonly Dictionary<string, (long Started, int Count)> contactRates = new();
+    [ThreadStatic] private static IServerPlayer? authorizedPlayer;
+    [ThreadStatic] private static int authorizedAttack;
     private readonly OverhaulContactBounds? contactBounds;
     private readonly long contactTrackingTick;
     private readonly ConditionalWeakTable<DamageSource, Contact> contacts = new();
@@ -86,6 +91,9 @@ internal sealed class OverhaulBridge : ICombatIntegration
             Patch(typeof(MeleeWeaponClient), "OnMouseWheel", nameof(GripPrefix));
             Patch(typeof(MeleeWeaponClient), "Attack", nameof(NativeMeleePrefix));
             Patch(typeof(MeleeWeaponClient), "Block", nameof(NativeMeleePrefix));
+            harmony.Patch(AccessTools.Method(typeof(MeleeSystemClient), "SendPackets",
+                new[] { typeof(IEnumerable<MeleeDamagePacket>) }),
+                prefix: new HarmonyMethod(typeof(OverhaulBridge), nameof(SendContacts)));
             Patch(typeof(FirstPersonAnimationsBehavior), "IsImmersiveFirstPerson", nameof(ImmersivePrefix));
             harmony.Patch(AccessTools.Method(typeof(FirstPersonAnimationsBehavior), "ApplyFrame"),
                 postfix: new HarmonyMethod(typeof(OverhaulBridge), nameof(FirstPersonAim)));
@@ -107,6 +115,13 @@ internal sealed class OverhaulBridge : ICombatIntegration
                 prefix: new HarmonyMethod(typeof(OverhaulBridge), nameof(BlockPrefix)));
             meleeServer = api.ModLoader.GetModSystem<CombatOverhaulSystem>().ServerMeleeSystem
                 ?? throw new InvalidOperationException("CO server melee system was not initialized");
+            receiveContact = AccessTools.Method(typeof(MeleeSystemServer), "Attack")
+                .CreateDelegate<Action<IServerPlayer, MeleeDamagePacket>>(meleeServer);
+            foreach (var packetType in new[] { typeof(MeleeAttackPacket), typeof(MeleePushPacket), typeof(MeleeAttackStatusPacket) })
+                harmony.Patch(AccessTools.Method(typeof(MeleeSystemServer), "HandlePacket", new[] { typeof(IServerPlayer), packetType }),
+                    prefix: new HarmonyMethod(typeof(OverhaulBridge), nameof(NativeContactHandler)));
+            ((ICoreServerAPI)api).Network.GetChannel("warbandcombat")
+                .SetMessageHandler<OverhaulContactPacket>(ReceiveContact);
             meleeServer.OnDealMeleeDamage += BeforeDamage;
             meleeServer.OnMeleeDamageResolved += DamageResolved;
         }
@@ -295,7 +310,62 @@ internal sealed class OverhaulBridge : ICombatIntegration
         int id = bridge?.combat.DiagnosticAttackId(player) ?? 0;
         __state = id > 0 || activeTrace != null ? new AttackTrace(player, packet, id, activeTrace) : null;
         if (__state != null) activeTrace = __state;
+        if (bridge != null && CombatSystem.Supported(player.Entity.RightHandItemSlot.Itemstack?.Collectible)
+            && (authorizedPlayer != player || authorizedAttack != bridge.combat.PhysicalAttackId(player)))
+            return bridge.RejectPacket("unbound-attack");
         return bridge?.ValidatePacket(player, packet) ?? true;
+    }
+
+    private static bool NativeContactHandler(IServerPlayer player)
+        => !CombatSystem.Supported(player.Entity.RightHandItemSlot.Itemstack?.Collectible)
+            && !CombatShields.Equipped(player.Entity);
+
+    private static bool SendContacts(IEnumerable<MeleeDamagePacket> packets)
+    {
+        var bridge = clientBridge;
+        if (bridge == null || !CombatPrediction.Active) return true;
+        var packet = packets.FirstOrDefault();
+        if (packet == null || bridge.combat.Controls is not { CurrentAttackId: > 0 } controls) return false;
+        using var stream = new MemoryStream();
+        Serializer.Serialize(stream, packet);
+        if (stream.Length <= 4096)
+            ((ICoreClientAPI)bridge.api).Network.GetChannel("warbandcombat").SendPacket(new OverhaulContactPacket
+                { AttackId = controls.CurrentAttackId, Payload = stream.ToArray() });
+        return false;
+    }
+
+    private void ReceiveContact(IServerPlayer player, OverhaulContactPacket envelope)
+    {
+        long now = api.World.ElapsedMilliseconds;
+        var rate = contactRates.GetValueOrDefault(player.PlayerUID);
+        if (now - rate.Started >= 1000) rate = (now, 0);
+        contactRates[player.PlayerUID] = (rate.Started, rate.Count + 1);
+        if (rate.Count >= 30 || envelope.Payload == null || envelope.Payload.Length is 0 or > 4096
+            || envelope.AttackId <= 0) return;
+        ProcessContact(player, envelope);
+    }
+
+    private void ProcessContact(IServerPlayer player, OverhaulContactPacket envelope)
+    {
+        if (envelope.AttackId != combat.PhysicalAttackId(player)) return;
+        if (combat.DeferPhysicalContact(player, envelope.AttackId, () => ProcessContact(player, envelope))) return;
+        if (!combat.CanAcceptPhysicalContact(player)) return;
+        MeleeDamagePacket packet;
+        try
+        {
+            using var stream = new MemoryStream(envelope.Payload, false);
+            packet = Serializer.Deserialize<MeleeDamagePacket>(stream);
+        }
+        catch (Exception e) when (e is ProtoException or IOException or OverflowException or ArgumentException) { return; }
+        if (packet == null || packet.DamageType == null || packet.DamageType.Length > 80
+            || packet.Collider == null || packet.Collider.Length > 128) return;
+        var previousPlayer = authorizedPlayer; int previousAttack = authorizedAttack;
+        try
+        {
+            authorizedPlayer = player; authorizedAttack = envelope.AttackId;
+            receiveContact!(player, packet);
+        }
+        finally { authorizedPlayer = previousPlayer; authorizedAttack = previousAttack; }
     }
 
     private static Exception? AttackFinished(Exception? __exception, AttackTrace? __state)
@@ -346,8 +416,9 @@ internal sealed class OverhaulBridge : ICombatIntegration
         if (profile == null) return RejectPacket("missing-attack-profile");
         var p = profile.Value;
         var pos = player.Entity.Pos;
-        double distanceSquared = Enumerable.Range(0, 3).Sum(i => Math.Pow(packet.Position[i]
-            - (i == 0 ? pos.X : i == 1 ? pos.Y + player.Entity.LocalEyePos.Y * .65 : pos.Z), 2));
+        var origins = contactBounds?.Origins(player.Entity, api.World.ElapsedMilliseconds, player.Ping) ?? new[] { pos.XYZ };
+        double distanceSquared = origins.Min(origin => Enumerable.Range(0, 3).Sum(i => Math.Pow(packet.Position[i]
+            - (i == 0 ? origin.X : i == 1 ? origin.Y + player.Entity.LocalEyePos.Y * .65 : origin.Z), 2)));
         if (distanceSquared > Math.Pow(p.Reach + .75, 2))
             return RejectPacket("reach", FormattableString.Invariant($"distance={Math.Sqrt(distanceSquared):F3} allowed={p.Reach + .75:F3}"));
         var point = new Vec3d(packet.Position[0], packet.Position[1], packet.Position[2]);
@@ -374,6 +445,7 @@ internal sealed class OverhaulBridge : ICombatIntegration
         foreach (var player in server.World.AllOnlinePlayers.OfType<IServerPlayer>())
         {
             if (!combat.TracksPhysicalContacts(player)) continue;
+            if (recorded.Add(player.Entity.EntityId)) contactBounds.Record(player.Entity, now);
             foreach (var target in api.World.GetEntitiesAround(player.Entity.Pos.XYZ, 10, 10))
             {
                 if (!target.Alive || !target.IsCreature || target.Pos.Dimension != player.Entity.Pos.Dimension
@@ -382,6 +454,8 @@ internal sealed class OverhaulBridge : ICombatIntegration
             }
         }
         contactBounds.Prune(now);
+        foreach (var uid in contactRates.Where(pair => now - pair.Value.Started > 2000).Select(pair => pair.Key).ToArray())
+            contactRates.Remove(uid);
     }
 
     private void BeforeDamage(Entity target, DamageSource source, ItemSlot? slot, ref float damage)
@@ -401,7 +475,8 @@ internal sealed class OverhaulBridge : ICombatIntegration
         contacts.Add(source, new Contact(direction));
         damage = profile.Value.Power * CombatBalance.DirectionBonus(slot?.Itemstack?.Collectible.Tool, direction);
         if (source is DirectionalTypedDamageSource typed)
-            combat.Fatalities?.RecordContact(target, source, direction, typed.Position, typed.Collider);
+            combat.Fatalities?.RecordHistoricalContact(target, source, direction, typed.Position, typed.Collider,
+                contactBounds?.Origins(target, api.World.ElapsedMilliseconds, player.Ping) ?? new[] { target.Pos.XYZ });
         ClearNativeBlock(attacker);
         if (target is EntityPlayer victim) ClearNativeBlock(victim);
     }
@@ -412,7 +487,8 @@ internal sealed class OverhaulBridge : ICombatIntegration
         combat.PhysicalFeedback(player, args.Target, contact.Blocked, args.DamageReceived);
         if (activeTrace?.Player == player && activeTrace.Packet.TargetEntityId == args.Target.EntityId)
             activeTrace.Report(contact.Blocked ? "blocked" : args.DamageReceived ? "hit" : "no-damage",
-                $"target={args.Target.Code} collider={activeTrace.Packet.Collider} damageReceived={args.DamageReceived} {activeTrace.BoundDetail}");
+                $"target={args.Target.Code} collider={activeTrace.Packet.Collider} damageReceived={args.DamageReceived} "
+                    + $"lethal={!args.Target.Alive} direction={contact.AttackDirection} type={args.DamageSource.Type} {activeTrace.BoundDetail}");
     }
 
     public void AssetsReady()

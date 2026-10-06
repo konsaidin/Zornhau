@@ -235,7 +235,17 @@ internal sealed class StandalonePhysics : IDisposable
         if (now - rate.at >= 1000) rate = (now, 0);
         packetRates[player.PlayerUID] = (rate.at, rate.count + 1);
         if (rate.count >= 30) return;
+        ProcessContact(player, packet);
+    }
+
+    private void ProcessContact(IServerPlayer player, BladeContactPacket packet)
+    {
+        if (api is not ICoreServerAPI server) return;
+        long now = api.World.ElapsedMilliseconds;
         void Reject(string reason, string detail = "") => combat.ReportHitDiagnostic(player, packet.AttackId, packet.Target, reason, detail);
+        if (packet.Previous?.Length != 6 || packet.Current?.Length != 6 || packet.Point?.Length != 3
+            || packet.Element == null || packet.Element.Length > 128) return;
+        if (combat.DeferPhysicalContact(player, packet.AttackId, () => ProcessContact(player, packet))) return;
         if (packet.AttackId != combat.PhysicalAttackId(player) || !combat.CanAcceptPhysicalContact(player))
         { Reject("state-or-equipment", combat.PhysicalContactState(player)); return; }
         var stack = player.Entity.RightHandItemSlot.Itemstack;
@@ -256,7 +266,10 @@ internal sealed class StandalonePhysics : IDisposable
         double reach = WeaponGeometry.Reach(stack.Collectible, pieces) + .35;
         double scale = WeaponGeometry.HandScale(stack.Collectible) * (player.Entity.Properties.Client?.Size ?? 1);
         double radius = ContactRadius(piece.Radius * scale) + BladeGeometry.SweepStep / 2;
-        if (!ValidateBlade(before, after, point, origin, reach, piece.Segment.Length * scale, radius, packet.Fraction))
+        var origins = bounds?.Origins(player.Entity, now, player.Ping) ?? new[] { pos.XYZ };
+        if (!origins.Any(candidate => ValidateBlade(before, after, point,
+            new(candidate.X, candidate.Y + player.Entity.LocalEyePos.Y * .65, candidate.Z),
+            reach, piece.Segment.Length * scale, radius, packet.Fraction)))
         { Reject("reach", "Invalid blade extent, sweep or contact proof"); return; }
         var contactSegment = BladeSegment.Lerp(before, after, packet.Fraction);
         if (bounds?.Validate(target, new(point.X, point.Y, point.Z), now, player.Ping, out _) != true)
@@ -282,13 +295,15 @@ internal sealed class StandalonePhysics : IDisposable
             DamageTier = stack.Collectible.GetToolTier(player.Entity.RightHandItemSlot),
             HitPosition = new(point.X - target.Pos.X, point.Y - target.Pos.InternalY, point.Z - target.Pos.Z), KnockbackStrength = .6f
         };
-        combat.Fatalities?.RecordContact(target, damage, direction, point, packet.Element);
+        combat.Fatalities?.RecordHistoricalContact(target, damage, direction, point, packet.Element,
+            bounds?.Origins(target, now, player.Ping) ?? new[] { target.Pos.XYZ });
         bool hit = target.ReceiveDamage(damage, CombatBalance.Power(player.Entity, direction,
             stack.Collectible.GetAttackPower(stack)) * multiplier);
         stack.Collectible.OnAttackingWith(api.World, player.Entity, target, player.Entity.RightHandItemSlot);
         if (hit && !damage.Blocked && target is EntityAgent victim) player.Entity.DidAttack(damage, victim);
         combat.PhysicalFeedback(player, target, damage.Blocked, hit);
-        Reject(damage.Blocked ? "blocked" : hit ? "hit" : "no-damage", $"engine=co-port target={target.Code} blade={packet.Blade}");
+        Reject(damage.Blocked ? "blocked" : hit ? "hit" : "no-damage",
+            $"engine=co-port target={target.Code} blade={packet.Blade} collider={packet.Element} lethal={!target.Alive} direction={direction} type={damage.Type}");
     }
 
     internal static double PointParameter(BladeSegment segment, Vector3d point)
@@ -315,6 +330,7 @@ internal sealed class StandalonePhysics : IDisposable
         foreach (var player in server.World.AllOnlinePlayers.OfType<IServerPlayer>())
         {
             if (!combat.TracksPhysicalContacts(player) || !OwnWeapon(player.Entity.RightHandItemSlot.Itemstack?.Collectible)) continue;
+            if (recorded.Add(player.Entity.EntityId)) bounds.Record(player.Entity, now);
             foreach (var target in api.World.GetEntitiesAround(player.Entity.Pos.XYZ, 10, 10))
                 if (target.Alive && target is EntityAgent && target.Pos.Dimension == player.Entity.Pos.Dimension && recorded.Add(target.EntityId)) bounds.Record(target, now);
         }
