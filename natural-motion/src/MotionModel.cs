@@ -69,8 +69,10 @@ internal sealed class MotionState
         double amount = 1 - Math.Exp(-config.Response * dt);
         double speed = Math.Min(12, Math.Sqrt(input.VelocityX * input.VelocityX + input.VelocityZ * input.VelocityZ));
         Speed += (speed - Speed) * amount;
-        double forward = -Math.Sin(input.BodyYaw) * input.VelocityX - Math.Cos(input.BodyYaw) * input.VelocityZ;
-        double right = Math.Cos(input.BodyYaw) * input.VelocityX - Math.Sin(input.BodyYaw) * input.VelocityZ;
+        // EntityControls.CalcMovementVectors: W=(sin(yaw), cos(yaw)),
+        // D=(-cos(yaw), sin(yaw)). At yaw zero W is +Z and D is -X.
+        double forward = Math.Sin(input.BodyYaw) * input.VelocityX + Math.Cos(input.BodyYaw) * input.VelocityZ;
+        double right = -Math.Cos(input.BodyYaw) * input.VelocityX + Math.Sin(input.BodyYaw) * input.VelocityZ;
         if (speed > .08) RelativeDirection = Math.Atan2(right, forward);
         bool wasAirborne = airborne;
         if (input.Ground) { airborne = false; quietVertical = 0; }

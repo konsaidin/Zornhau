@@ -10,7 +10,7 @@ int checks = 0;
 void Check(bool ok, string name) { if (!ok) throw new Exception(name); checks++; }
 void Near(double actual, double expected, double tolerance, string name) => Check(Math.Abs(actual - expected) <= tolerance, $"{name}: {actual} expected {expected}");
 var config = new MotionConfig();
-MotionInput Input(long at, double vx = 0, double vy = 0, double vz = -2, bool ground = true, float yaw = 0)
+MotionInput Input(long at, double vx = 0, double vy = 0, double vz = 2, bool ground = true, float yaw = 0)
     => new(at, 0, 0, 0, 0, vx, vy, vz, yaw, ground, false, false, false, false);
 MotionState Settle(MotionInput input, int fps = 60)
 {
@@ -23,8 +23,8 @@ foreach (float yaw in new[] { 0f, 1.2f, -2.7f, 6.28f })
 foreach (double direction in new[] { 0d, Math.PI / 4, Math.PI / 2, -Math.PI / 2, Math.PI })
 {
     double forward = Math.Cos(direction) * 2, right = Math.Sin(direction) * 2;
-    var s = Settle(Input(0, -Math.Sin(yaw) * forward + Math.Cos(yaw) * right, 0,
-        -Math.Cos(yaw) * forward - Math.Sin(yaw) * right, yaw: yaw), fps);
+    var s = Settle(Input(0, Math.Sin(yaw) * forward - Math.Cos(yaw) * right, 0,
+        Math.Cos(yaw) * forward + Math.Sin(yaw) * right, yaw: yaw), fps);
     Near(Math.Cos(s.RelativeDirection), Math.Cos(direction), 1e-6, "yaw-relative gait forward");
     Near(Math.Sin(s.RelativeDirection), Math.Sin(direction), 1e-6, "yaw-relative gait side");
     Check(s.GroundBlend > .999 && s.AirBlend == 0, "ground gait stabilizes");
@@ -104,22 +104,22 @@ Check(library.Sample("walkleft", "UpperFootR", 0) != library.Sample("walkright",
 // A lateral stride takes 26 frames, not both strides of the 52-frame asset.
 Near(library.Sample("walkright", "UpperFootL", .5, true).Z,
     10 * (26 - 15.8) / 13, .001, "side gait closes one 26-frame stride at the common contact phase");
-var reversal = Settle(Input(0, vx: 2, vz: 0));
+var reversal = Settle(Input(0, vx: -2, vz: 0));
 var oldWeight = reversal.RightWeight;
-reversal.Update(Input(2017, vx: -2, vz: 0), config);
+reversal.Update(Input(2017, vx: 2, vz: 0), config);
 Check(reversal.RightWeight > oldWeight * .7 && reversal.LeftWeight < .2,
     "direction reversal crossfades instead of instantly replacing the leg pose");
 Near(reversal.ForwardWeight + reversal.BackWeight + reversal.LeftWeight + reversal.RightWeight, 1, .0001,
     "direction weights remain normalized during reversal");
 var moving = Settle(Input(0, vx: 2));
-var backwardSprint = Settle(Input(0, vz: 3) with { Sprint = true });
+var backwardSprint = Settle(Input(0, vz: -3) with { Sprint = true });
 Check(backwardSprint.BackWeight > .999 && backwardSprint.ForwardWeight < .001,
     "backward sprint retains backward gait rather than forward running");
 Check(Math.Abs(library.Walk("UpperFootR", backwardSprint).Z
     - library.Sample("walkback", "UpperFootR", backwardSprint.Cycle, true).Z) > 1,
     "backward running has a distinct stride instead of only accelerated walking");
 double backwardPhase = backwardSprint.Cycle;
-backwardSprint.Update(Input(2017, vz: 3) with { Sprint = true }, config);
+backwardSprint.Update(Input(2017, vz: -3) with { Sprint = true }, config);
 Near((backwardSprint.Cycle - backwardPhase + 1) % 1, .017 / (2 * config.SprintStepMilliseconds / 1000), .00001,
     "backward sprint keeps the running step cadence while retaining the backwards clip");
 foreach (string name in new[] { "walk-fp", "walk-ifp", "walk-skirt", "sprint-fp", "sprint-ifp", "sprint-skirt", "sprint-holdskirt", "sprint-skirt-ifp" })
@@ -292,6 +292,7 @@ checks += CrashChecks.Run(shape);
 checks += FootstepChecks.Run(shape);
 checks += JumpChecks.Run(shape);
 checks += GaitChecks.Run(shape);
+checks += DirectionChecks.Run();
 Console.WriteLine($"PASS: {checks} motion, native clip, pose compatibility and Harmony integration checks.");
 
 public class Proxy : DispatchProxy

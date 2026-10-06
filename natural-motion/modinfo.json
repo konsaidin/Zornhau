@@ -4,7 +4,7 @@
   "name": "Natural Motion",
   "authors": ["dead"],
   "description": "Directional player steps, smooth body turns and an airborne jump pose. Client-side visual mod.",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "side": "Client",
   "requiredOnClient": false,
   "requiredOnServer": false,

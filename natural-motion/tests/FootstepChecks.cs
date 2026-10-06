@@ -10,7 +10,7 @@ internal static class FootstepChecks
         void Check(bool ok, string name) { if (!ok) throw new Exception(name); checks++; }
         var config = new MotionConfig();
         MotionInput Input(long at, bool sprint = false, bool ground = true, double speed = 2, double vy = 0)
-            => new(at, 0, 0, 0, 0, 0, vy, -speed, 0, ground, false, sprint, false, false);
+            => new(at, 0, 0, 0, 0, 0, vy, speed, 0, ground, false, sprint, false, false);
         foreach (int fps in new[] { 30, 60, 144 })
         foreach (bool sprint in new[] { false, true })
         {
