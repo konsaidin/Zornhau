@@ -47,10 +47,10 @@ foreach (int fps in new[] { 30, 60, 144 })
     {
         double t = i / (double)fps;
         s.Update(Input((long)Math.Round(t * 1000), vy: 4 - 8 * t, ground: false), config);
-        if (t >= .2) Check(s.AirBlend > .95, "ascent/apex/descent keeps flight pose");
+        if (t >= .2) Check(s.AirBlend > .9, "ascent/apex/descent keeps flight pose with a softer entry");
     }
     for (int i = 1; i <= fps / 2; i++) s.Update(Input(1000 + (long)Math.Round(i * 1000d / fps)), config);
-    Check(s.AirBlend < .001 && s.GroundBlend > .99, "landing returns smoothly to walking");
+    Check(s.AirBlend < .003 && s.GroundBlend > .99, "landing returns smoothly to walking");
 }
 var excluded = Settle(Input(0, vx: 2));
 excluded.Update(Input(2017) with { Excluded = true }, config);
@@ -115,9 +115,9 @@ var moving = Settle(Input(0, vx: 2));
 var backwardSprint = Settle(Input(0, vz: 3) with { Sprint = true });
 Check(backwardSprint.BackWeight > .999 && backwardSprint.ForwardWeight < .001,
     "backward sprint retains backward gait rather than forward running");
-Near(library.Walk("UpperFootR", backwardSprint).Z,
-    library.Sample("walkback", "UpperFootR", backwardSprint.Cycle, true).Z, .001,
-    "sprint speed does not substitute the forward sprint clip when moving backwards");
+Check(Math.Abs(library.Walk("UpperFootR", backwardSprint).Z
+    - library.Sample("walkback", "UpperFootR", backwardSprint.Cycle, true).Z) > 1,
+    "backward running has a distinct stride instead of only accelerated walking");
 double backwardPhase = backwardSprint.Cycle;
 backwardSprint.Update(Input(2017, vz: 3) with { Sprint = true }, config);
 Near((backwardSprint.Cycle - backwardPhase + 1) % 1, .017 / (2 * config.SprintStepMilliseconds / 1000), .00001,
@@ -197,7 +197,8 @@ for (int i = 0; i < 90; i++) { now += 17; manager.OnClientFrame(.017f); }
 Near(nativeAnimator.GetPosebyName("LowerTorso").degY, 0, .001, "committed combat returns pelvis to authored heading");
 entity.OnGround = false; entity.Pos.Motion.Set(0, 4d / 60, 0);
 for (int i = 0; i < 20; i++) { now += 17; manager.OnClientFrame(.017f); }
-Check(nativeAnimator.GetPosebyName("UpperFootR").degZ < -60, "native skeleton uses flight legs during ascending jump");
+Check(nativeAnimator.GetPosebyName("UpperFootR").degZ is < -28 and > -40,
+    "native skeleton uses the lower, relaxed flight legs during ascending jump");
 Near(nativeAnimator.GetPosebyName("UpperArmR").degZ, 0, .001, "flight leaves combat arm untouched");
 
 // Reproduce the user's case: actual native walking is running while our
@@ -234,7 +235,7 @@ for (int i = 0; i < 180; i++)
     if (i is >= 125 and < 140)
     {
         Near(nativeAnimator.GetPosebyName("LowerTorso").translateY, 0, .001, "airborne pelvis loses walking bob");
-        Check(nativeAnimator.GetPosebyName("LowerTorso").degZ is >= 12.99f and <= 18.01f,
+        Check(nativeAnimator.GetPosebyName("LowerTorso").degZ is >= 12.5f and <= 18.01f,
             "airborne torso stays in the authored flight posture instead of walking sway");
     }
 }
@@ -247,9 +248,12 @@ manager.OnClientFrame(.017f);
 Check(BonePose.From(frameBefore) == authoredPose, "baked frame data remains immutable");
 // Native skirt/FP sprint clips must not survive under the backward stride.
 foreach (string variant in new[] { "sprint", "sprint-fp", "sprint-skirt", "sprint-holdskirt" })
+foreach (double travelZ in new[] { -3d, 3d })
 {
     var runner = new EntityPlayer { Api = api, World = world, OnGround = true, IsRendered = true };
-    runner.Controls.Sprint = true; runner.BodyYaw = 0; runner.Pos.Motion.Set(0, 0, 3d / 60);
+    // Other players receive the effective sprint in ServerControls. Their
+    // input Controls can stay false while native rendering is already running.
+    runner.ServerControls.Sprint = true; runner.BodyYaw = 0; runner.Pos.Motion.Set(0, 0, travelZ / 60);
     var engine = new ClientAnimator(() => 1, shape.Animations, shape.Elements, shape.JointsById);
     var runningManager = new AnimationManager { Animator = engine }; runningManager.Init(api, runner);
     runningManager.StartAnimation(new AnimationMetaData { Code = variant, Animation = variant }.Init());
@@ -257,10 +261,10 @@ foreach (string variant in new[] { "sprint", "sprint-fp", "sprint-skirt", "sprin
     for (int i = 0; i < 120; i++)
     {
         now += 17;
-        referenceMotion.Update(Input(now, vz: 3) with { Sprint = true }, config);
+        referenceMotion.Update(Input(now, vz: travelZ) with { Sprint = true }, config);
         runningManager.OnClientFrame(.017f);
         Near(engine.GetPosebyName("UpperFootR").degZ, library.Walk("UpperFootR", referenceMotion).Z * referenceMotion.GroundBlend,
-            .001, "native sprint variant cannot add forward leg motion to backwards running");
+            .001, "effective remote sprint selects the correct running stride and masks native variants");
     }
     Check(runningManager.ActiveAnimationsByAnimCode.ContainsKey(variant), "sprint variant remains in replicated animation state");
 }
@@ -287,6 +291,7 @@ Check(soundEvent.GetValue(entity) == null, "disposing mod removes its native foo
 checks += CrashChecks.Run(shape);
 checks += FootstepChecks.Run(shape);
 checks += JumpChecks.Run(shape);
+checks += GaitChecks.Run(shape);
 Console.WriteLine($"PASS: {checks} motion, native clip, pose compatibility and Harmony integration checks.");
 
 public class Proxy : DispatchProxy

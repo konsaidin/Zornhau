@@ -77,10 +77,12 @@ public sealed class NaturalMotionSystem : ModSystem
             || player.Controls.IsClimbing || player.Controls.Gliding || player.Controls.FloorSitting
             || account?.WorldData?.FreeMove == true;
         var pos = player.Pos;
+        bool sneak = player.Controls.Sneak || player.ServerControls?.Sneak == true;
+        bool sprint = IsSprinting(player);
         var state = mod.states.GetValue(player, mod.CreateState);
         state.Update(new(api.World.ElapsedMilliseconds, pos.X, pos.Y, pos.Z, pos.Dimension,
             pos.Motion.X * 60, pos.Motion.Y * 60, pos.Motion.Z * 60, player.BodyYaw,
-            player.OnGround, player.Controls.Sneak, player.Controls.Sprint, combat, excluded), mod.config);
+            player.OnGround, sneak, sprint, combat, excluded), mod.config);
         bool fadingNative = animations.Any(a => a?.Animation != null && a.Running
             && NativeLocomotion.Owns(a.Animation.Code, mod.config.DirectionalSteps, mod.config.AirbornePose));
         if (!excluded && (state.Active || fadingNative))
@@ -158,8 +160,11 @@ public sealed class NaturalMotionSystem : ModSystem
         if (bone == "Head" && emptyHands && !immersive) pose.degY -= turn * .45f;
         if (emptyHands && !immersive && bone is ("UpperArmR" or "UpperArmL" or "LowerArmR" or "LowerArmL"))
             (BonePose.From(pose) - locomotion + source.Walk(bone, state) * (state.GroundBlend * (1 - state.AirBlend))
-                + source.Sample("creativefly", bone, state.FlightCycle) * (state.AirBlend * .65f)).Apply(pose);
+                * (1 - state.SprintBlend)).Apply(pose);
     }
+
+    internal static bool IsSprinting(EntityPlayer player) => !player.Controls.Sneak
+        && player.ServerControls?.Sneak != true && (player.Controls.Sprint || player.ServerControls?.Sprint == true);
 
     private void Report(IAnimator? animator, string stage, Exception error)
     {
@@ -183,7 +188,7 @@ public sealed class NaturalMotionSystem : ModSystem
                 || !weakState.TryGetTarget(out var motion) || !weakPlayer.TryGetTarget(out var actor)
                 || !actor.Alive || !actor.OnGround || actor.Swimming || actor.FeetInLiquid || actor.MountedOn != null
                 || actor.Controls == null || actor.Controls.Sneak || actor.Controls.IsClimbing || actor.Controls.Gliding) return;
-            motion.ObserveFootstep(api.World.ElapsedMilliseconds, actor.Controls.Sprint, config);
+            motion.ObserveFootstep(api.World.ElapsedMilliseconds, IsSprinting(actor), config);
         };
         player.OnFootStep += handler;
         if (footsteps.Count > 0 && footsteps.Count % 64 == 0) footsteps.RemoveAll(h => !h.Player.TryGetTarget(out _));

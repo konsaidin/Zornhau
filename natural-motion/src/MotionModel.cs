@@ -8,6 +8,8 @@ public sealed class MotionConfig
     public bool SyncFootsteps = true;
     public float WalkStepMilliseconds = 470;
     public float SprintStepMilliseconds = 340;
+    public float WalkStepScale = 1.35f;
+    public float JumpLegHeight = .55f;
     public float BodyTurnDegrees = 28;
     public float WalkStride = 1.65f;
     public float SprintStride = 2.3f;
@@ -16,6 +18,8 @@ public sealed class MotionConfig
     {
         WalkStepMilliseconds = Finite(WalkStepMilliseconds, 470, 150, 1500);
         SprintStepMilliseconds = Finite(SprintStepMilliseconds, 340, 150, 1500);
+        WalkStepScale = Finite(WalkStepScale, 1.35f, 1, 1.65f);
+        JumpLegHeight = Finite(JumpLegHeight, .55f, .25f, 1);
         BodyTurnDegrees = Finite(BodyTurnDegrees, 28, 0, 40);
         WalkStride = Finite(WalkStride, 1.65f, .6f, 3);
         SprintStride = Finite(SprintStride, 2.3f, 1, 4);
@@ -41,6 +45,7 @@ internal sealed class MotionState
     internal int JumpCount;
     internal double JumpAge => jumpAge;
     internal float AirSide, JumpPulse, LandingPulse;
+    internal float WalkStepScale = 1.35f, JumpLegHeight = .55f;
     internal double Cycle, FlightCycle, Speed, RelativeDirection, Turn;
     internal float GroundBlend, AirBlend;
     internal float ForwardWeight = 1, BackWeight, LeftWeight, RightWeight, SprintBlend;
@@ -57,6 +62,7 @@ internal sealed class MotionState
         var oldInput = previous;
         previous = input; initialized = true;
         Combat = input.Combat; Sneak = input.Sneak; Sprint = input.Sprint;
+        WalkStepScale = config.WalkStepScale; JumpLegHeight = config.JumpLegHeight;
         if (input.Excluded || !double.IsFinite(input.VelocityX) || !double.IsFinite(input.VelocityY)
             || !double.IsFinite(input.VelocityZ) || !float.IsFinite(input.BodyYaw)
             || !double.IsFinite(input.X) || !double.IsFinite(input.Y) || !double.IsFinite(input.Z)) { Clear(); return; }
@@ -86,13 +92,13 @@ internal sealed class MotionState
         else landingAge += dt;
         if (airborne && !wasAirborne) ForgetFootsteps();
         float side = JumpCount > 0 ? (JumpCount - 1) % 2 : 0;
-        AirSide += (side - AirSide) * (float)(1 - Math.Exp(-10 * dt));
+        AirSide += (side - AirSide) * (float)(1 - Math.Exp(-6 * dt));
         // Both envelopes start and end at zero: even a rebound never resets
         // a live bone or restarts a replicated engine animation.
-        JumpPulse = config.AirbornePose && jumpAge < .24 ? (float)Math.Sin(Math.PI * jumpAge / .24) : 0;
-        LandingPulse = config.AirbornePose && landingAge < .16 ? (float)Math.Sin(Math.PI * landingAge / .16) : 0;
+        JumpPulse = config.AirbornePose && jumpAge < .36 ? (float)Math.Pow(Math.Sin(Math.PI * jumpAge / .36), 2) : 0;
+        LandingPulse = config.AirbornePose && landingAge < .24 ? (float)Math.Pow(Math.Sin(Math.PI * landingAge / .24), 2) : 0;
         float air = config.AirbornePose && airborne ? 1 : 0;
-        AirBlend += (air - AirBlend) * (float)(1 - Math.Exp(-18 * dt));
+        AirBlend += (air - AirBlend) * (float)(1 - Math.Exp(-12 * dt));
         float ground = config.DirectionalSteps && !airborne && input.Ground && !input.Sneak
             ? (float)Math.Clamp(speed / .25, 0, 1) : 0;
         GroundBlend += (ground - GroundBlend) * (float)amount;
