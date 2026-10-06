@@ -53,6 +53,7 @@ Console.WriteLine($"PASS: {count} combat checks");
 AnimationGeometry.Check();
 BalanceChecks.Run();
 SprintChecks.Run();
+TurnChecks.Run();
 AimChecks.Run();
 ContactWindowChecks.Run();
 ToolInteractionChecks.Run();

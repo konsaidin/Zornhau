@@ -30,15 +30,20 @@ internal static class FatalityMesh
         return pose?.ForElement == null ? [] : [pose.ForElement.JointId];
     }
 
-    // Irregular connected pools, narrow gravity streaks and tiny satellite drops.
-    // Keep four vertices per sector so the existing bone/helmet face selectors
-    // can carry these stains onto the severed head and fragments unchanged.
-    internal static MeshData Blood(MeshData source, HashSet<int> head, HashSet<int> neck, long seed, List<int>? surfaces = null)
+    // Sample one seeded spatial field on the original texture's texel grid.
+    // Adjacent faces share the field instead of repeating a per-face stamp.
+    // Four vertices per pixel preserve the existing bone/helmet face selectors.
+    internal static MeshData Blood(MeshData source, HashSet<int> head, HashSet<int> neck, long seed,
+        List<int>? surfaces = null, Size2i? atlasSize = null)
     {
         surfaces?.Clear();
         surfaces?.AddRange(Enumerable.Range(0, source.VerticesCount / 4));
         if (source.Rgba == null || source.Uv == null) return source;
         var result = source.Clone();
+        // The engine's Clone copies normal data but drops NormalsCount. Saved
+        // snapshots can therefore need their buffer restored before appending.
+        if (source.Normals != null && source.NormalsCount != source.VerticesCount)
+            result.Normals = source.Normals.Take(source.VerticesCount).ToArray();
         for (int face = 0; face < source.VerticesCount / 4; face++)
         {
             bool isNeck = HeadFace(source, neck, face);
@@ -49,90 +54,95 @@ internal static class FatalityMesh
             var normal = a.Cross(b);
             if (normal.Length() < .000001) continue;
             normal.Normalize();
-            uint state = unchecked((uint)(seed ^ (face * 16777619L))) | 1;
-            float Random()
-            {
-                state ^= state << 13; state ^= state >> 17; state ^= state << 5;
-                return (state & 0xffffff) / 16777216f;
-            }
             float Blend(float[] values, int stride, int axis, float u, float v)
                 => values[axis] * (1 - u) * (1 - v) + values[stride + axis] * u * (1 - v)
                     + values[2 * stride + axis] * u * v + values[3 * stride + axis] * (1 - u) * v;
-
-            // Project gravity onto this face, independent of UV rotation. A
-            // horizontal face gets small pools rather than vertical streaks.
-            float aa = a.Dot(a), bb = b.Dot(b), ab = a.Dot(b), determinant = aa * bb - ab * ab;
-            if (!float.IsFinite(determinant) || determinant <= 1e-12f) continue;
-            float downU = (-a.Y * bb + b.Y * ab) / determinant;
-            float downV = (-b.Y * aa + a.Y * ab) / determinant;
-            float downLength = MathF.Sqrt(downU * downU + downV * downV);
-            bool vertical = downLength > .01f;
-            if (vertical) { downU /= downLength; downV /= downLength; }
-            else { downU = 0; downV = -1; }
-
-            int stainLayer = 0;
-            void Stain(float centerU, float centerV, float width, float length, float skew = 0)
+            float[] PixelCuts(int corner)
             {
-                // Eight uneven perimeter points make a continuous outline, not
-                // independent rectangles. Clamp to the original face/atlas UV.
-                var ring = new (float U, float V)[8];
-                for (int i = 0; i < ring.Length; i++)
-                {
-                    float angle = -i * MathF.Tau / ring.Length;
-                    float across = MathF.Cos(angle) * width * (.78f + Random() * .28f);
-                    float along = MathF.Sin(angle) * length * (.8f + Random() * .22f);
-                    ring[i] = (Math.Clamp(centerU - downV * across + downU * along + skew * along, .005f, .995f),
-                        Math.Clamp(centerV + downU * across + downV * along, .005f, .995f));
-                }
-                byte red = (byte)(112 + Random() * 36);
-                // Separate overlapping lobes by a tiny depth increment so they
-                // cannot flicker on the same plane when the head rotates.
-                float offset = .00065f + stainLayer++ * .00004f;
-                for (int sector = 0; sector < 4; sector++)
-                {
-                    var patch = original.Clone();
-                    var corners = new[] { (centerU, centerV), ring[sector * 2], ring[sector * 2 + 1], ring[(sector * 2 + 2) % 8] };
-                    for (int vertex = 0; vertex < 4; vertex++)
+                if (atlasSize == null) return Enumerable.Range(0, 9).Select(i => i / 8f).ToArray();
+                float dx = (original.Uv[corner * 2] - original.Uv[0]) * atlasSize.Width;
+                float dy = (original.Uv[corner * 2 + 1] - original.Uv[1]) * atlasSize.Height;
+                bool horizontal = MathF.Abs(dx) >= MathF.Abs(dy);
+                float start = horizontal ? original.Uv[0] * atlasSize.Width : original.Uv[1] * atlasSize.Height;
+                float span = horizontal ? dx : dy;
+                if (MathF.Abs(span) > 31)
+                    return Enumerable.Range(0, 33).Select(i => i / 32f).ToArray();
+                var cuts = new List<float> { 0, 1 };
+                if (MathF.Abs(span) > .0001f)
+                    for (float pixel = MathF.Ceiling(MathF.Min(start, start + span)); pixel < MathF.Max(start, start + span); pixel++)
                     {
-                        var (u, v) = corners[vertex];
-                        for (int axis = 0; axis < 3; axis++)
-                            patch.xyz[vertex * 3 + axis] = Blend(original.xyz, 3, axis, u, v)
-                                + (axis == 0 ? normal.X : axis == 1 ? normal.Y : normal.Z) * offset;
-                        for (int axis = 0; axis < 2; axis++) patch.Uv[vertex * 2 + axis] = Blend(original.Uv, 2, axis, u, v);
-                        // Mesh vertex bytes are RGBA, unlike particle integers.
-                        patch.Rgba[vertex * 4] = red;
-                        patch.Rgba[vertex * 4 + 1] = 9;
-                        patch.Rgba[vertex * 4 + 2] = 12;
-                        patch.Rgba[vertex * 4 + 3] = original.Rgba[vertex * 4 + 3];
+                        float t = (pixel - start) / span;
+                        // Half-texel face edges and atlas padding produce a
+                        // clipped border cell, not a stretched pixel grid.
+                        if (t > .0001f && t < .9999f) cuts.Add(t);
                     }
-                    // The triangles must follow this radial sector's vertices;
-                    // shape tessellators may use the other diagonal on a quad.
-                    patch.Indices = [0, 1, 2, 0, 2, 3]; patch.IndicesCount = 6;
-                    result.AddMeshData(patch);
-                    surfaces?.Add(face);
-                }
+                return cuts.Order().ToArray();
             }
-            float u = .30f + Random() * .40f, v = .38f + Random() * .28f;
-            float radius = isNeck ? .22f : .12f + Random() * .035f;
-            Stain(u, v, radius, radius * .8f);
-            // Smaller overlapping lobe breaks up the silhouette of the wound.
-            Stain(Math.Clamp(u - downV * radius * .75f, .12f, .88f),
-                Math.Clamp(v + downU * radius * .75f, .12f, .88f), radius * .7f, radius * .65f);
-            if (vertical)
+            var uCuts = PixelCuts(1); var vCuts = PixelCuts(3);
+            int columns = uCuts.Length - 1, rows = vCuts.Length - 1;
+            for (int row = 0; row < rows; row++)
+            for (int column = 0; column < columns; column++)
             {
-                for (int drip = 0; drip < 2; drip++)
+                float u = (uCuts[column] + uCuts[column + 1]) / 2, v = (vCuts[row] + vCuts[row + 1]) / 2;
+                var point = new Vec3f(Blend(original.xyz, 3, 0, u, v), Blend(original.xyz, 3, 1, u, v), Blend(original.xyz, 3, 2, u, v));
+                float coverage = BloodField(point, seed);
+                if (coverage < (isNeck ? .44f : .53f)) continue;
+                // A small fixed palette and constant color across each quad
+                // give crisp texels without interpolated edges or imposed drips.
+                int shade = Math.Clamp((int)((coverage - .44f) * 12), 0, 3);
+                byte red = (byte)(shade switch { 0 => 176, 1 => 158, 2 => 139, _ => 119 });
+                byte green = (byte)(shade switch { 0 => 18, 1 => 13, 2 => 9, _ => 7 });
+                byte blue = (byte)(shade switch { 0 => 24, 1 => 20, 2 => 17, _ => 14 });
+                var patch = original.Clone();
+                var corners = new[] { (column, row), (column + 1, row), (column + 1, row + 1), (column, row + 1) };
+                for (int vertex = 0; vertex < 4; vertex++)
                 {
-                    float side = (drip == 0 ? -.45f : .5f) * radius;
-                    Stain(Math.Clamp(u - downV * side + downU * .15f, .08f, .92f),
-                        Math.Clamp(v + downU * side + downV * .15f, .08f, .92f),
-                        .015f + Random() * .012f, .15f + Random() * .035f, (Random() - .5f) * .08f);
+                    float pu = uCuts[corners[vertex].Item1], pv = vCuts[corners[vertex].Item2];
+                    for (int axis = 0; axis < 3; axis++)
+                        patch.xyz[vertex * 3 + axis] = Blend(original.xyz, 3, axis, pu, pv)
+                            + (axis == 0 ? normal.X : axis == 1 ? normal.Y : normal.Z) * .00065f;
+                    for (int axis = 0; axis < 2; axis++) patch.Uv[vertex * 2 + axis] = Blend(original.Uv, 2, axis, pu, pv);
+                    // Keep the base texture's alpha (e.g. gaps in hair/helmets),
+                    // but use opaque blood on solid skin. No new atlas/GPU assets.
+                    patch.Rgba[vertex * 4] = red;
+                    patch.Rgba[vertex * 4 + 1] = green;
+                    patch.Rgba[vertex * 4 + 2] = blue;
                 }
+                patch.Indices = [0, 1, 2, 0, 2, 3]; patch.IndicesCount = 6;
+                result.AddMeshData(patch);
+                surfaces?.Add(face);
             }
-            for (int drop = 0; drop < 2; drop++)
-                Stain(.10f + Random() * .8f, .10f + Random() * .8f, .018f + Random() * .018f, .025f + Random() * .02f);
         }
         if (result.Normals != null) result.NormalsCount = result.VerticesCount;
         return result;
+    }
+
+    internal static float BloodField(Vec3f point, long seed)
+        => .66f * BloodNoise(point, 9, seed) + .23f * BloodNoise(point, 21, seed ^ 0x51ed270b)
+            + .11f * BloodNoise(point, 47, seed ^ 0x68bc21eb);
+
+    private static float BloodNoise(Vec3f point, float frequency, long seed)
+    {
+        float x = point.X * frequency, y = point.Y * frequency, z = point.Z * frequency;
+        int ix = (int)MathF.Floor(x), iy = (int)MathF.Floor(y), iz = (int)MathF.Floor(z);
+        float Smooth(float t) => t * t * (3 - 2 * t);
+        float Lerp(float a, float b, float t) => a + (b - a) * t;
+        float Hash(int a, int b, int c)
+        {
+            // Mix all 64 bits of the victim seed and spatial coordinates so
+            // different sides and victims never reuse a central wound template.
+            ulong state = unchecked((ulong)seed ^ (ulong)((long)a * 73856093)
+                ^ (ulong)((long)b * 19349663) ^ (ulong)((long)c * 83492791));
+            state = unchecked((state ^ (state >> 30)) * 0xbf58476d1ce4e5b9UL);
+            state = unchecked((state ^ (state >> 27)) * 0x94d049bb133111ebUL);
+            state ^= state >> 31;
+            return (state & 0xffffff) / 16777216f;
+        }
+        float tx = Smooth(x - ix), ty = Smooth(y - iy), tz = Smooth(z - iz);
+        return Lerp(Lerp(Lerp(Hash(ix, iy, iz), Hash(ix + 1, iy, iz), tx),
+                Lerp(Hash(ix, iy + 1, iz), Hash(ix + 1, iy + 1, iz), tx), ty),
+            Lerp(Lerp(Hash(ix, iy, iz + 1), Hash(ix + 1, iy, iz + 1), tx),
+                Lerp(Hash(ix, iy + 1, iz + 1), Hash(ix + 1, iy + 1, iz + 1), tx), ty), tz);
     }
 
     internal static MeshData Filter(MeshData source, System.Func<int, bool> face)

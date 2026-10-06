@@ -36,6 +36,19 @@ public static class CombatRules
     public const int ShieldBreak = 350;
     public const int SprintCooldown = 1500;
     public const float WeaponContactPadding = .03f;
+    public const double SwingTurnMultiplier = .35;
+    public const double SwingTurnRadiansPerSecond = Math.PI;
+
+    public static (double X, double Y) LimitSwingTurn(double x, double y, double seconds)
+    {
+        if (!double.IsFinite(x) || !double.IsFinite(y) || !double.IsFinite(seconds) || seconds <= 0)
+            return (0, 0);
+        x *= SwingTurnMultiplier; y *= SwingTurnMultiplier;
+        double length = Math.Sqrt(x * x + y * y);
+        double maximum = SwingTurnRadiansPerSecond * seconds;
+        double scale = length > maximum ? maximum / length : 1;
+        return (x * scale, y * scale);
+    }
     public static bool GuardCovers(bool shield, Direction guard, Direction incoming)
         => shield || guard == Fighter.GuardFor(incoming);
     public static int ShieldWear(float damage)
@@ -61,6 +74,7 @@ public sealed class Fighter
     public long LastInput { get; private set; }
     public long SprintUntil { get; private set; }
     public bool SprintLocked(long now) => Phase is Phase.Windup or Phase.Swing || now < SprintUntil;
+    public bool TurnLimited(long now) => Phase == Phase.Swing && now >= StrikeStarts && now <= ContactEnds;
     public float Charge { get; private set; }
     public bool HitDelivered { get; private set; }
     public bool RecoveryAttackPose { get; private set; }

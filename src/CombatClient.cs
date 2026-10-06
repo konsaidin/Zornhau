@@ -12,6 +12,7 @@ internal sealed class CombatClient : IRenderer
     private readonly IClientNetworkChannel channel;
     private readonly long tick;
     private readonly CameraDiagnostics? cameraDiagnostics;
+    private readonly CombatTurning turning;
     internal readonly Fighter Fighter = new();
     private readonly CombatPresentation presentation = new();
     private EntityPlayer? animatedPlayer;
@@ -55,6 +56,7 @@ internal sealed class CombatClient : IRenderer
         font.StrokeColor = new double[] { 0, 0, 0, .9 };
         channel = api.Network.GetChannel("warbandcombat").SetMessageHandler<StatePacket>(OnState)
             .SetMessageHandler<ContactPacket>(OnContact).SetMessageHandler<HitDiagnosticPacket>(OnHitDiagnostic);
+        turning = new CombatTurning(api, Fighter, () => Available && api.Input.MouseGrabbed && !api.IsGamePaused && channel.Connected);
         api.Input.RegisterHotKey("warband-toggle", Lang.Get("warbandcombat:toggle"), GlKeys.K);
         api.Input.SetHotKeyHandler("warband-toggle", _ =>
         {
@@ -448,6 +450,7 @@ internal sealed class CombatClient : IRenderer
 
     public void Dispose()
     {
+        turning.Dispose();
         DetachAnimationHooks();
         api.Event.MouseDown -= MouseDown;
         api.Event.MouseUp -= MouseUp;

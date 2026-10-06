@@ -159,3 +159,4 @@ ContactBoundsChecks.Run();
 BalanceIntegrationChecks.Run();
 WeaponModeChecks.Run();
 FatalityChecks.Run();
+TurningChecks.Run();

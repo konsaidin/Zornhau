@@ -110,8 +110,8 @@ internal static class FatalityChecks
     {
         var source = Fixture(); var ids = new HashSet<int> { 2 };
         var bloody = FatalityMesh.Blood(source, ids, [], 71);
-        check(bloody.VerticesCount > source.VerticesCount && bloody.VerticesCount <= source.VerticesCount + 96,
-            "Head blood creates bounded pools, streaks and droplets rather than recoloring the whole character");
+        check(bloody.VerticesCount > source.VerticesCount && bloody.VerticesCount <= source.VerticesCount + 4 * 8 * 8,
+            "Head blood uses a bounded texel grid rather than repeating a wound and drip stamp");
         check(bloody.xyz.Take(source.VerticesCount * 3).SequenceEqual(source.xyz.Take(source.VerticesCount * 3))
             && bloody.Rgba.Take(source.RgbaCount).SequenceEqual(source.Rgba.Take(source.RgbaCount)),
             "Original skin and torso geometry/colors remain untouched beneath the blood patches");
@@ -127,8 +127,42 @@ internal static class FatalityChecks
         check(FatalityMesh.Blood(source, ids, [], 71).xyz.SequenceEqual(bloody.xyz),
             "The same victim has stable blood patches across re-tessellation");
         var detached = FatalityMesh.Filter(bloody, face => FatalityMesh.HeadFace(bloody, ids, face));
-        check(detached.Rgba.Take(detached.RgbaCount).Where((_, i) => i % 4 == 1).Any(g => g == 9),
+        check(detached.Rgba.Take(detached.RgbaCount).Where((_, i) => i % 4 == 1).Any(g => g < 25),
             "Detached heads and helmet geometry retain the blood colors");
+        var pixelSize = new Size2i(80, 40);
+        var pixelBlood = FatalityMesh.Blood(source, ids, [], 71, atlasSize: pixelSize);
+        check(pixelBlood.VerticesCount <= source.VerticesCount + 4 * 8 * 4,
+            "Blood resolution follows the actual non-square atlas texels");
+        for (int face = source.VerticesCount / 4; face < pixelBlood.VerticesCount / 4; face++)
+        {
+            int first = face * 4;
+            check(Enumerable.Range(0, 4).All(vertex => Enumerable.Range(0, 4).All(channel =>
+                pixelBlood.Rgba[(first + vertex) * 4 + channel] == pixelBlood.Rgba[first * 4 + channel])),
+                "Each blood texel has a flat color and opaque alpha, without smoothed edges");
+            check(Enumerable.Range(0, 4).All(vertex =>
+                Math.Abs((pixelBlood.Uv[(first + vertex) * 2] - .1f) * 80
+                    - MathF.Round((pixelBlood.Uv[(first + vertex) * 2] - .1f) * 80)) < 1e-5f
+                && Math.Abs((pixelBlood.Uv[(first + vertex) * 2 + 1] - .1f) * 40
+                    - MathF.Round((pixelBlood.Uv[(first + vertex) * 2 + 1] - .1f) * 40)) < 1e-5f),
+                "Blood pixel boundaries align with the skin's own UV grid");
+        }
+        check(!FatalityMesh.Blood(source, ids, [], 71 + (1L << 32)).xyz.SequenceEqual(bloody.xyz),
+            "All 64 bits of a victim ID affect the stain pattern");
+        var rotated = source.Clone();
+        for (int vertex = 0; vertex < 4; vertex++)
+        {
+            rotated.Uv[vertex * 2] = source.Uv[vertex * 2 + 1];
+            rotated.Uv[vertex * 2 + 1] = source.Uv[vertex * 2];
+        }
+        var rotatedBlood = FatalityMesh.Blood(rotated, ids, [], 71, atlasSize: pixelSize);
+        check(rotatedBlood.VerticesCount <= source.VerticesCount + 4 * 4 * 8,
+            "Rotated face UVs keep native pixel resolution");
+        var transparent = source.Clone();
+        for (int vertex = 0; vertex < transparent.VerticesCount; vertex++) transparent.Rgba[vertex * 4 + 3] = 0;
+        check(FatalityMesh.Blood(transparent, ids, [], 71).Rgba.Where((_, i) => i % 4 == 3).All(alpha => alpha == 0),
+            "Blood never fills transparent gaps in the hair or helmet texture");
+        check(!neck.xyz.Skip(source.VerticesCount * 3).SequenceEqual(bloody.xyz.Skip(source.VerticesCount * 3)),
+            "Spatial sampling gives the neck its own distribution instead of repeating the head stamp");
         for (long seed = 1; seed <= 32; seed++)
         {
             var stained = FatalityMesh.Blood(source, ids, [], seed);

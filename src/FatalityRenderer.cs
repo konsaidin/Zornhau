@@ -70,7 +70,8 @@ internal sealed class FatalityRenderer : IRenderer
             var surfaces = Enumerable.Range(0, mesh.VerticesCount / 4).ToList();
             var kind = (FatalityKind)player.WatchedAttributes.GetInt(FatalityRules.Attribute);
             if (manager.bloodStains && kind is FatalityKind.Decapitation or FatalityKind.HeadCrush)
-                mesh = FatalityMesh.Blood(mesh, FatalityMesh.HeadJoints(player), FatalityMesh.NeckJoints(player), player.EntityId, surfaces);
+                mesh = FatalityMesh.Blood(mesh, FatalityMesh.HeadJoints(player), FatalityMesh.NeckJoints(player), player.EntityId,
+                    surfaces, manager.api.EntityTextureAtlas.Size);
             if (kind == FatalityKind.Decapitation)
             {
                 var ids = FatalityMesh.HeadJoints(player);
@@ -157,7 +158,8 @@ internal sealed class FatalityRenderer : IRenderer
         var matrices = animator.TransformationMatrices;
         var ids = FatalityMesh.HeadJoints(player); if (ids.Count == 0) return;
         var surfaces = Enumerable.Range(0, source.VerticesCount / 4).ToList();
-        if (bloodStains) source = FatalityMesh.Blood(source, ids, FatalityMesh.NeckJoints(player), player.EntityId, surfaces);
+        if (bloodStains) source = FatalityMesh.Blood(source, ids, FatalityMesh.NeckJoints(player), player.EntityId,
+            surfaces, api.EntityTextureAtlas.Size);
         var pivot = new Vec3d(effect.Packet.Position[0], effect.Packet.Position[1], effect.Packet.Position[2]);
         renderer.loadModelMatrix(player, 0, false);
         var model = (float[])renderer.ModelMat.Clone();

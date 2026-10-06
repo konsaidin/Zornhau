@@ -73,9 +73,10 @@ static class NativeChecks
         check(NativeBodyColliders.SweepSteps(blade, new(new(-1, 1, 0), new(1, 1, 0)), .13) >= 10,
             "Native blade sweep uses temporal subdivisions");
 
+        string game = Environment.GetEnvironmentVariable("VSPath") ?? "/home/dead/Documents/vintagestory";
         foreach (string file in new[] {
-            "/home/dead/Documents/vintagestory/assets/game/shapes/entity/humanoid/seraph.json",
-            "/home/dead/Documents/vintagestory/assets/survival/shapes/entity/animal/mammal/bear/brown-adult.json" })
+            Path.Combine(game, "assets/game/shapes/entity/humanoid/seraph.json"),
+            Path.Combine(game, "assets/survival/shapes/entity/animal/mammal/bear/brown-adult.json") })
         {
             var shape = JsonConvert.DeserializeObject<Shape>(File.ReadAllText(file))!;
             var elements = Link(shape.Elements, null).Where(e => e.From?.Length == 3 && e.To?.Length == 3
