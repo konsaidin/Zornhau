@@ -190,17 +190,18 @@ internal sealed class StockPoses(IEnumerable<Animation> animations)
         {
             bool right = name.EndsWith('R');
             bool upper = name.StartsWith("Upper", StringComparison.Ordinal);
-            // Freeze the authored raised-arm jump pose. Flight, stride and
-            // push-off clocks must not introduce flapping within a jump.
+            // Hold a bounding-run pose: the leading right knee has its right
+            // arm behind, left arm in front. Seraph faces local -X; positive
+            // shoulder Z moves the arm backwards, negative Z forwards.
             var pose = clips.ContainsKey("newjump") ? Sample("newjump", name, 0)
                 : upper ? new BonePose(right ? 17 : -17, 0, -27, 0, 0, 0)
                 : new BonePose(0, 0, -40, 0, 0, 0);
-            return upper ? pose with { Z = pose.Z + (right ? -4 : 4) } : pose;
+            return pose with { Z = upper ? (right ? 35 : -48) : (right ? -18 : -42) };
         }
         var mirrored = Held(opposite);
         mirrored = mirrored with { X = -mirrored.X, Y = -mirrored.Y, TZ = -mirrored.TZ };
-        // The small asymmetry follows the same smoothed leading-leg change;
-        // neither hand pumps back and forth during an individual airborne hop.
+        // Swap the opposing arms with the same smoothed leading-leg change.
+        // Neither hand pumps during an individual airborne hop.
         return BonePose.Blend(Held(bone), mirrored, state.AirSide);
     }
 

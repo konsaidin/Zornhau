@@ -1,5 +1,6 @@
 using NaturalMotion;
 using Vintagestory.API.Common;
+using Vintagestory.API.MathTools;
 
 internal static class JumpChecks
 {
@@ -44,8 +45,10 @@ internal static class JumpChecks
                 Check(hop % 2 == 1 ? right.Z < left.Z : left.Z < right.Z, "the visible folded knee alternates on each hop");
                 var armR = source.AirArms("UpperArmR", state);
                 var armL = source.AirArms("UpperArmL", state);
-                Check(hop % 2 == 1 ? armR.Z < armL.Z : armL.Z < armR.Z,
-                    "held arms alternate their small lean together with the leading leg");
+                Check((right.Z - left.Z) * (armR.Z - armL.Z) < 0,
+                    "arms alternate in opposition to the leading leg on every hop");
+                Check(hop % 2 == 1 ? armR.Z > 25 && armL.Z < -35 : armL.Z > 25 && armR.Z < -35,
+                    "one shoulder stays behind and the opposite shoulder in front during the hop");
                 Frame(0); Frame(-2);
                 Check(state.JumpCount == hop && state.AirBlend > .9, "apex and descent retain one jump");
                 if (groundFrame) Frame(0, true);
@@ -67,7 +70,7 @@ internal static class JumpChecks
         foreach (string bone in new[] { "UpperArmR", "UpperArmL", "LowerArmR", "LowerArmL" })
         {
             var held = source.AirArms(bone, heldState);
-            Check(held.Z < -20, "jump arms are raised rather than resting by the body");
+            Check(Math.Abs(held.Z) > 8, "jump arms hold a visible bounding pose instead of hanging at the sides");
             for (int i = 0; i < 20; i++)
             {
                 heldState.Cycle = i / 20d; heldState.FlightCycle = (i * .13) % 1; heldState.JumpPulse = i / 20f;
@@ -90,6 +93,44 @@ internal static class JumpChecks
             Check(r.X == -l.X && r.Y == -l.Y && r.Z == l.Z && r.TZ == -l.TZ,
                 "next-hop arms mirror the previous held pose across the body");
         }
+        foreach (var state in new[] { first, next })
+        {
+            // Test actual geometry, not just our chosen angle signs. The model
+            // faces -X, so a rearward arm must move towards positive model X.
+            var held = Centres(state, true); var resting = Centres(state, false);
+            bool rightLeading = state.AirSide == 0;
+            double r = held["LowerArmR"].X - resting["LowerArmR"].X;
+            double l = held["LowerArmL"].X - resting["LowerArmL"].X;
+            Check(rightLeading ? r > .03 && l < -.03 : l > .03 && r < -.03,
+                "actual forearms hold one hand behind and the other in front of the body");
+            Check((held["UpperFootR"].X - held["UpperFootL"].X)
+                * (held["LowerArmR"].X - held["LowerArmL"].X) < 0,
+                "actual arm and leg positions oppose each other on the rendered stock skeleton");
+        }
         return checks;
+
+        Dictionary<string, Vec3d> Centres(MotionState state, bool raised)
+        {
+            var centres = new Dictionary<string, Vec3d>();
+            void Visit(ShapeElement[] elements, float[] parent)
+            {
+                foreach (var element in elements)
+                {
+                    string bone = element.Name!;
+                    bool arm = bone is "UpperArmR" or "UpperArmL" or "LowerArmR" or "LowerArmL";
+                    var pose = new ElementPose();
+                    (arm ? raised ? source.AirArms(bone, state) : default : source.Air(bone, state)).Apply(pose);
+                    var local = element.GetLocalTransformMatrix(0, Mat4f.Create(), pose);
+                    var world = Mat4f.Mul(Mat4f.Create(), parent, local);
+                    var to = element.To!; var from = element.From!;
+                    double x = (to[0] - from[0]) / 32, y = (to[1] - from[1]) / 32, z = (to[2] - from[2]) / 32;
+                    centres[bone] = new(world[0] * x + world[4] * y + world[8] * z + world[12],
+                        world[1] * x + world[5] * y + world[9] * z + world[13],
+                        world[2] * x + world[6] * y + world[10] * z + world[14]);
+                    if (element.Children != null) Visit(element.Children, world);
+                }
+            }
+            Visit(shape.Elements, Mat4f.Create()); return centres;
+        }
     }
 }
