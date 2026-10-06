@@ -103,7 +103,7 @@ for (int frame = 0; frame < 200; frame++)
 Check(library.Sample("walkleft", "UpperFootR", 0) != library.Sample("walkright", "UpperFootR", 0), "side steps differ");
 // A lateral stride takes 26 frames, not both strides of the 52-frame asset.
 Near(library.Sample("walkright", "UpperFootL", .5, true).Z,
-    library.Sample("walkright", "UpperFootL", .25).Z, .001, "side gait advances one stride at the common phase");
+    10 * (26 - 15.8) / 13, .001, "side gait closes one 26-frame stride at the common contact phase");
 var reversal = Settle(Input(0, vx: 2, vz: 0));
 var oldWeight = reversal.RightWeight;
 reversal.Update(Input(2017, vx: -2, vz: 0), config);
@@ -112,6 +112,28 @@ Check(reversal.RightWeight > oldWeight * .7 && reversal.LeftWeight < .2,
 Near(reversal.ForwardWeight + reversal.BackWeight + reversal.LeftWeight + reversal.RightWeight, 1, .0001,
     "direction weights remain normalized during reversal");
 var moving = Settle(Input(0, vx: 2));
+var backwardSprint = Settle(Input(0, vz: 3) with { Sprint = true });
+Check(backwardSprint.BackWeight > .999 && backwardSprint.ForwardWeight < .001,
+    "backward sprint retains backward gait rather than forward running");
+Near(library.Walk("UpperFootR", backwardSprint).Z,
+    library.Sample("walkback", "UpperFootR", backwardSprint.Cycle, true).Z, .001,
+    "sprint speed does not substitute the forward sprint clip when moving backwards");
+double backwardPhase = backwardSprint.Cycle;
+backwardSprint.Update(Input(2017, vz: 3) with { Sprint = true }, config);
+Near((backwardSprint.Cycle - backwardPhase + 1) % 1, .017 / (2 * config.SprintStepMilliseconds / 1000), .00001,
+    "backward sprint keeps the running step cadence while retaining the backwards clip");
+foreach (string name in new[] { "walk-fp", "walk-ifp", "walk-skirt", "sprint-fp", "sprint-ifp", "sprint-skirt", "sprint-holdskirt", "sprint-skirt-ifp" })
+    Check(NativeLocomotion.Owns(name, true, true), "native clothing and first-person gait variants must be masked");
+foreach (string name in new[] { "rideelk-walk", "sneakwalk-fp", "warband-swing-right", "walkattack" })
+    Check(!NativeLocomotion.Owns(name, true, true), "unrelated movement and combat clips are retained");
+var airborneView = Settle(Input(0, vy: 2, ground: false));
+var viewPelvis = new ElementPose(); var viewChest = new ElementPose(); var viewHead = new ElementPose { degOffY = 13 };
+NaturalMotionSystem.Apply(airborneView, library, "LowerTorso", viewPelvis, true, false, immersive: true);
+NaturalMotionSystem.Apply(airborneView, library, "UpperTorso", viewChest, true, false, immersive: true);
+NaturalMotionSystem.Apply(airborneView, library, "Head", viewHead, true, false, immersive: true);
+Check(viewPelvis.degZ > 12 && viewPelvis.translateY == 0, "immersive jump torso follows flight, not walking");
+Near(viewPelvis.degZ + viewChest.degZ, 0, .0001, "immersive airborne chest cancels pelvis pitch for head and weapons");
+Check(viewHead.degOffY == 13 && viewHead.degY == 0 && viewHead.degZ == 0, "immersive correction preserves look offsets");
 var arm = new ElementPose { degZ = 23, degY = 12 }; var baseline = BonePose.From(arm);
 NaturalMotionSystem.Apply(moving, library, "UpperArmR", arm, true, false);
 Check(BonePose.From(arm) == baseline, "occupied hand keeps its authored pose");
@@ -223,6 +245,25 @@ var frameBefore = walkClip.PrevNextKeyFrameByFrame![0][0].RootElementTransforms[
 var authoredPose = BonePose.From(frameBefore);
 manager.OnClientFrame(.017f);
 Check(BonePose.From(frameBefore) == authoredPose, "baked frame data remains immutable");
+// Native skirt/FP sprint clips must not survive under the backward stride.
+foreach (string variant in new[] { "sprint", "sprint-fp", "sprint-skirt", "sprint-holdskirt" })
+{
+    var runner = new EntityPlayer { Api = api, World = world, OnGround = true, IsRendered = true };
+    runner.Controls.Sprint = true; runner.BodyYaw = 0; runner.Pos.Motion.Set(0, 0, 3d / 60);
+    var engine = new ClientAnimator(() => 1, shape.Animations, shape.Elements, shape.JointsById);
+    var runningManager = new AnimationManager { Animator = engine }; runningManager.Init(api, runner);
+    runningManager.StartAnimation(new AnimationMetaData { Code = variant, Animation = variant }.Init());
+    var referenceMotion = new MotionState();
+    for (int i = 0; i < 120; i++)
+    {
+        now += 17;
+        referenceMotion.Update(Input(now, vz: 3) with { Sprint = true }, config);
+        runningManager.OnClientFrame(.017f);
+        Near(engine.GetPosebyName("UpperFootR").degZ, library.Walk("UpperFootR", referenceMotion).Z * referenceMotion.GroundBlend,
+            .001, "native sprint variant cannot add forward leg motion to backwards running");
+    }
+    Check(runningManager.ActiveAnimationsByAnimCode.ContainsKey(variant), "sprint variant remains in replicated animation state");
+}
 var referenceShape = JsonConvert.DeserializeObject<Shape>(text)!;
 referenceShape.InitForAnimations(logger, "game:entity/humanoid/seraph-faceless", "Head");
 var referenceClip = referenceShape.Animations.Single(a => a.Code == "walk");
@@ -238,7 +279,14 @@ var referenceFrame = Flatten(referenceClip.PrevNextKeyFrameByFrame[0][0].RootEle
     .ToDictionary(p => p.ForElement.Name!, p => BonePose.From(p));
 foreach (var pose in Flatten(walkClip.PrevNextKeyFrameByFrame[0][0].RootElementTransforms))
     Check(BonePose.From(pose) == referenceFrame[pose.ForElement.Name!], "lazy baking cannot capture procedural movement in native clip data");
+var soundEvent = typeof(EntityPlayer).GetField("OnFootStep", BindingFlags.Instance | BindingFlags.NonPublic)!;
+Check(soundEvent.GetValue(entity) is Action, "motion state subscribes to the game's actual footstep event");
+((Action)soundEvent.GetValue(entity)!).Invoke();
 mod.Dispose();
+Check(soundEvent.GetValue(entity) == null, "disposing mod removes its native footstep subscription");
+checks += CrashChecks.Run(shape);
+checks += FootstepChecks.Run(shape);
+checks += JumpChecks.Run(shape);
 Console.WriteLine($"PASS: {checks} motion, native clip, pose compatibility and Harmony integration checks.");
 
 public class Proxy : DispatchProxy

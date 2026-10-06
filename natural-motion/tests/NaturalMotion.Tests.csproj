@@ -10,5 +10,6 @@
     <Reference Include="0Harmony"><HintPath>$(VSPath)/Lib/0Harmony.dll</HintPath></Reference>
     <Reference Include="Newtonsoft.Json"><HintPath>$(VSPath)/Lib/Newtonsoft.Json.dll</HintPath></Reference>
     <Reference Include="protobuf-net"><HintPath>$(VSPath)/Lib/protobuf-net.dll</HintPath></Reference>
+    <Reference Include="VintagestoryLib"><HintPath>$(VSPath)/VintagestoryLib.dll</HintPath></Reference>
   </ItemGroup>
 </Project>
