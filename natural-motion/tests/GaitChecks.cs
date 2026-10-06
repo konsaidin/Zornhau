@@ -46,10 +46,12 @@ internal static class GaitChecks
                     var pose = new ElementPose();
                     running.GroundBlend = 1;
                     NaturalMotionSystem.Apply(running, source, bone, pose, true, true);
-                    Check(BonePose.From(pose) == default, "free arms do not swing in running");
+                    Check(BonePose.From(pose) == source.Walk(bone, running), "grounded running preserves authored arm swings");
                     running.AirBlend = 1;
+                    pose = new ElementPose();
                     NaturalMotionSystem.Apply(running, source, bone, pose, true, true);
-                    Check(BonePose.From(pose) == default, "free arms do not wave during an airborne run");
+                    var held = source.AirArms(bone, running);
+                    Check(BonePose.From(pose) == held, "free arms hold the raised pose during an airborne run");
                     running.AirBlend = 0;
                 }
             }

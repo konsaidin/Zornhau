@@ -42,6 +42,10 @@ internal static class JumpChecks
                 var right = source.Air("UpperFootR", state);
                 var left = source.Air("UpperFootL", state);
                 Check(hop % 2 == 1 ? right.Z < left.Z : left.Z < right.Z, "the visible folded knee alternates on each hop");
+                var armR = source.AirArms("UpperArmR", state);
+                var armL = source.AirArms("UpperArmL", state);
+                Check(hop % 2 == 1 ? armR.Z < armL.Z : armL.Z < armR.Z,
+                    "held arms alternate their small lean together with the leading leg");
                 Frame(0); Frame(-2);
                 Check(state.JumpCount == hop && state.AirBlend > .9, "apex and descent retain one jump");
                 if (groundFrame) Frame(0, true);
@@ -59,6 +63,33 @@ internal static class JumpChecks
         var noAir = new MotionConfig { AirbornePose = false };
         disabled.Update(new(0, 0, 0, 0, 0, 0, 4, 0, 0, false, false, false, false, false), noAir);
         Check(disabled.AirBlend == 0 && disabled.JumpPulse == 0 && disabled.LandingPulse == 0, "airborne setting disables new jump corrections too");
+        var heldState = new MotionState { AirBlend = 1, SprintBlend = 1, AirSide = .3f };
+        foreach (string bone in new[] { "UpperArmR", "UpperArmL", "LowerArmR", "LowerArmL" })
+        {
+            var held = source.AirArms(bone, heldState);
+            Check(held.Z < -20, "jump arms are raised rather than resting by the body");
+            for (int i = 0; i < 20; i++)
+            {
+                heldState.Cycle = i / 20d; heldState.FlightCycle = (i * .13) % 1; heldState.JumpPulse = i / 20f;
+                Check(source.AirArms(bone, heldState) == held, "arm hold is independent of running, flight and takeoff clocks");
+            }
+            var neutral = new ElementPose();
+            NaturalMotionSystem.Apply(heldState, source, bone, neutral, true, true);
+            Check(BonePose.From(neutral) == held, "airborne correction actually applies the held arm pose");
+            var occupied = new ElementPose { degX = 12, degZ = -34 };
+            var original = BonePose.From(occupied);
+            NaturalMotionSystem.Apply(heldState, source, bone, occupied, true, false);
+            Check(BonePose.From(occupied) == original, "occupied hands retain their item and combat pose");
+            NaturalMotionSystem.Apply(heldState, source, bone, occupied, true, true, immersive: true);
+            Check(BonePose.From(occupied) == original, "held-arm correction preserves immersive first-person weapon anchors");
+        }
+        var first = new MotionState { AirSide = 0 }; var next = new MotionState { AirSide = 1 };
+        foreach (var (right, left) in new[] { ("UpperArmR", "UpperArmL"), ("LowerArmR", "LowerArmL") })
+        {
+            var r = source.AirArms(right, first); var l = source.AirArms(left, next);
+            Check(r.X == -l.X && r.Y == -l.Y && r.Z == l.Z && r.TZ == -l.TZ,
+                "next-hop arms mirror the previous held pose across the body");
+        }
         return checks;
     }
 }

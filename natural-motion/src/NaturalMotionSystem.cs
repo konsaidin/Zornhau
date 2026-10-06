@@ -158,9 +158,9 @@ public sealed class NaturalMotionSystem : ModSystem
         if (bone == "LowerTorso") pose.degY += turn;
         if (bone == "UpperTorso") pose.degY -= turn * (emptyHands && !immersive ? .55f : 1);
         if (bone == "Head" && emptyHands && !immersive) pose.degY -= turn * .45f;
-        if (emptyHands && !immersive && bone is ("UpperArmR" or "UpperArmL" or "LowerArmR" or "LowerArmL"))
+        if (emptyHands && !state.Combat && !immersive && bone is ("UpperArmR" or "UpperArmL" or "LowerArmR" or "LowerArmL"))
             (BonePose.From(pose) - locomotion + source.Walk(bone, state) * (state.GroundBlend * (1 - state.AirBlend))
-                * (1 - state.SprintBlend)).Apply(pose);
+                + source.AirArms(bone, state) * state.AirBlend).Apply(pose);
     }
 
     internal static bool IsSprinting(EntityPlayer player) => !player.Controls.Sneak

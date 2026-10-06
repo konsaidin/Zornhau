@@ -178,6 +178,32 @@ internal sealed class StockPoses(IEnumerable<Animation> animations)
         return pose;
     }
 
+    internal BonePose AirArms(string bone, MotionState state)
+    {
+        string? opposite = bone switch
+        {
+            "UpperArmR" => "UpperArmL", "UpperArmL" => "UpperArmR",
+            "LowerArmR" => "LowerArmL", "LowerArmL" => "LowerArmR", _ => null
+        };
+        if (opposite == null) return default;
+        BonePose Held(string name)
+        {
+            bool right = name.EndsWith('R');
+            bool upper = name.StartsWith("Upper", StringComparison.Ordinal);
+            // Freeze the authored raised-arm jump pose. Flight, stride and
+            // push-off clocks must not introduce flapping within a jump.
+            var pose = clips.ContainsKey("newjump") ? Sample("newjump", name, 0)
+                : upper ? new BonePose(right ? 17 : -17, 0, -27, 0, 0, 0)
+                : new BonePose(0, 0, -40, 0, 0, 0);
+            return upper ? pose with { Z = pose.Z + (right ? -4 : 4) } : pose;
+        }
+        var mirrored = Held(opposite);
+        mirrored = mirrored with { X = -mirrored.X, Y = -mirrored.Y, TZ = -mirrored.TZ };
+        // The small asymmetry follows the same smoothed leading-leg change;
+        // neither hand pumps back and forth during an individual airborne hop.
+        return BonePose.Blend(Held(bone), mirrored, state.AirSide);
+    }
+
     internal static BonePose Landing(string? bone, MotionState state)
     {
         float bend = state.LandingPulse * (1 - state.AirBlend);
