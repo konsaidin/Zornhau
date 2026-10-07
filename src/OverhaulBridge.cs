@@ -524,6 +524,8 @@ internal sealed class OverhaulBridge : ICombatIntegration
         foreach (var (code, clip) in JsonConvert.DeserializeObject<Dictionary<string, AnimationJson>>(
             api.Assets.Get("warbandcombat:config/overhaul-fallback.json").ToText())!)
             animations.Animations[code] = clip.ToAnimation();
+        foreach (var (code, pose) in OverhaulRestPoses.Replacements(source))
+            animations.Animations[code] = pose.ToAnimation();
         api.Logger.Notification("[Warband Combat] Registered {0} CO phase clips and {1} Reanimated sources.", count, author.Count);
     }
 

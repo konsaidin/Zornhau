@@ -25,6 +25,15 @@ foreach (var (code, original) in source.Where(kv => kv.Key.Contains("shield-")
 }
 var stock = JsonConvert.DeserializeObject<Dictionary<string, AnimationJson>>(
     File.ReadAllText(Path.Combine(root, "assets/warbandcombat/config/overhaul-fallback.json")))!;
+var restPoses = OverhaulRestPoses.Replacements(source).ToDictionary(p => p.Code, p => p.Pose);
+Check(restPoses.ContainsKey("combatoverhaul:sword-falx-idle-tp"), "falx idle TP retains its authored weapon grip instead of arms at the seams");
+foreach (var (code, pose) in restPoses)
+{
+    Check(ReferenceEquals(pose, source[code[..^3]]), code + ": same idle grip and timing as FP");
+    Check(code.EndsWith("-idle-tp") && !code.Contains("-2h"), code + ": only one-handed idle variants are replaced");
+    Check(pose.PlayerKeyFrames.All(f => !f.Elements.ContainsKey("UpperArmL") && !f.Elements.ContainsKey("LowerArmL")),
+        code + ": no joint grip or offhand pose is replaced");
+}
 foreach (Direction direction in Enum.GetValues<Direction>())
 {
     string guardCode = OverhaulAnimationResolver.Guard(direction);

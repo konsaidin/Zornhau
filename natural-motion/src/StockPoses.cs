@@ -69,26 +69,8 @@ internal sealed class StockPoses(IEnumerable<Animation> animations)
             }
             curves[(code, bone, gait)] = channels = keys.Select((keys, i) => new Curve(keys.ToArray(), i < 3)).ToArray();
         }
-        // Canonical phase 0 plants the right foot, .5 the left. Authored clips
-        // start on different feet / swing phases; align them before blending.
-        if (gait)
-        {
-            // Contacts calibrated from the lowest sole position on the stock
-            // 1.22.7 skeleton, in frames. Its two half-strides are not equal.
-            (double right, double left) = code switch
-            {
-                "walk" => (8.1 / 25, 20.3 / 25),
-                "sprint" => (5.1 / 24, 15.4 / 24),
-                "walkback" => (4.7 / 25, 17.3 / 25),
-                "walkleft" => (15.7 / 26, 4.5 / 26),
-                "walkright" => (4.4 / 26, 15.8 / 26),
-                _ => (0, .5)
-            };
-            if (left <= right) left += 1;
-            double phase = cycle - Math.Floor(cycle);
-            cycle = phase < .5 ? right + (left - right) * phase * 2
-                : left + (right + 1 - left) * (phase - .5) * 2;
-        }
+        // Canonical phase 0 plants the right foot, .5 the left.
+        if (gait) cycle = GaitCycle(code, cycle);
         float frame = (float)((cycle - Math.Floor(cycle)) * length);
         return new(channels[0].At(frame, length), channels[1].At(frame, length),
             channels[2].At(frame, length), channels[3].At(frame, length),
@@ -106,6 +88,9 @@ internal sealed class StockPoses(IEnumerable<Animation> animations)
     }
 
     private BonePose WideStep(string code, string bone, double cycle, float scale)
+        => AuthoredStep(code, bone, WideCycle(code, cycle, scale), scale);
+
+    private static double WideCycle(string code, double cycle, float scale)
     {
         // Widening the authored hip/knee arc shifts the lowest sole point.
         // Re-align contacts on the stock skeleton at the default 1.35 scale;
@@ -116,7 +101,46 @@ internal sealed class StockPoses(IEnumerable<Animation> animations)
             "walkleft" => (.280, .572), "walkright" => (.074, .780), _ => (0, .5)
         };
         double correction = Math.Clamp((scale - 1) / .35, 0, 1);
-        return AuthoredStep(code, bone, ContactPhase(cycle, right * correction, .5 + (left - .5) * correction), scale);
+        return ContactPhase(cycle, right * correction, .5 + (left - .5) * correction);
+    }
+
+    private static double GaitCycle(string code, double cycle)
+    {
+        // Contacts calibrated from the stock 1.22.7 skeleton. Its two
+        // half-strides are not equal; arms must use this same mapping.
+        (double right, double left) = code switch
+        {
+            "walk" => (8.1 / 25, 20.3 / 25), "sprint" => (5.1 / 24, 15.4 / 24),
+            "walkback" => (4.7 / 25, 17.3 / 25), "walkleft" => (15.7 / 26, 4.5 / 26),
+            "walkright" => (4.4 / 26, 15.8 / 26), _ => (0, .5)
+        };
+        return ContactPhase(cycle, right, left);
+    }
+
+    private static double RunCycle(string code, double cycle)
+    {
+        (double right, double left) = code switch
+        {
+            "walkback" => (.178, .670), "walkleft" => (.314, .674),
+            "walkright" => (.172, .814), _ => (0, .5)
+        };
+        return ContactPhase(cycle, right, left);
+    }
+
+    internal static (float Walk, float Run, float Blend) GroundFrames(Animation clip, MotionState state)
+    {
+        string code = clip.Code;
+        if (code.EndsWith("-ifp", StringComparison.OrdinalIgnoreCase)) code = code[..^4];
+        else if (code.EndsWith("-fp", StringComparison.OrdinalIgnoreCase)) code = code[..^3];
+        if (code.StartsWith("sprint-", StringComparison.OrdinalIgnoreCase)) code = "sprint";
+        else if (code.StartsWith("walk-", StringComparison.OrdinalIgnoreCase)) code = "walk";
+        code = code.ToLowerInvariant();
+        int length = code is "walkleft" or "walkright" ? clip.QuantityFrames / 2 : clip.QuantityFrames;
+        float Frame(double cycle) => (float)((cycle - Math.Floor(cycle)) * length);
+        double walk = code == "sprint" ? state.Cycle : WideCycle(code, state.Cycle, state.WalkStepScale);
+        double run = RunCycle(code, state.Cycle);
+        return (Frame(GaitCycle(code, walk)), Frame(GaitCycle(code, run)),
+            code is "walkback" or "walkleft" or "walkright" ? state.SprintBlend : 0);
     }
 
     private static double ContactPhase(double cycle, double right, double left)
@@ -139,12 +163,7 @@ internal sealed class StockPoses(IEnumerable<Animation> animations)
         // Side/back running keeps knees pointing forwards. Widen the hip
         // sweep and add a distinct heel-lift swing instead of only speeding
         // up walkback/strafe or applying a forward run against the movement.
-        (double right, double left) = code switch
-        {
-            "walkback" => (.178, .670), "walkleft" => (.314, .674),
-            "walkright" => (.172, .814), _ => (0, .5)
-        };
-        cycle = ContactPhase(cycle, right, left);
+        cycle = RunCycle(code, cycle);
         var pose = AuthoredStep(code, bone, cycle, 1.9f);
         double contact = bone.EndsWith('L') ? .5 : 0;
         float lift = (float)Math.Pow(Math.Max(0, Math.Sin(2 * Math.PI * (cycle - contact))), 2);

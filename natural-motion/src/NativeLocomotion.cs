@@ -28,7 +28,7 @@ internal sealed class NativeLocomotion
                 || name.Equals("creativefly", StringComparison.OrdinalIgnoreCase));
     }
 
-    internal BonePose Contribution(IAnimator? animator, string bone, bool walk, bool air)
+    internal BonePose Contribution(IAnimator? animator, string bone, bool walk, bool air, MotionState? synchronized = null)
     {
         sum.Clear();
         if (animator is not AnimatorBase engine) return default;
@@ -37,20 +37,32 @@ internal sealed class NativeLocomotion
             var run = engine.CurAnims[i]; var clip = run?.Animation;
             if (run == null || clip == null) continue;
             if (!Owns(clip.Code, walk, air) || clip.PrevNextKeyFrameByFrame == null || clip.QuantityFrames <= 0) continue;
-            int at = Math.Clamp((int)run.CurrentFrame, 0, clip.QuantityFrames - 1);
-            if (at >= clip.PrevNextKeyFrameByFrame.Length) continue;
-            var pair = clip.PrevNextKeyFrameByFrame[at];
-            if (pair == null || pair.Length < 2 || pair[0] == null || pair[1] == null) continue;
-            var now = pair[0];
-            var next = clip.OnAnimationEnd == EnumEntityAnimationEndHandling.Hold && at + 1 == clip.QuantityFrames ? now : pair[1];
-            if (!Index(now).TryGetValue(bone, out var a) || !Index(next).TryGetValue(bone, out var b)) continue;
-            float length = next.FrameNumber > now.FrameNumber ? next.FrameNumber - now.FrameNumber : clip.QuantityFrames - now.FrameNumber + next.FrameNumber;
-            float delta = run.CurrentFrame >= now.FrameNumber ? run.CurrentFrame - now.FrameNumber : clip.QuantityFrames - now.FrameNumber + run.CurrentFrame;
-            // BlendedWeight is calculated for this bone immediately before the
-            // transform hook. Use the same Add method as ClientAnimator.
-            sum.Add(a, b, delta / Math.Max(1, length), run.BlendedWeight);
+            if (synchronized == null) Add(clip, bone, run.CurrentFrame, run.BlendedWeight);
+            else
+            {
+                var frames = StockPoses.GroundFrames(clip, synchronized);
+                Add(clip, bone, frames.Walk, run.BlendedWeight * (1 - frames.Blend));
+                if (frames.Blend > 0) Add(clip, bone, frames.Run, run.BlendedWeight * frames.Blend);
+            }
         }
         return BonePose.From(sum);
+    }
+
+    private void Add(Animation clip, string bone, float frame, float weight)
+    {
+        if (weight == 0) return;
+        int at = Math.Clamp((int)frame, 0, clip.QuantityFrames - 1);
+        if (at >= clip.PrevNextKeyFrameByFrame.Length) return;
+        var pair = clip.PrevNextKeyFrameByFrame[at];
+        if (pair == null || pair.Length < 2 || pair[0] == null || pair[1] == null) return;
+        var now = pair[0];
+        var next = clip.OnAnimationEnd == EnumEntityAnimationEndHandling.Hold && at + 1 == clip.QuantityFrames ? now : pair[1];
+        if (!Index(now).TryGetValue(bone, out var a) || !Index(next).TryGetValue(bone, out var b)) return;
+        float length = next.FrameNumber > now.FrameNumber ? next.FrameNumber - now.FrameNumber : clip.QuantityFrames - now.FrameNumber + next.FrameNumber;
+        float delta = frame >= now.FrameNumber ? frame - now.FrameNumber : clip.QuantityFrames - now.FrameNumber + frame;
+        // Retain the engine's per-bone blend weight: item holds can suppress
+        // locomotion on either arm independently, including easing-out clips.
+        sum.Add(a, b, delta / Math.Max(1, length), weight);
     }
 
     private Dictionary<string, ElementPose> Index(AnimationFrame frame)

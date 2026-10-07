@@ -293,6 +293,8 @@ checks += FootstepChecks.Run(shape);
 checks += JumpChecks.Run(shape);
 checks += GaitChecks.Run(shape);
 checks += DirectionChecks.Run();
+checks += ArmChecks.Run(shape, game);
+checks += WeaponOverlayChecks.Run(shape);
 Console.WriteLine($"PASS: {checks} motion, native clip, pose compatibility and Harmony integration checks.");
 
 public class Proxy : DispatchProxy
