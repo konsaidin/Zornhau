@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "twoHandedDpsMultiplier": 1.1,
   "materials": {
     "wood": {
@@ -182,6 +182,134 @@
       "recovery": 550,
       "dpsMultiplier": 0.97,
       "role": "Дистанция и двуручная стойка; умеренно ниже базового давления."
+    }
+  },
+  "armor": {
+    "materials": [
+      "copper",
+      "tinbronze",
+      "bismuthbronze",
+      "blackbronze",
+      "iron",
+      "meteoriciron",
+      "steel",
+      "gold",
+      "silver"
+    ],
+    "families": {
+      "knife": {
+        "SlashingAttack": 1,
+        "PiercingAttack": 2
+      },
+      "sword": {
+        "SlashingAttack": 3,
+        "PiercingAttack": 3
+      },
+      "longsword": {
+        "SlashingAttack": 3,
+        "PiercingAttack": 3
+      },
+      "greatsword": {
+        "SlashingAttack": 3,
+        "PiercingAttack": 3
+      },
+      "axe": {
+        "SlashingAttack": 3
+      },
+      "longaxe": {
+        "SlashingAttack": 3
+      },
+      "mace": {
+        "BluntAttack": 4
+      },
+      "club": {
+        "BluntAttack": 2
+      },
+      "spear": {
+        "PiercingAttack": 4
+      },
+      "longspear": {
+        "PiercingAttack": 4
+      },
+      "pike": {
+        "PiercingAttack": 4
+      },
+      "polearm": {
+        "SlashingAttack": 3,
+        "PiercingAttack": 4,
+        "BluntAttack": 4
+      },
+      "staff": {
+        "BluntAttack": 1
+      }
+    },
+    "sets": [
+      {
+        "id": "bare",
+        "label": "Без брони",
+        "items": []
+      },
+      {
+        "id": "linen",
+        "label": "Стёганый поддоспешник",
+        "items": [
+          "game:armor-body-sewn-linen"
+        ]
+      },
+      {
+        "id": "leather",
+        "label": "Кожаная броня",
+        "items": [
+          "game:armor-body-sewn-leather"
+        ]
+      },
+      {
+        "id": "mail-iron",
+        "label": "Поддоспешник + железная кольчуга",
+        "items": [
+          "game:armor-body-sewn-linen",
+          "armory:armor-torso-chain-iron-vanilla"
+        ]
+      },
+      {
+        "id": "brigandine-iron",
+        "label": "Поддоспешник + железная бригантина",
+        "items": [
+          "game:armor-body-sewn-linen",
+          "armory:armor-torso-brigandine-iron-vanilla"
+        ]
+      },
+      {
+        "id": "plate-iron",
+        "label": "Поддоспешник + железные латы",
+        "items": [
+          "game:armor-body-sewn-linen",
+          "armory:armor-torso-plate-iron-vanilla"
+        ]
+      },
+      {
+        "id": "full-iron",
+        "label": "Поддоспешник + кольчуга + латы, железо",
+        "items": [
+          "game:armor-body-sewn-linen",
+          "armory:armor-torso-chain-iron-vanilla",
+          "armory:armor-torso-plate-iron-vanilla"
+        ]
+      },
+      {
+        "id": "full-steel",
+        "label": "Поддоспешник + кольчуга + латы, сталь",
+        "items": [
+          "game:armor-body-sewn-linen",
+          "armory:armor-torso-chain-steel-vanilla",
+          "armory:armor-torso-plate-steel-vanilla"
+        ]
+      }
+    ],
+    "tierCeilings": {
+      "SlashingAttack": 8,
+      "PiercingAttack": 9,
+      "BluntAttack": 9
     }
   }
 }

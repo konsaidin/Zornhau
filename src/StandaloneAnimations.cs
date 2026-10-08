@@ -3,10 +3,10 @@ using Newtonsoft.Json;
 using OpenTK.Mathematics;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
-using WarbandCombat.Native.Animations;
-using NativeAnimation = WarbandCombat.Native.Animations.Animation;
+using Zornhau.Native.Animations;
+using NativeAnimation = Zornhau.Native.Animations.Animation;
 
-namespace WarbandCombat;
+namespace Zornhau;
 
 // The CO composer and frame application run in our assembly, with our phase
 // selection. Native callbacks never start attacks or bypass server windups.
@@ -34,7 +34,7 @@ internal sealed class StandaloneAnimations(ICoreAPI api, CombatSystem combat) : 
         if (api is not ICoreClientAPI) return;
         clips.Clear();
         var sources = JsonConvert.DeserializeObject<Dictionary<string, AnimationJson>>(
-            api.Assets.Get("warbandcombat:config/reanimated.json").ToText())!;
+            api.Assets.Get("zornhau:config/reanimated.json").ToText())!;
         foreach (var (code, source) in sources)
         {
             var ready = JsonConvert.DeserializeObject<AnimationJson>(JsonConvert.SerializeObject(source))!;
@@ -44,12 +44,12 @@ internal sealed class StandaloneAnimations(ICoreAPI api, CombatSystem combat) : 
             foreach (var (name, phase) in NativePhaseAnimations.Split(code, source)) clips[name] = phase.ToAnimation();
         }
         foreach (var (code, source) in JsonConvert.DeserializeObject<Dictionary<string, AnimationJson>>(
-            api.Assets.Get("warbandcombat:config/overhaul-fallback.json").ToText())!) clips[code] = source.ToAnimation();
-        api.Logger.Notification("[Warband Combat] Embedded CO composer ready: {0} native phase clips; no CO mod required.", clips.Count);
+            api.Assets.Get("zornhau:config/overhaul-fallback.json").ToText())!) clips[code] = source.ToAnimation();
+        api.Logger.Notification("[Zornhau] Embedded CO composer ready: {0} native phase clips; no CO mod required.", clips.Count);
     }
 
     internal static bool TwoHanded(EntityPlayer player)
-        => player.LeftHandItemSlot.Empty && (player.RightHandItemSlot.Itemstack?.Collectible.Tool == EnumTool.Spear
+        => (player.LeftHandItemSlot.Empty || CombatShields.Stowed(player)) && (player.RightHandItemSlot.Itemstack?.Collectible.Tool == EnumTool.Spear
             || player.RightHandItemSlot.Itemstack?.Collectible.Code.Path is { } code
             && (code.Contains("claymore") || code.Contains("great") || code.Contains("pike")));
 
@@ -67,7 +67,7 @@ internal sealed class StandaloneAnimations(ICoreAPI api, CombatSystem combat) : 
             return "combatoverhaul:spear-thrust-2h-bottom";
         if (item.Tool != EnumTool.Spear && direction is Direction.Left or Direction.Right)
             return "combatoverhaul:sword-falx-slash-" + (direction == Direction.Right ? "1" : "2");
-        return "warbandcombat:warband-" + direction.ToString().ToLowerInvariant();
+        return "zornhau:zornhau-" + direction.ToString().ToLowerInvariant();
     }
 
     public bool Animate(EntityPlayer player, Fighter fighter, long now, string? action)
@@ -99,10 +99,10 @@ internal sealed class StandaloneAnimations(ICoreAPI api, CombatSystem combat) : 
         {
             clip = twoHanded && stack.Collectible.Tool == EnumTool.Spear ? "combatoverhaul:spear-ready-2h"
                 : twoHanded ? NativePhaseAnimations.Code(Source(stack.Collectible, Direction.Right, true), "return")
-                : stack.Collectible.Tool == EnumTool.Spear ? "warbandcombat:warband-return-thrust" : "combatoverhaul:sword-falx-ready";
+                : stack.Collectible.Tool == EnumTool.Spear ? "zornhau:zornhau-return-thrust" : "combatoverhaul:sword-falx-ready";
         }
-        else if (source.StartsWith("warbandcombat:warband-", StringComparison.Ordinal))
-            clip = "warbandcombat:warband-" + (action == "recovery" ? "return" : action) + "-" + direction;
+        else if (source.StartsWith("zornhau:zornhau-", StringComparison.Ordinal))
+            clip = "zornhau:zornhau-" + (action == "recovery" ? "return" : action) + "-" + direction;
         else clip = NativePhaseAnimations.Code(source, action == "recovery" ? "return" : action, fighter.Timing.Strike);
         if (!clips.TryGetValue(clip, out var animation)) return false;
         string key = clip + (action is "windup" or "swing" or "recovery" ? ":" + attackId : "");
@@ -136,7 +136,7 @@ internal sealed class StandaloneAnimations(ICoreAPI api, CombatSystem combat) : 
         if (player != client.World.Player?.Entity)
         {
             var attrs = player.WatchedAttributes;
-            int revision = attrs.GetInt("warbandPoseRevision");
+            int revision = attrs.GetInt("zornhauPoseRevision");
             if (state.RemoteRevision != revision)
             {
                 state.RemoteRevision = revision; state.RemoteAt = now;
@@ -144,13 +144,13 @@ internal sealed class StandaloneAnimations(ICoreAPI api, CombatSystem combat) : 
                 // Equipment changes invalidate a Fighter. Apply them before the
                 // authoritative pose, so a remote shield block survives its first snapshot.
                 state.Remote.SetShield(CombatShields.Equipped(player), now);
-                state.Remote.Restore((Phase)attrs.GetInt("warbandPhase"), (Direction)attrs.GetInt("warbandDirection"), now,
-                    attrs.GetInt("warbandElapsed"), attrs.GetInt("warbandHitIn"), attrs.GetInt("warbandEndsIn"), 0,
-                    attrs.GetBool("warbandRecoveryAttackPose"), attrs.GetInt("warbandContactEndsIn"));
+                state.Remote.Restore((Phase)attrs.GetInt("zornhauPhase"), (Direction)attrs.GetInt("zornhauDirection"), now,
+                    attrs.GetInt("zornhauElapsed"), attrs.GetInt("zornhauHitIn"), attrs.GetInt("zornhauEndsIn"), 0,
+                    attrs.GetBool("zornhauRecoveryAttackPose"), attrs.GetInt("zornhauContactEndsIn"));
             }
             state.Remote.SetShield(CombatShields.Equipped(player), now);
             state.Remote.Advance(now);
-            Animate(player, state.Remote, now, CombatPresentation.CombatAnimationsAction(state.Remote, now), attrs.GetInt("warbandAttackId"));
+            Animate(player, state.Remote, now, CombatPresentation.CombatAnimationsAction(state.Remote, now), attrs.GetInt("zornhauAttackId"));
         }
         if (!state.Active) return null;
         Advance(state, now);

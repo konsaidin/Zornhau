@@ -1,4 +1,4 @@
-using WarbandCombat;
+using Zornhau;
 
 internal static class HitDiagnosticChecks
 {

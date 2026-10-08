@@ -1,7 +1,7 @@
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 
-namespace WarbandCombat;
+namespace Zornhau;
 
 // A conservative plausibility bound, not a second hit detector. The client must
 // still report a real CO model intersection inside the authoritative strike window.

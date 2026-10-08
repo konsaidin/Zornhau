@@ -1,4 +1,4 @@
-namespace WarbandCombat;
+namespace Zornhau;
 
 // Snapshots acknowledge input, not its arrival on the client. Replay commands
 // still in flight instead of discarding authority whenever a button is held.

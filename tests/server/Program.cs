@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
-using WarbandCombat;
+using Zornhau;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Server;
@@ -57,7 +57,7 @@ foreach (bool raised in new[] { false, true })
     fighter.Apply(Command.Block, Direction.Left, 1000, WeaponTiming.Sword);
     now = raised ? 1200 : 1179;
     var attacker = new EntityAgent(); attacker.Pos.Z = front ? 2 : -2;
-    var sourceType = typeof(CombatSystem).Assembly.GetType("WarbandCombat.DirectionalDamage")!;
+    var sourceType = typeof(CombatSystem).Assembly.GetType("Zornhau.DirectionalDamage")!;
     var source = (DamageSource)Activator.CreateInstance(sourceType, true)!;
     sourceType.GetField("Direction")!.SetValue(source, direction);
     source.SourceEntity = attacker; source.Type = EnumDamageType.SlashingAttack;
@@ -72,7 +72,7 @@ foreach (bool raised in new[] { false, true })
     // Exercise the engine entry as well: this counter/animation paints the player red.
     shield.Wear = 0;
     sourceType.GetProperty("Blocked")!.SetValue(source, false);
-    var behaviorType = typeof(CombatSystem).Assembly.GetType("WarbandCombat.GuardBehavior")!;
+    var behaviorType = typeof(CombatSystem).Assembly.GetType("Zornhau.GuardBehavior")!;
     defender.SidedProperties.Behaviors.Add((EntityBehavior)Activator.CreateInstance(behaviorType,
         BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, new object[] { defender, system }, null)!);
     playedSounds.Clear();
@@ -84,7 +84,7 @@ foreach (bool raised in new[] { false, true })
 }
 Console.WriteLine($"PASS: {checks} production server shield checks");
 
-var movement = typeof(CombatSystem).Assembly.GetType("WarbandCombat.CombatMovement")!;
+var movement = typeof(CombatSystem).Assembly.GetType("Zornhau.CombatMovement")!;
 var runner = new Holder { World = world };
 var attack = new Fighter();
 attack.Apply(Command.Begin, Direction.Left, now, WeaponTiming.Sword);
@@ -116,8 +116,8 @@ Console.WriteLine("PASS: 8 production movement checks");
 
 int predictionChecks = 0;
 void PredictionCheck(bool condition, string message) { Check(condition, message); predictionChecks++; }
-var prediction = typeof(CombatSystem).Assembly.GetType("WarbandCombat.CombatPrediction")!;
-var predictionPatch = new Harmony("warband.tests.prediction");
+var prediction = typeof(CombatSystem).Assembly.GetType("Zornhau.CombatPrediction")!;
+var predictionPatch = new Harmony("zornhau.tests.prediction");
 prediction.GetMethod("Patch", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, new object[] { predictionPatch });
 var clientApi = Stub.Make<ICoreAPI>((method, args) => method.Name == "get_Side" ? EnumAppSide.Client : Stub.Default(method.ReturnType));
 var predictedTarget = new Holder { Api = clientApi, World = world, Alive = true, EntityId = 41 };
@@ -157,8 +157,14 @@ Console.WriteLine($"PASS: {predictionChecks} native prediction and damage presen
 HitDiagnosticChecks.Run();
 ContactBoundsChecks.Run();
 BalanceIntegrationChecks.Run();
+ArmorBalanceChecks.Run();
+HeldUseChecks.Run();
+ShieldStowChecks.Run();
+ShieldGeometryChecks.Run();
+ImmersiveViewChecks.Run();
 WeaponModeChecks.Run();
 FatalityChecks.Run();
 TurningChecks.Run();
+TurnAuthorityChecks.Run();
 ReticleChecks.Run();
 NetcodeChecks.Run();

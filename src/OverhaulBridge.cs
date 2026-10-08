@@ -17,7 +17,7 @@ using Vintagestory.API.Server;
 using Vintagestory.API.Util;
 using Vintagestory.API.MathTools;
 
-namespace WarbandCombat;
+namespace Zornhau;
 
 // Optional: this type is loaded only after the CO fork and its library exist.
 internal sealed class OverhaulBridge : ICombatIntegration
@@ -62,7 +62,7 @@ internal sealed class OverhaulBridge : ICombatIntegration
     }
     private static OverhaulBridge? clientBridge, serverBridge;
 
-    private sealed class Contact(Direction direction) : IWarbandDamage
+    private sealed class Contact(Direction direction) : IZornhauDamage
     {
         public Direction AttackDirection => direction;
         public bool Blocked { get; set; }
@@ -74,7 +74,14 @@ internal sealed class OverhaulBridge : ICombatIntegration
     {
         this.api = api;
         combat = api.ModLoader.GetModSystem<CombatSystem>();
-        harmony = new Harmony("warbandcombat.overhaul." + api.Side);
+        harmony = new Harmony("zornhau.overhaul." + api.Side);
+        OverhaulUseInterrupt.Patch(harmony);
+        harmony.Patch(AccessTools.Method(typeof(MeleeWeaponClient), "CheckForOtherHandEmptyNoError"),
+            prefix: new HarmonyMethod(typeof(OverhaulBridge), nameof(StowedOffhand)));
+        harmony.Patch(AccessTools.Method(typeof(FirstPersonAnimationsBehavior), nameof(FirstPersonAnimationsBehavior.OnGameTick)),
+            postfix: new HarmonyMethod(typeof(OverhaulBridge), nameof(StopStowedPose)));
+        harmony.Patch(AccessTools.Method(typeof(ThirdPersonAnimationsBehavior), nameof(ThirdPersonAnimationsBehavior.OnGameTick)),
+            postfix: new HarmonyMethod(typeof(OverhaulBridge), nameof(StopStowedPose)));
         if (api is ICoreClientAPI)
         {
             clientBridge = this;
@@ -120,12 +127,12 @@ internal sealed class OverhaulBridge : ICombatIntegration
             foreach (var packetType in new[] { typeof(MeleeAttackPacket), typeof(MeleePushPacket), typeof(MeleeAttackStatusPacket) })
                 harmony.Patch(AccessTools.Method(typeof(MeleeSystemServer), "HandlePacket", new[] { typeof(IServerPlayer), packetType }),
                     prefix: new HarmonyMethod(typeof(OverhaulBridge), nameof(NativeContactHandler)));
-            ((ICoreServerAPI)api).Network.GetChannel("warbandcombat")
+            ((ICoreServerAPI)api).Network.GetChannel("zornhau")
                 .SetMessageHandler<OverhaulContactPacket>(ReceiveContact);
             meleeServer.OnDealMeleeDamage += BeforeDamage;
             meleeServer.OnMeleeDamageResolved += DamageResolved;
         }
-        api.Logger.Notification("[Warband Combat] CO adapter initialized; Warband controls attacks and guards.");
+        api.Logger.Notification("[Zornhau] CO adapter initialized; Zornhau controls attacks and guards.");
     }
 
     private static void PreserveImmersive(Settings settings)
@@ -181,7 +188,7 @@ internal sealed class OverhaulBridge : ICombatIntegration
             || !clientBridge.UsesPhysicalContacts(stack.Collectible)) return false;
         var phase = player == (clientBridge.api as ICoreClientAPI)?.World.Player?.Entity
             ? clientBridge.combat.Controls?.Fighter.Phase ?? Phase.Idle
-            : (Phase)player.WatchedAttributes.GetInt("warbandPhase");
+            : (Phase)player.WatchedAttributes.GetInt("zornhauPhase");
         return phase is Phase.Windup or Phase.Swing or Phase.Recovery;
     }
 
@@ -212,7 +219,7 @@ internal sealed class OverhaulBridge : ICombatIntegration
             if (model != null) model.CurrentDamageBlock = null;
         }
     }
-    public IWarbandDamage? GetValidatedDamage(DamageSource source)
+    public IZornhauDamage? GetValidatedDamage(DamageSource source)
         => contacts.TryGetValue(source, out var contact) ? contact : null;
 
     private static MeleeWeaponClientModesCollection? ClientModes(CollectibleObject item)
@@ -225,6 +232,21 @@ internal sealed class OverhaulBridge : ICombatIntegration
         // CO creates an internal "default" client mode even when the item has
         // no selectable Modes. Our audited single-mode profile uses "".
         return item?.Attributes?.KeyExists("Modes") == true ? ClientModes(item)?.CurrentModeCode ?? "" : "";
+    }
+
+    public void InterruptUse(EntityPlayer player) => OverhaulUseInterrupt.Cancel(player);
+
+    private static bool StowedOffhand(bool mainHand, EntityPlayer player, ref bool __result)
+    {
+        if (!mainHand || !CombatShields.Stowed(player)) return true;
+        __result = true; return false;
+    }
+
+    private static void StopStowedPose(EntityBehavior __instance)
+    {
+        if (__instance.entity is not EntityPlayer player || !CombatShields.Stowed(player)) return;
+        if (__instance is FirstPersonAnimationsBehavior fp) fp.Stop("mainOffhand");
+        if (__instance is ThirdPersonAnimationsBehavior tp) tp.Stop("mainOffhand");
     }
 
     private StanceStats? Stance(EntityPlayer player) => Stance(player, out _);
@@ -242,7 +264,7 @@ internal sealed class OverhaulBridge : ICombatIntegration
                     ?? new MeleeWeaponModeCollectionStats();
             if (modes == null) return null;
             string mode = api.Side == EnumAppSide.Client ? WeaponMode(player)
-                : player.WatchedAttributes.GetString("warbandWeaponMode", "");
+                : player.WatchedAttributes.GetString("zornhauWeaponMode", "");
             if (mode.Length == 0) mode = modes.Modes.Keys.FirstOrDefault() ?? "";
             if (!modes.Modes.TryGetValue(mode, out var selected)) return null;
             stats = selected;
@@ -255,7 +277,7 @@ internal sealed class OverhaulBridge : ICombatIntegration
             stats = cached;
         }
         if (stats == null) return null;
-        string other = player.LeftHandItemSlot.Itemstack?.Collectible.Code.ToString() ?? "";
+        string other = CombatShields.Stowed(player) ? "" : player.LeftHandItemSlot.Itemstack?.Collectible.Code.ToString() ?? "";
         if (other.Length == 0 && stats.TwoHandedStance != null)
         { twoHanded = true; return stats.TwoHandedStance; }
         var dual = stats.MainHandDualWieldStances.FirstOrDefault(kv => WildcardUtil.Match(kv.Key, other)).Value;
@@ -282,13 +304,24 @@ internal sealed class OverhaulBridge : ICombatIntegration
         var stats = AttackStats(Stance(attacker), direction);
         var stack = attacker.RightHandItemSlot.Itemstack;
         if (stats == null || stack == null || stats.DamageTypes.Length == 0) return null;
+        EnumDamageType EffectiveType(MeleeDamageTypeJson contact)
+        {
+            var kind = Enum.Parse<EnumDamageType>(contact.Damage.DamageType);
+            return kind == EnumDamageType.PiercingAttack && direction != Direction.Thrust
+                && CombatOverhaul.Utils.CollectibleClassifier.IsDagger(attacker.RightHandItemSlot)
+                && !CombatOverhaul.Utils.CollectibleClassifier.IsDagger(attacker.LeftHandItemSlot)
+                ? EnumDamageType.SlashingAttack : kind;
+        }
         var selected = damageType == null ? stats.DamageTypes.FirstOrDefault()
-            : stats.DamageTypes.FirstOrDefault(d => d.Damage.DamageType == damageType);
-        if (selected == null || !Enum.TryParse<EnumDamageType>(selected.Damage.DamageType, out var type)) return null;
+            : stats.DamageTypes.FirstOrDefault(d => EffectiveType(d).ToString() == damageType);
+        if (selected == null) return null;
+        var type = EffectiveType(selected);
         var buffs = ItemStackMeleeWeaponStats.FromItemStack(stack);
+        string mode = api.Side == EnumAppSide.Client ? WeaponMode(attacker)
+            : attacker.WatchedAttributes.GetString("zornhauWeaponMode", "");
         float basePower = selected.Damage.Damage;
         if (balanced) basePower = CombatBalance.Power(attacker, direction, basePower,
-            api.Side == EnumAppSide.Client ? WeaponMode(attacker) : attacker.WatchedAttributes.GetString("warbandWeaponMode", ""));
+            mode);
         float power = basePower * attacker.Stats.GetBlended("meleeWeaponsDamage");
         if (target.Properties.Attributes?["isMechanical"].AsBool() == true)
             power *= attacker.Stats.GetBlended("mechanicalsDamage");
@@ -300,8 +333,13 @@ internal sealed class OverhaulBridge : ICombatIntegration
         float extent = stats.DamageTypes.Max(d => d.Collider.Length == 6
             ? (float)Math.Sqrt(Enumerable.Range(0, 3).Sum(i => Math.Pow(d.Collider[i] + d.Collider[i + 3], 2))) : 0);
         float reach = Math.Clamp(Math.Min(stats.MaxReach, extent + 1.5f), 1.5f, 6);
+        int piercing = selected.Damage.ArmorPiercingTier;
+        // Native packet ceilings still apply first. Player armor gets our
+        // family floor afterwards; quality/stack bonuses remain additive.
+        if (balanced && target is EntityPlayer)
+            piercing = CombatBalance.ArmorPiercing(attacker, type, piercing, mode);
         return new(power, reach, tier, type, selected.Knockback * buffs.KnockbackMultiplier,
-            selected.DurabilityDamage, Math.Max(0, selected.Damage.ArmorPiercingTier + buffs.ArmorPiercingBonus));
+            selected.DurabilityDamage, Math.Max(0, piercing + buffs.ArmorPiercingBonus));
     }
 
     private static bool AttackPrefix(IServerPlayer player, MeleeDamagePacket packet, out AttackTrace? __state)
@@ -329,8 +367,9 @@ internal sealed class OverhaulBridge : ICombatIntegration
         using var stream = new MemoryStream();
         Serializer.Serialize(stream, packet);
         if (stream.Length <= 4096)
-            ((ICoreClientAPI)bridge.api).Network.GetChannel("warbandcombat").SendPacket(new OverhaulContactPacket
-                { AttackId = controls.CurrentAttackId, Payload = stream.ToArray() });
+            ((ICoreClientAPI)bridge.api).Network.GetChannel("zornhau").SendPacket(new OverhaulContactPacket
+                { AttackId = controls.CurrentAttackId, Payload = stream.ToArray(),
+                    Rotation = CombatTurnAuthority.Capture(((ICoreClientAPI)bridge.api).World.Player.Entity) });
         return false;
     }
 
@@ -350,6 +389,11 @@ internal sealed class OverhaulBridge : ICombatIntegration
         if (envelope.AttackId != combat.PhysicalAttackId(player)) return;
         if (combat.DeferPhysicalContact(player, envelope.AttackId, () => ProcessContact(player, envelope))) return;
         if (!combat.CanAcceptPhysicalContact(player)) return;
+        if (!combat.CheckTurnProof(player, envelope.Rotation))
+        {
+            combat.ReportHitDiagnostic(player, envelope.AttackId, 0, "turn-limit", "Missing, nonfinite or excessive character rotation");
+            return;
+        }
         MeleeDamagePacket packet;
         try
         {
@@ -474,6 +518,8 @@ internal sealed class OverhaulBridge : ICombatIntegration
         if (profile == null) { damage = 0; source.KnockbackStrength = 0; return; }
         contacts.Add(source, new Contact(direction));
         damage = profile.Value.Power * CombatBalance.DirectionBonus(slot?.Itemstack?.Collectible.Tool, direction);
+        if (target is EntityPlayer && source is ITypedDamage armorSource)
+            armorSource.DamageTypeData = new(source.Type, source.DamageTier, profile.Value.ArmorPiercing);
         if (source is DirectionalTypedDamageSource typed)
             combat.Fatalities?.RecordHistoricalContact(target, source, direction, typed.Position, typed.Collider,
                 contactBounds?.Origins(target, api.World.ElapsedMilliseconds, player.Ping) ?? new[] { target.Pos.XYZ });
@@ -497,7 +543,7 @@ internal sealed class OverhaulBridge : ICombatIntegration
         animations = api.ModLoader.GetModSystem<CombatOverhaulAnimationsSystem>().PlayerAnimationsManager
             ?? throw new InvalidOperationException("CO animation manager was not initialized");
         var author = JsonConvert.DeserializeObject<Dictionary<string, AnimationJson>>(
-            api.Assets.Get("warbandcombat:config/reanimated.json").ToText())!;
+            api.Assets.Get("zornhau:config/reanimated.json").ToText())!;
         var source = animations.Animations.ToDictionary(kv => kv.Key, kv => AnimationJson.FromAnimation(kv.Value));
         foreach (var (code, clip) in author.ToArray())
         {
@@ -522,11 +568,11 @@ internal sealed class OverhaulBridge : ICombatIntegration
                     animations.Animations[phaseCode + "-tp"] = phase.ToAnimation();
         }
         foreach (var (code, clip) in JsonConvert.DeserializeObject<Dictionary<string, AnimationJson>>(
-            api.Assets.Get("warbandcombat:config/overhaul-fallback.json").ToText())!)
+            api.Assets.Get("zornhau:config/overhaul-fallback.json").ToText())!)
             animations.Animations[code] = clip.ToAnimation();
         foreach (var (code, pose) in OverhaulRestPoses.Replacements(source))
             animations.Animations[code] = pose.ToAnimation();
-        api.Logger.Notification("[Warband Combat] Registered {0} CO phase clips and {1} Reanimated sources.", count, author.Count);
+        api.Logger.Notification("[Zornhau] Registered {0} CO phase clips and {1} Reanimated sources.", count, author.Count);
     }
 
     private string Source(StanceStats? stance, Direction direction, bool block)
@@ -544,13 +590,13 @@ internal sealed class OverhaulBridge : ICombatIntegration
                 return matching[direction == Direction.Left && matching.Length > 1 ? 1 : 0];
         }
         // Directionless native clips are frequently thrust-only or one-sided.
-        // Use authored Warband poses for the directions absent from those assets.
+        // Use authored Zornhau poses for the directions absent from those assets.
         if (generic != null && ((direction == Direction.Thrust && generic.Contains("thrust"))
             || (direction == Direction.Right && generic.EndsWith("slash-1"))
             || (direction == Direction.Left && generic.EndsWith("slash-2")))) return generic;
         if (generic?.Contains("sword-falx") == true && direction is Direction.Right or Direction.Left)
             return "combatoverhaul:sword-falx-slash-" + (direction == Direction.Right ? "1" : "2");
-        return "warbandcombat:warband-swing-" + direction.ToString().ToLowerInvariant();
+        return "zornhau:zornhau-swing-" + direction.ToString().ToLowerInvariant();
     }
 
     private bool AnimateShield(EntityPlayer player, Fighter fighter, long now, string? action,
@@ -618,9 +664,9 @@ internal sealed class OverhaulBridge : ICombatIntegration
         // animate with the old one-handed arms.
         if (source == null) return twoHanded;
         string clip;
-        bool fallback = source.StartsWith("warbandcombat:warband-");
+        bool fallback = source.StartsWith("zornhau:zornhau-");
         if (fallback) clip = action == "block" ? source
-            : "warbandcombat:warband-" + (action == "recovery" ? "return" : action) + "-"
+            : "zornhau:zornhau-" + (action == "recovery" ? "return" : action) + "-"
                 + fighter.Direction.ToString().ToLowerInvariant();
         else clip = OverhaulPhaseAnimations.Code(source,
             action == "block" ? "block-" + fighter.Direction.ToString().ToLowerInvariant()
@@ -655,7 +701,7 @@ internal sealed class OverhaulBridge : ICombatIntegration
                 collisionAttack = new MeleeAttack(client, contactStats); collisionAttack.Start(player.Player);
                 collisionKey = key; contactSent = false; debugTerrainBlocked = false;
                 if (combat.Controls?.HitDiagnosticsEnabled == true)
-                    api.Logger.Notification("[Warband Hit] collider clip={0} source={1} direction={2} maxReach={3} radii={4}",
+                    api.Logger.Notification("[Zornhau Hit] collider clip={0} source={1} direction={2} maxReach={3} radii={4}",
                         clip, source, fighter.Direction, contactStats.MaxReach,
                         string.Join(",", contactStats.DamageTypes.Select(d => d.Radius.ToString("F3", System.Globalization.CultureInfo.InvariantCulture))));
                 debugColliders.Clear(); debugWeapon = null;

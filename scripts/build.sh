@@ -2,17 +2,19 @@
 set -euo pipefail
 PROJECT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_DIR"
-SDK_BIN="${VS_DOTNET:-/home/dead/.local/share/vs-combat-dotnet/dotnet}"
-export DOTNET_CLI_TELEMETRY_OPTOUT=1
+source "$PROJECT_DIR/scripts/common.sh"
+EDITOR_MODEL="${VS_EDITOR_MODEL:-$PROJECT_DIR/editor/seraph-combat-completed.json}"
+if [[ ! -f "$EDITOR_MODEL" ]]; then
+    printf 'Editor animation model not found: %s\n' "$EDITOR_MODEL" >&2
+    exit 1
+fi
 python3 scripts/fetch-overhaul.py
 python3 scripts/generate-animations.py
 python3 scripts/generate-balance.py
-"$SDK_BIN" build WarbandCombat.csproj -c Release --nologo "$@"
+"$SDK_BIN" build Zornhau.csproj -c Release --nologo "$@"
 "$SDK_BIN" run --project tests/CombatModel.Tests.csproj -c Release --nologo
 "$SDK_BIN" run --project tests/server/Server.Tests.csproj -c Release --nologo
-if [[ -n "${VS_EDITOR_MODEL:-}" ]]; then
-    python3 scripts/import-editor-animations.py "$VS_EDITOR_MODEL"
-fi
+python3 scripts/import-editor-animations.py "$EDITOR_MODEL"
 python3 scripts/generate-overhaul-animations.py
 "$SDK_BIN" run --project tests/standalone/Standalone.Tests.csproj -c Release --nologo
 "$SDK_BIN" run --project tests/overhaul/Overhaul.Tests.csproj -c Release --nologo
@@ -21,10 +23,10 @@ from pathlib import Path
 import json, zipfile
 root = Path.cwd()
 version = json.loads((root / 'modinfo.json').read_text())['version']
-out = root / 'dist' / f'warbandcombat-{version}.zip'
+out = root / 'dist' / f'zornhau-{version}.zip'
 out.parent.mkdir(exist_ok=True)
 with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as archive:
-    for path in [root / 'modinfo.json', root / 'third-party/reanimated/LICENSE', root / 'third-party/overhaul-core/LICENSE', root / 'third-party/overhaul-core/README.md', root / 'bin/Release/net10.0/WarbandCombat.dll',
+    for path in [root / 'modinfo.json', root / 'third-party/reanimated/LICENSE', root / 'third-party/overhaul-core/LICENSE', root / 'third-party/overhaul-core/README.md', root / 'bin/Release/net10.0/Zornhau.dll',
                  *sorted((root / 'assets').rglob('*'))]:
         if path.is_file():
             name = path.name if path.suffix == '.dll' else str(path.relative_to(root))

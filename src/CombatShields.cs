@@ -1,6 +1,6 @@
 using Vintagestory.API.Common;
 
-namespace WarbandCombat;
+namespace Zornhau;
 
 internal static class CombatShields
 {
@@ -18,7 +18,10 @@ internal static class CombatShields
     }
 
     internal static bool Equipped(EntityPlayer player)
-        => IsShield(player.LeftHandItemSlot.Itemstack?.Collectible);
+        => IsShield(player.LeftHandItemSlot.Itemstack?.Collectible) && !Stowed(player);
+
+    internal static bool Stowed(EntityPlayer player, string? mode = null)
+        => IsShield(player.LeftHandItemSlot.Itemstack?.Collectible) && CombatBalance.RequiresTwoHands(player, mode);
 
     internal static bool AllowsInput(Command command, bool weapon, bool shield, Phase phase)
         => weapon || shield && (command == Command.Block

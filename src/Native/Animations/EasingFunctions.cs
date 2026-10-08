@@ -3,7 +3,7 @@
 // See third-party/overhaul-core/README.md and LICENSE.
 using Vintagestory.API.MathTools;
 
-namespace WarbandCombat.Native.Animations;
+namespace Zornhau.Native.Animations;
 
 /// <summary>
 /// Default option usually is <see cref="Linear"/><br/><br/>

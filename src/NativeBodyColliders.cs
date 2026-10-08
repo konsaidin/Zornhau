@@ -4,9 +4,9 @@ using System.Text.RegularExpressions;
 using OpenTK.Mathematics;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
-using WarbandCombat.Native.Colliders;
+using Zornhau.Native.Colliders;
 
-namespace WarbandCombat;
+namespace Zornhau;
 
 internal sealed class NativeBodyColliders(ICoreAPI api)
 {
@@ -17,7 +17,7 @@ internal sealed class NativeBodyColliders(ICoreAPI api)
     internal void Load()
     {
         names.Clear(); bodies.Clear();
-        var asset = api.Assets.TryGet(new AssetLocation("warbandcombat:config/native-colliders.json"));
+        var asset = api.Assets.TryGet(new AssetLocation("zornhau:config/native-colliders.json"));
         if (asset == null) return;
         var profiles = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, string[]>>>(asset.ToText())!;
         foreach (var (file, groups) in profiles.OrderByDescending(p => p.Key.Length))
@@ -31,7 +31,7 @@ internal sealed class NativeBodyColliders(ICoreAPI api)
                 + string.Join("(?:-[^-]+)*-", family.Split('-').Select(Regex.Escape)) + "(?:-|$)";
             names.Add((new Regex(pattern, RegexOptions.CultureInvariant), groups.Values.SelectMany(v => v).ToHashSet(StringComparer.Ordinal)));
         }
-        api.Logger.Notification("[Warband Combat] Embedded CO body profiles: {0} entity families.", names.Count);
+        api.Logger.Notification("[Zornhau] Embedded CO body profiles: {0} entity families.", names.Count);
     }
 
     internal ShapeElementCollider[] For(Entity entity, float[] model, Vector3d origin)

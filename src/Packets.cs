@@ -1,6 +1,6 @@
 using ProtoBuf;
 
-namespace WarbandCombat;
+namespace Zornhau;
 
 [ProtoContract]
 public sealed class InputPacket
@@ -38,15 +38,22 @@ public sealed class StatePacket
 }
 
 // The optional CO packet is wrapped, so contacts cannot migrate to another
-// Warband attack. No CO type enters the standalone assembly's public protocol.
+// Zornhau attack. No CO type enters the standalone assembly's public protocol.
 [ProtoContract]
 public sealed class OverhaulContactPacket
 {
     [ProtoMember(1)] public int AttackId { get; set; }
     [ProtoMember(2)] public byte[] Payload { get; set; } = [];
+    [ProtoMember(3)] public float[]? Rotation { get; set; }
 }
 
 public enum ContactKind { Hit, Parry, Shield, ShieldBreak }
+
+[ProtoContract]
+public sealed class UseInterruptPacket
+{
+    [ProtoMember(1)] public long Id { get; set; }
+}
 
 [ProtoContract]
 public sealed class ContactPacket
@@ -84,6 +91,7 @@ public sealed class BladeContactPacket
     [ProtoMember(6)] public double Fraction { get; set; }
     [ProtoMember(7)] public double[] Point { get; set; } = Array.Empty<double>();
     [ProtoMember(8)] public string Element { get; set; } = "";
+    [ProtoMember(9)] public float[]? Rotation { get; set; }
 }
 
 [ProtoContract]

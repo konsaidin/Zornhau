@@ -40,6 +40,7 @@ public class Stub : DispatchProxy
             if (method.Name == "get_Entity") { il.Emit(OpCodes.Ldarg_0); il.Emit(OpCodes.Ldfld, entityField); }
             else if (method.Name == "HasPrivilege") il.Emit(OpCodes.Ldsfld, typeof(Stub).GetField(nameof(Privileges))!);
             else if (method.Name == "get_PlayerUID") { il.Emit(OpCodes.Ldarg_0); il.Emit(OpCodes.Ldfld, uidField); }
+            else if (method.Name == "get_LanguageCode") il.Emit(OpCodes.Ldstr, "en");
             else if (method.Name == "get_InventoryManager")
             {
                 var fallback = il.DefineLabel();
@@ -49,7 +50,7 @@ public class Stub : DispatchProxy
                 il.Emit(OpCodes.Ldtoken, method.ReturnType); il.Emit(OpCodes.Call, typeof(Type).GetMethod(nameof(Type.GetTypeFromHandle))!);
                 il.Emit(OpCodes.Call, typeof(Stub).GetMethod(nameof(Nested))!); il.Emit(OpCodes.Castclass, method.ReturnType);
             }
-            else if (returnType.IsValueType || returnType.IsGenericParameter)
+            else if (returnType != typeof(void) && (returnType.IsValueType || returnType.IsGenericParameter))
             {
                 var local = il.DeclareLocal(returnType); il.Emit(OpCodes.Ldloca_S, local);
                 il.Emit(OpCodes.Initobj, returnType); il.Emit(OpCodes.Ldloc, local);

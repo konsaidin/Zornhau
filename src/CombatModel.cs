@@ -1,4 +1,4 @@
-namespace WarbandCombat;
+namespace Zornhau;
 
 public enum Direction { Overhead, Right, Thrust, Left }
 public enum Phase { Idle, Windup, Swing, Recovery, Block }

@@ -5,7 +5,7 @@ using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using HarmonyLib;
 
-namespace WarbandCombat;
+namespace Zornhau;
 
 public sealed class CombatSystem : ModSystem
 {
@@ -47,6 +47,7 @@ public sealed class CombatSystem : ModSystem
         public Action? PendingContact;
         public int PendingAttack;
         public long ContactDue;
+        public long InterruptedAt = long.MinValue;
     }
 
     public override double ExecuteOrder() => 1.1;
@@ -54,12 +55,14 @@ public sealed class CombatSystem : ModSystem
     public override void Start(ICoreAPI api)
     {
         api.RegisterEntity(TrainingDummy.ClassName, typeof(TrainingDummy));
-        api.Network.RegisterChannel("warbandcombat").RegisterMessageType<InputPacket>().RegisterMessageType<StatePacket>()
+        api.Network.RegisterChannel("zornhau").RegisterMessageType<InputPacket>().RegisterMessageType<StatePacket>()
             .RegisterMessageType<ContactPacket>().RegisterMessageType<DiagnosticsSettingsPacket>().RegisterMessageType<HitDiagnosticPacket>()
             .RegisterMessageType<BladeContactPacket>().RegisterMessageType<FatalityPacket>().RegisterMessageType<FatalityFrame>()
-            .RegisterMessageType<OverhaulContactPacket>();
-        movementPatch = new Harmony("warbandcombat.movement." + api.Side);
+            .RegisterMessageType<OverhaulContactPacket>().RegisterMessageType<UseInterruptPacket>();
+        movementPatch = new Harmony("zornhau.movement." + api.Side);
         CombatMovement.Patch(movementPatch);
+        CombatUseInterrupt.Patch(movementPatch);
+        CombatShieldProtection.Patch(movementPatch);
     }
 
     public override void AssetsFinalize(ICoreAPI api)
@@ -69,21 +72,28 @@ public sealed class CombatSystem : ModSystem
     {
         Client = api;
         Fatalities = new CombatFatalities(api);
-        if (movementPatch != null) CombatPrediction.Patch(movementPatch);
+        if (movementPatch != null)
+        {
+            CombatPrediction.Patch(movementPatch);
+            ImmersiveView.Patch(movementPatch);
+        }
         Integration = OverhaulCompat.Create(api);
         NativeAnimations = new(api, this);
         Physics = new StandalonePhysics(api, this);
         Controls = new CombatClient(api);
-        api.Logger.Notification("[Warband Combat] Client ready. K toggles combat; Shift uses vanilla interactions.");
+        api.Logger.Notification("[Zornhau] Client ready. K toggles combat; Shift uses vanilla interactions.");
     }
 
     public override void StartServerSide(ICoreServerAPI api)
     {
         server = api;
+        if (movementPatch != null) CombatTurnAuthority.Patch(movementPatch);
+        CombatTurnAuthority.Rejected = OnTurnRejected;
+        CombatUseInterrupt.ServerHit = InterruptVictim;
         Fatalities = new CombatFatalities(api);
         Integration = OverhaulCompat.Create(api);
         NativeAnimations = new(api, this);
-        channel = api.Network.GetChannel("warbandcombat").SetMessageHandler<InputPacket>(OnInput)
+        channel = api.Network.GetChannel("zornhau").SetMessageHandler<InputPacket>(OnInput)
             .SetMessageHandler<DiagnosticsSettingsPacket>((player, packet) => GetSession(player).HitDiagnostics = packet.Enabled);
         Physics = new StandalonePhysics(api, this);
         channel.SetMessageHandler<BladeContactPacket>(Physics.OnContact);
@@ -93,7 +103,7 @@ public sealed class CombatSystem : ModSystem
         api.Event.OnEntityLoaded += AttachGuard;
         api.Event.PlayerNowPlaying += OnPlayerReady;
         serverTick = api.Event.RegisterGameTickListener(Tick, 20);
-        api.Logger.Notification("[Warband Combat] Server ready. Directional damage validation enabled.");
+        api.Logger.Notification("[Zornhau] Server ready. Directional damage validation enabled.");
     }
 
     private bool ForcePvpCombat => server?.Server.Config.AllowPvP == true || Integration != null;
@@ -103,6 +113,7 @@ public sealed class CombatSystem : ModSystem
         AttachGuard(player.Entity);
         var session = GetSession(player);
         CombatMovement.Bind(player.Entity, session.Fighter);
+        CombatTurnAuthority.Bind(player.Entity, session.Fighter);
         if (server != null) SendState(player, session, server.World.ElapsedMilliseconds);
     }
     private void OnDisconnect(IServerPlayer player) => sessions.Remove(player.PlayerUID);
@@ -135,8 +146,21 @@ public sealed class CombatSystem : ModSystem
     {
         if (!sessions.TryGetValue(player.PlayerUID, out var session))
             sessions[player.PlayerUID] = session = new Session();
+        CombatTurnAuthority.Bind(player.Entity, session.Fighter);
         return session;
     }
+
+    private void OnTurnRejected(EntityPlayer entity)
+    {
+        if (entity.Player is not IServerPlayer player || !sessions.TryGetValue(player.PlayerUID, out var session)) return;
+        session.PendingContact = null;
+        session.AuthoritativeClock = true;
+        ReportHitDiagnostic(player, session.AttackId, 0, "turn-limit", "Strike rotation exceeds the server angular budget");
+        if (server != null) SendState(player, session, server.World.ElapsedMilliseconds);
+    }
+
+    internal bool CheckTurnProof(IServerPlayer player, float[]? pose)
+        => CombatTurnAuthority.Proof(player.Entity, pose);
 
     private void OnInput(IServerPlayer player, InputPacket packet)
     {
@@ -161,7 +185,7 @@ public sealed class CombatSystem : ModSystem
         {
             session.Fighter.Invalidate(now);
             session.WeaponMode = packet.WeaponMode;
-            entity.WatchedAttributes.SetString("warbandWeaponMode", packet.WeaponMode);
+            entity.WatchedAttributes.SetString("zornhauWeaponMode", packet.WeaponMode);
         }
         if (!entity.Alive || !CombatShields.AllowsInput(command, Supported(slot.Itemstack?.Collectible),
             CombatShields.Equipped(entity), session.Fighter.Phase) || entity.Controls.Sneak && !ForcePvpCombat)
@@ -197,6 +221,7 @@ public sealed class CombatSystem : ModSystem
         {
             if (!sessions.TryGetValue(player.PlayerUID, out var session)) continue;
             var entity = player.Entity;
+            CombatTurnAuthority.Observe(entity);
             var slot = entity.RightHandItemSlot;
             Integration?.ClearNativeBlock(entity);
             if (!entity.Alive || entity.Controls.Sneak && !ForcePvpCombat || !ReferenceEquals(session.Weapon, slot.Itemstack)
@@ -214,7 +239,7 @@ public sealed class CombatSystem : ModSystem
             session.Fighter.Advance(now);
             CombatMovement.Bind(entity, session.Fighter);
             CombatMovement.Enforce(entity, session.Fighter, now);
-            if (windowExpired) session.Feedback = "warbandcombat:miss";
+            if (windowExpired) session.Feedback = "zornhau:miss";
             CombatAnimations.Update(entity, session.Fighter, now, integration: Integration, standalone: NativeAnimations);
             // Resolve a hit immediately on the client instead of waiting for the periodic sync.
             if (windowExpired || !string.IsNullOrEmpty(session.Feedback)) SendState(player, session, now);
@@ -224,7 +249,7 @@ public sealed class CombatSystem : ModSystem
 
     internal void Guard(EntityPlayer defender, DamageSource source, ref float damage)
     {
-        IWarbandDamage? directedDamage = source as IWarbandDamage ?? Integration?.GetValidatedDamage(source);
+        IZornhauDamage? directedDamage = source as IZornhauDamage ?? Integration?.GetValidatedDamage(source);
         Integration?.ClearNativeBlock(defender);
         // Every PvP melee hit must have passed our server-side state machine.
         // Projectile entities and creature attacks remain separate damage sources.
@@ -256,14 +281,14 @@ public sealed class CombatSystem : ModSystem
         if (!CombatRules.GuardCovers(shield, fighter.Direction, incoming)) return;
         float blockedDamage = damage;
         damage = 0; source.KnockbackStrength = 0;
-        session.Feedback = shield ? "warbandcombat:shield-block" : "warbandcombat:parry";
+        session.Feedback = shield ? "zornhau:shield-block" : "zornhau:parry";
         if (directedDamage != null) directedDamage.Blocked = true;
         if (attacker is EntityPlayer enemy && enemy.Player is IServerPlayer enemyPlayer
             && sessions.TryGetValue(enemyPlayer.PlayerUID, out var enemySession))
         {
             enemySession.Fighter.Stun(now, shield ? CombatRules.ShieldBounce : CombatRules.ParryStun);
             enemySession.AuthoritativeClock = true;
-            enemySession.Feedback = "warbandcombat:blocked";
+            enemySession.Feedback = "zornhau:blocked";
             SendState(enemyPlayer, enemySession, now);
         }
         var guardingSlot = shield ? defender.LeftHandItemSlot : defender.RightHandItemSlot;
@@ -274,9 +299,9 @@ public sealed class CombatSystem : ModSystem
         {
             fighter.SetShield(false, now); fighter.Stun(now, CombatRules.ShieldBreak);
             session.AuthoritativeClock = true;
-            session.Feedback = "warbandcombat:shield-break";
+            session.Feedback = "zornhau:shield-break";
         }
-        EmitContact(attacker, defender, session.Feedback == "warbandcombat:shield-break" ? ContactKind.ShieldBreak
+        EmitContact(attacker, defender, session.Feedback == "zornhau:shield-break" ? ContactKind.ShieldBreak
             : shield ? ContactKind.Shield : ContactKind.Parry, guardItem, blockedDamage >= 6);
         SendState(player, session, now);
     }
@@ -325,15 +350,15 @@ public sealed class CombatSystem : ModSystem
             EchoSentAt = session.ClientSentAt, InputReceivedAt = session.InputReceivedAt, ServerSentAt = now
         }, player);
         session.LastSync = now; session.Feedback = "";
-        player.Entity.WatchedAttributes.SetInt("warbandDirection", (int)f.Direction);
-        player.Entity.WatchedAttributes.SetInt("warbandPhase", (int)f.Phase);
-        player.Entity.WatchedAttributes.SetInt("warbandAttackId", session.AttackId);
-        player.Entity.WatchedAttributes.SetInt("warbandElapsed", (int)Math.Clamp(now - f.Started, 0, 10000));
-        player.Entity.WatchedAttributes.SetInt("warbandHitIn", (int)Math.Clamp(f.HitAt - now, -10000, 10000));
-        player.Entity.WatchedAttributes.SetInt("warbandEndsIn", (int)Math.Clamp(f.Ends - now, -10000, 10000));
-        player.Entity.WatchedAttributes.SetInt("warbandContactEndsIn", (int)Math.Clamp(f.ContactEnds - now, -10000, 10000));
-        player.Entity.WatchedAttributes.SetBool("warbandRecoveryAttackPose", f.RecoveryAttackPose);
-        player.Entity.WatchedAttributes.SetInt("warbandPoseRevision", ++session.PoseRevision);
+        player.Entity.WatchedAttributes.SetInt("zornhauDirection", (int)f.Direction);
+        player.Entity.WatchedAttributes.SetInt("zornhauPhase", (int)f.Phase);
+        player.Entity.WatchedAttributes.SetInt("zornhauAttackId", session.AttackId);
+        player.Entity.WatchedAttributes.SetInt("zornhauElapsed", (int)Math.Clamp(now - f.Started, 0, 10000));
+        player.Entity.WatchedAttributes.SetInt("zornhauHitIn", (int)Math.Clamp(f.HitAt - now, -10000, 10000));
+        player.Entity.WatchedAttributes.SetInt("zornhauEndsIn", (int)Math.Clamp(f.Ends - now, -10000, 10000));
+        player.Entity.WatchedAttributes.SetInt("zornhauContactEndsIn", (int)Math.Clamp(f.ContactEnds - now, -10000, 10000));
+        player.Entity.WatchedAttributes.SetBool("zornhauRecoveryAttackPose", f.RecoveryAttackPose);
+        player.Entity.WatchedAttributes.SetInt("zornhauPoseRevision", ++session.PoseRevision);
         CombatAnimations.Update(player.Entity, f, now, integration: Integration, standalone: NativeAnimations);
     }
 
@@ -394,7 +419,7 @@ public sealed class CombatSystem : ModSystem
         if (now - session.DiagnosticWindow >= 1000) { session.DiagnosticWindow = now; session.DiagnosticCount = 0; }
         if (++session.DiagnosticCount > 20) return;
         result = CleanDiagnostic(result, 80); detail = CleanDiagnostic(detail, 320);
-        server.Logger.Notification("[Warband Hit] server player={0} attack={1} target={2} result={3} {4}",
+        server.Logger.Notification("[Zornhau Hit] server player={0} attack={1} target={2} result={3} {4}",
             player.PlayerName, attackId, target, result, detail);
         channel.SendPacket(new HitDiagnosticPacket { AttackId = attackId, Target = target, Result = result, Detail = detail }, player);
     }
@@ -419,24 +444,32 @@ public sealed class CombatSystem : ModSystem
     {
         if (server == null) return;
         var session = GetSession(player);
-        if (!blocked) session.Feedback = hit ? "warbandcombat:hit" : "warbandcombat:miss";
+        if (!blocked) session.Feedback = hit ? "zornhau:hit" : "zornhau:miss";
         if (hit && !blocked)
         {
             EmitContact(player.Entity, target, ContactKind.Hit);
-            if (target is EntityPlayer { Alive: true } victim && victim.Player is IServerPlayer defending
-                && sessions.TryGetValue(defending.PlayerUID, out var defender))
-            {
-                defender.Fighter.Advance(server.World.ElapsedMilliseconds);
-                if (defender.Fighter.Phase is Phase.Windup or Phase.Swing)
-                {
-                    defender.PendingContact = null;
-                    defender.Fighter.Stun(server.World.ElapsedMilliseconds, CombatRules.HitStun);
-                    defender.AuthoritativeClock = true;
-                    SendState(defending, defender, server.World.ElapsedMilliseconds);
-                }
-            }
+            if (target is EntityPlayer { Alive: true } victim) InterruptVictim(victim);
         }
         SendState(player, session, server.World.ElapsedMilliseconds);
+    }
+
+    private void InterruptVictim(EntityPlayer victim)
+    {
+        if (server == null || victim.Player is not IServerPlayer defending) return;
+        var defender = GetSession(defending);
+        long now = server.World.ElapsedMilliseconds;
+        // OnHurt and the resolved melee event can report the same contact.
+        if (defender.InterruptedAt == now && defender.Fighter.Phase is not (Phase.Windup or Phase.Swing)) return;
+        defender.InterruptedAt = now;
+        CombatUseInterrupt.Cancel(victim);
+        Integration?.InterruptUse(victim);
+        channel?.SendPacket(new UseInterruptPacket { Id = ++contactSequence }, defending);
+        defender.Fighter.Advance(now);
+        if (defender.Fighter.Phase is not (Phase.Windup or Phase.Swing)) return;
+        defender.PendingContact = null;
+        defender.Fighter.Stun(now, CombatRules.HitStun);
+        defender.AuthoritativeClock = true;
+        SendState(defending, defender, now);
     }
 
     public override void Dispose()
@@ -450,6 +483,8 @@ public sealed class CombatSystem : ModSystem
         if (movementPatch != null) movementPatch.UnpatchAll(movementPatch.Id);
         if (server != null)
         {
+            if (CombatTurnAuthority.Rejected?.Target == this) CombatTurnAuthority.Rejected = null;
+            if (CombatUseInterrupt.ServerHit?.Target == this) CombatUseInterrupt.ServerHit = null;
             server.Event.UnregisterGameTickListener(serverTick);
             server.Event.PlayerDisconnect -= OnDisconnect;
             server.Event.PlayerNowPlaying -= OnPlayerReady;
@@ -460,7 +495,7 @@ public sealed class CombatSystem : ModSystem
     }
 }
 
-internal sealed class DirectionalDamage : DamageSource, IWarbandDamage
+internal sealed class DirectionalDamage : DamageSource, IZornhauDamage
 {
     public Direction Direction;
     public Direction AttackDirection => Direction;
@@ -469,7 +504,7 @@ internal sealed class DirectionalDamage : DamageSource, IWarbandDamage
 
 internal sealed class GuardBehavior(Entity entity, CombatSystem system) : EntityBehavior(entity)
 {
-    public override string PropertyName() => "warbandguard";
+    public override string PropertyName() => "zornhauguard";
     public override void OnEntityReceiveDamage(DamageSource damageSource, ref float damage)
         => system.Guard((EntityPlayer)entity, damageSource, ref damage);
     public override void OnEntityDeath(DamageSource damageSource)

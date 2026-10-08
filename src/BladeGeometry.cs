@@ -2,7 +2,7 @@ using OpenTK.Mathematics;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 
-namespace WarbandCombat;
+namespace Zornhau;
 
 internal readonly record struct BladeSegment(Vector3d Tail, Vector3d Tip)
 {

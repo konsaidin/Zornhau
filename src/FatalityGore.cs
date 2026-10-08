@@ -2,7 +2,7 @@ using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 
-namespace WarbandCombat;
+namespace Zornhau;
 
 // All emissions are local reactions to the server's verified death and body
 // collision. Never spawn network particles, change damage or affect the camera.
@@ -89,7 +89,7 @@ internal sealed class FatalityGore(ICoreClientAPI api, bool particles, bool soun
     }
 
     private void Play(string family, long id, Vec3d point, float volume)
-        => api.World.PlaySoundAt(new AssetLocation("warbandcombat:sounds/fatalities/" + family + (id % 2 + 1)),
+        => api.World.PlaySoundAt(new AssetLocation("zornhau:sounds/fatalities/" + family + (id % 2 + 1)),
             point.X, point.Y, point.Z, null, .96f + (id % 5) * .025f, 20, volume);
 
     private void Spawn(Vec3d position, Vec3f direction, int count, float spread, float life,

@@ -2,7 +2,7 @@ using CombatOverhaul.Animations;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using CombatOverhaul.Implementations;
-using WarbandCombat;
+using Zornhau;
 
 int checks = 0;
 void Check(bool value, string message) { if (!value) throw new Exception(message); checks++; }
@@ -24,7 +24,7 @@ foreach (var (code, original) in source.Where(kv => kv.Key.Contains("shield-")
         && !f.Elements.ContainsKey("Head") && !f.Elements.ContainsKey("Neck")), code + ": shield leaves weapon and camera alone");
 }
 var stock = JsonConvert.DeserializeObject<Dictionary<string, AnimationJson>>(
-    File.ReadAllText(Path.Combine(root, "assets/warbandcombat/config/overhaul-fallback.json")))!;
+    File.ReadAllText(Path.Combine(root, "assets/zornhau/config/overhaul-fallback.json")))!;
 var restPoses = OverhaulRestPoses.Replacements(source).ToDictionary(p => p.Code, p => p.Pose);
 Check(restPoses.ContainsKey("combatoverhaul:sword-falx-idle-tp"), "falx idle TP retains its authored weapon grip instead of arms at the seams");
 foreach (var (code, pose) in restPoses)
@@ -76,7 +76,7 @@ foreach (string file in items)
                 Check(code != null && stock.ContainsKey(code), file + ": all weapon guards use authored stock clips");
                 continue;
             }
-            Check(code != null && !code.StartsWith("warbandcombat:"), file + ": native two-handed coverage " + direction);
+            Check(code != null && !code.StartsWith("zornhau:"), file + ": native two-handed coverage " + direction);
             var frames = source[code!].PlayerKeyFrames;
             Check(frames.Any(f => f.Elements.ContainsKey("UpperArmL") || f.Elements.ContainsKey("LowerArmL")),
                 code + ": chosen two-handed animation must drive the left arm");

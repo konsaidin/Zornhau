@@ -6,7 +6,7 @@ using Newtonsoft.Json.Linq;
 using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.Server;
-using WarbandCombat;
+using Zornhau;
 
 internal static class WeaponModeChecks
 {
@@ -19,7 +19,7 @@ internal static class WeaponModeChecks
         var modes = (MeleeWeaponClientModesCollection)RuntimeHelpers.GetUninitializedObject(typeof(MeleeWeaponClientModesCollection));
         typeof(MeleeWeaponClientModesCollection).GetField("CurrentModeValue", fields)!.SetValue(modes, "default");
         var profiles = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, WeaponBalanceProfile[]>>>(
-            File.ReadAllText("assets/warbandcombat/config/balance-profiles.json"))!;
+            File.ReadAllText("assets/zornhau/config/balance-profiles.json"))!;
         foreach (var context in profiles.Values)
         foreach (var (code, definitions) in context.Where(kv => kv.Value.All(p => p.Mode.Length == 0)))
         {
@@ -34,7 +34,7 @@ internal static class WeaponModeChecks
                 Check(ReferenceEquals(CombatBalance.For(player, mode), expected), "Single-mode balance resolves the actual grip: " + code);
                 Check(CombatBalance.CanAttack(player, mode) == expected.CanAttack, "Native default mode cannot disable an audited weapon: " + code);
                 Check(CombatSystem.Timing(player, mode).Windup == expected.Windup, "Single-mode timing retains the correct family: " + code);
-                player.WatchedAttributes.SetString("warbandWeaponMode", mode);
+                player.WatchedAttributes.SetString("zornhauWeaponMode", mode);
                 Check(ReferenceEquals(CombatBalance.For(player), expected), "Stale server mode cannot disable the next single-mode item: " + code);
             }
         }
@@ -66,11 +66,11 @@ internal static class WeaponModeChecks
         var two = new WeaponBalanceProfile { Mode = "", Stance = "two", CanAttack = true,
             Windup = 540, Strike = 380, Recovery = 680, Power = 10, SourcePower = [8,8,8,8] };
         CombatBalance.Register(item, [one, two]);
-        foreach (bool occupied in new[] { false, true })
+        foreach (string offhand in new[] { "", "game:shield", "game:torch" })
         {
             var entity = new Holder { Api = api, World = world, Alive = true };
             entity.Right.Itemstack = new ItemStack(item);
-            if (occupied) entity.Left.Itemstack = new ItemStack(new Item { Code = new("game:shield") });
+            if (offhand.Length > 0) entity.Left.Itemstack = new ItemStack(new Item { Code = new(offhand) });
             owner = Stub.Player(entity);
             var system = new CombatSystem(); typeof(CombatSystem).GetField("server", fields)!.SetValue(system, api);
             typeof(CombatSystem).GetField("channel", fields)!.SetValue(system,
@@ -79,7 +79,12 @@ internal static class WeaponModeChecks
                 new object[] { owner, new InputPacket { Command = (int)Command.Begin, Direction = (int)Direction.Left, Sequence = 1, WeaponMode = "default" } });
             var session = typeof(CombatSystem).GetMethod("GetSession", fields)!.Invoke(system, new object[] { owner })!;
             var fighter = (Fighter)session.GetType().GetField("Fighter")!.GetValue(session)!;
-            check(fighter.Phase == (occupied ? Phase.Idle : Phase.Windup), "Real server starts CO default-mode heavy attacks only when both hands are available");
+            check(fighter.Phase == (offhand == "game:torch" ? Phase.Idle : Phase.Windup),
+                "A stowed shield frees the two-handed grip, an ordinary occupied offhand does not");
+            check(!CombatShields.Equipped(entity) && !fighter.ShieldGuard,
+                "Two-handed weapon never acquires a shield guard");
+            if (offhand == "game:shield") check(entity.Left.Itemstack?.Collectible.Code.ToString() == offhand,
+                "Stowing retains the original shield in its real inventory slot");
         }
     }
 }

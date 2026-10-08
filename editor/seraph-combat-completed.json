@@ -10472,8 +10472,8 @@
   ],
   "animations": [
     {
-      "name": "warband-windup-left",
-      "code": "warband-windup-left",
+      "name": "zornhau-windup-left",
+      "code": "zornhau-windup-left",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "Repeat",
@@ -10557,8 +10557,8 @@
       ]
     },
     {
-      "name": "warband-block-left",
-      "code": "warband-block-left",
+      "name": "zornhau-block-left",
+      "code": "zornhau-block-left",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "Repeat",
@@ -10642,8 +10642,8 @@
       ]
     },
     {
-      "name": "warband-block-left-fp",
-      "code": "warband-block-left-fp",
+      "name": "zornhau-block-left-fp",
+      "code": "zornhau-block-left-fp",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "Repeat",
@@ -10727,8 +10727,8 @@
       ]
     },
     {
-      "name": "warband-block-overhead",
-      "code": "warband-block-overhead",
+      "name": "zornhau-block-overhead",
+      "code": "zornhau-block-overhead",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "Repeat",
@@ -10812,8 +10812,8 @@
       ]
     },
     {
-      "name": "warband-block-overhead-fp",
-      "code": "warband-block-overhead-fp",
+      "name": "zornhau-block-overhead-fp",
+      "code": "zornhau-block-overhead-fp",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "Repeat",
@@ -10897,8 +10897,8 @@
       ]
     },
     {
-      "name": "warband-block-right",
-      "code": "warband-block-right",
+      "name": "zornhau-block-right",
+      "code": "zornhau-block-right",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "Repeat",
@@ -10982,8 +10982,8 @@
       ]
     },
     {
-      "name": "warband-block-right-fp",
-      "code": "warband-block-right-fp",
+      "name": "zornhau-block-right-fp",
+      "code": "zornhau-block-right-fp",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "Repeat",
@@ -11067,8 +11067,8 @@
       ]
     },
     {
-      "name": "warband-block-thrust",
-      "code": "warband-block-thrust",
+      "name": "zornhau-block-thrust",
+      "code": "zornhau-block-thrust",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "Repeat",
@@ -11152,8 +11152,8 @@
       ]
     },
     {
-      "name": "warband-block-thrust-fp",
-      "code": "warband-block-thrust-fp",
+      "name": "zornhau-block-thrust-fp",
+      "code": "zornhau-block-thrust-fp",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "Repeat",
@@ -11237,8 +11237,8 @@
       ]
     },
     {
-      "name": "warband-recovery-left",
-      "code": "warband-recovery-left",
+      "name": "zornhau-recovery-left",
+      "code": "zornhau-recovery-left",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "EaseOut",
@@ -11816,8 +11816,8 @@
       ]
     },
     {
-      "name": "warband-recovery-left-fp",
-      "code": "warband-recovery-left-fp",
+      "name": "zornhau-recovery-left-fp",
+      "code": "zornhau-recovery-left-fp",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "EaseOut",
@@ -12395,8 +12395,8 @@
       ]
     },
     {
-      "name": "warband-recovery-overhead",
-      "code": "warband-recovery-overhead",
+      "name": "zornhau-recovery-overhead",
+      "code": "zornhau-recovery-overhead",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "EaseOut",
@@ -12556,8 +12556,8 @@
       ]
     },
     {
-      "name": "warband-recovery-overhead-fp",
-      "code": "warband-recovery-overhead-fp",
+      "name": "zornhau-recovery-overhead-fp",
+      "code": "zornhau-recovery-overhead-fp",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "EaseOut",
@@ -12717,8 +12717,8 @@
       ]
     },
     {
-      "name": "warband-recovery-right",
-      "code": "warband-recovery-right",
+      "name": "zornhau-recovery-right",
+      "code": "zornhau-recovery-right",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "EaseOut",
@@ -13296,8 +13296,8 @@
       ]
     },
     {
-      "name": "warband-recovery-right-fp",
-      "code": "warband-recovery-right-fp",
+      "name": "zornhau-recovery-right-fp",
+      "code": "zornhau-recovery-right-fp",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "EaseOut",
@@ -13875,8 +13875,8 @@
       ]
     },
     {
-      "name": "warband-recovery-thrust",
-      "code": "warband-recovery-thrust",
+      "name": "zornhau-recovery-thrust",
+      "code": "zornhau-recovery-thrust",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "EaseOut",
@@ -14037,8 +14037,8 @@
       "version": 0
     },
     {
-      "name": "warband-recovery-thrust-fp",
-      "code": "warband-recovery-thrust-fp",
+      "name": "zornhau-recovery-thrust-fp",
+      "code": "zornhau-recovery-thrust-fp",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "EaseOut",
@@ -14199,8 +14199,8 @@
       "version": 0
     },
     {
-      "name": "warband-swing-left",
-      "code": "warband-swing-left",
+      "name": "zornhau-swing-left",
+      "code": "zornhau-swing-left",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "EaseOut",
@@ -14550,8 +14550,8 @@
       ]
     },
     {
-      "name": "warband-swing-left-fp",
-      "code": "warband-swing-left-fp",
+      "name": "zornhau-swing-left-fp",
+      "code": "zornhau-swing-left-fp",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "EaseOut",
@@ -14901,8 +14901,8 @@
       ]
     },
     {
-      "name": "warband-swing-overhead",
-      "code": "warband-swing-overhead",
+      "name": "zornhau-swing-overhead",
+      "code": "zornhau-swing-overhead",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "EaseOut",
@@ -15100,8 +15100,8 @@
       ]
     },
     {
-      "name": "warband-swing-overhead-fp",
-      "code": "warband-swing-overhead-fp",
+      "name": "zornhau-swing-overhead-fp",
+      "code": "zornhau-swing-overhead-fp",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "EaseOut",
@@ -15299,8 +15299,8 @@
       ]
     },
     {
-      "name": "warband-swing-right",
-      "code": "warband-swing-right",
+      "name": "zornhau-swing-right",
+      "code": "zornhau-swing-right",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "EaseOut",
@@ -15647,8 +15647,8 @@
       ]
     },
     {
-      "name": "warband-swing-right-fp",
-      "code": "warband-swing-right-fp",
+      "name": "zornhau-swing-right-fp",
+      "code": "zornhau-swing-right-fp",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "EaseOut",
@@ -15998,8 +15998,8 @@
       ]
     },
     {
-      "name": "warband-swing-thrust",
-      "code": "warband-swing-thrust",
+      "name": "zornhau-swing-thrust",
+      "code": "zornhau-swing-thrust",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "EaseOut",
@@ -16198,8 +16198,8 @@
       "version": 0
     },
     {
-      "name": "warband-swing-thrust-fp",
-      "code": "warband-swing-thrust-fp",
+      "name": "zornhau-swing-thrust-fp",
+      "code": "zornhau-swing-thrust-fp",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "EaseOut",
@@ -16398,8 +16398,8 @@
       "version": 0
     },
     {
-      "name": "warband-windup-left-fp",
-      "code": "warband-windup-left-fp",
+      "name": "zornhau-windup-left-fp",
+      "code": "zornhau-windup-left-fp",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "Repeat",
@@ -16483,8 +16483,8 @@
       ]
     },
     {
-      "name": "warband-windup-overhead",
-      "code": "warband-windup-overhead",
+      "name": "zornhau-windup-overhead",
+      "code": "zornhau-windup-overhead",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "Repeat",
@@ -16568,8 +16568,8 @@
       ]
     },
     {
-      "name": "warband-windup-overhead-fp",
-      "code": "warband-windup-overhead-fp",
+      "name": "zornhau-windup-overhead-fp",
+      "code": "zornhau-windup-overhead-fp",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "Repeat",
@@ -16653,8 +16653,8 @@
       ]
     },
     {
-      "name": "warband-windup-right",
-      "code": "warband-windup-right",
+      "name": "zornhau-windup-right",
+      "code": "zornhau-windup-right",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "Repeat",
@@ -16738,8 +16738,8 @@
       ]
     },
     {
-      "name": "warband-windup-right-fp",
-      "code": "warband-windup-right-fp",
+      "name": "zornhau-windup-right-fp",
+      "code": "zornhau-windup-right-fp",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "Repeat",
@@ -16823,8 +16823,8 @@
       ]
     },
     {
-      "name": "warband-windup-thrust",
-      "code": "warband-windup-thrust",
+      "name": "zornhau-windup-thrust",
+      "code": "zornhau-windup-thrust",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "Repeat",
@@ -16909,8 +16909,8 @@
       "version": 0
     },
     {
-      "name": "warband-windup-thrust-fp",
-      "code": "warband-windup-thrust-fp",
+      "name": "zornhau-windup-thrust-fp",
+      "code": "zornhau-windup-thrust-fp",
       "quantityframes": 15,
       "onActivityStopped": "EaseOut",
       "onAnimationEnd": "Repeat",

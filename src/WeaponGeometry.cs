@@ -3,7 +3,7 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Client;
 using Vintagestory.API.MathTools;
 
-namespace WarbandCombat;
+namespace Zornhau;
 
 internal sealed class WeaponGeometry(ICoreAPI api)
 {

@@ -3,7 +3,7 @@ using HarmonyLib;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 
-namespace WarbandCombat;
+namespace Zornhau;
 
 // Check at the physics speed calculation too: an incoming control update must
 // not re-enable sprint between the combat system's ticks.

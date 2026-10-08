@@ -77,7 +77,7 @@ var badConfig = new MotionConfig { BodyTurnDegrees = float.NaN, WalkStride = 0, 
 badConfig.Sanitize(); Check(badConfig.BodyTurnDegrees == 28 && badConfig.WalkStride == .6f && badConfig.SprintStride == 4 && badConfig.Response == 12,
     "invalid configuration remains bounded");
 
-string game = Environment.GetEnvironmentVariable("VSPath") ?? "/home/dead/Documents/vintagestory";
+string game = Environment.GetEnvironmentVariable("VSPath") ?? Environment.GetEnvironmentVariable("VS_GAME_DIR") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Documents", "vintagestory");
 string text = File.ReadAllText(Path.Combine(game, "assets/game/shapes/entity/humanoid/seraph-faceless.json"));
 var shape = JsonConvert.DeserializeObject<Shape>(text)!;
 var library = new StockPoses(shape.Animations);
@@ -124,7 +124,7 @@ Near((backwardSprint.Cycle - backwardPhase + 1) % 1, .017 / (2 * config.SprintSt
     "backward sprint keeps the running step cadence while retaining the backwards clip");
 foreach (string name in new[] { "walk-fp", "walk-ifp", "walk-skirt", "sprint-fp", "sprint-ifp", "sprint-skirt", "sprint-holdskirt", "sprint-skirt-ifp" })
     Check(NativeLocomotion.Owns(name, true, true), "native clothing and first-person gait variants must be masked");
-foreach (string name in new[] { "rideelk-walk", "sneakwalk-fp", "warband-swing-right", "walkattack" })
+foreach (string name in new[] { "rideelk-walk", "sneakwalk-fp", "zornhau-swing-right", "walkattack" })
     Check(!NativeLocomotion.Owns(name, true, true), "unrelated movement and combat clips are retained");
 var airborneView = Settle(Input(0, vy: 2, ground: false));
 var viewPelvis = new ElementPose(); var viewChest = new ElementPose(); var viewHead = new ElementPose { degOffY = 13 };
@@ -192,7 +192,7 @@ Check(nativeLeg != null && Math.Abs(nativeLeg.degX) + Math.Abs(nativeLeg.degY) +
     "actual ClientAnimator applies directional gait on full stock skeleton");
 Check(nativeLeg!.AnimModelMatrix.All(float.IsFinite), "actual animated leg matrix is finite");
 Check(nativeAnimator.GetPosebyName("Head").AnimModelMatrix.All(float.IsFinite), "shared gait keeps native head matrix finite");
-entity.WatchedAttributes.SetInt("warbandPhase", 2);
+entity.WatchedAttributes.SetInt("zornhauPhase", 2);
 for (int i = 0; i < 90; i++) { now += 17; manager.OnClientFrame(.017f); }
 Near(nativeAnimator.GetPosebyName("LowerTorso").degY, 0, .001, "committed combat returns pelvis to authored heading");
 entity.OnGround = false; entity.Pos.Motion.Set(0, 4d / 60, 0);
@@ -204,7 +204,7 @@ Near(nativeAnimator.GetPosebyName("UpperArmR").degZ, 0, .001, "flight leaves com
 // Reproduce the user's case: actual native walking is running while our
 // directional correction renders the player. Different native phases must
 // produce the same legs AND torso, during walking and during a jump.
-entity.WatchedAttributes.SetInt("warbandPhase", 0); entity.OnGround = true;
+entity.WatchedAttributes.SetInt("zornhauPhase", 0); entity.OnGround = true;
 entity.Pos.Motion.Set(2d / 60, 0, 0);
 var walkClip = shape.Animations.Single(a => a.Code == "walk");
 Check(walkClip.PrevNextKeyFrameByFrame == null, "regression exercises lazy frame baking inside the patched player update");

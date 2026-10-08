@@ -1,4 +1,4 @@
-namespace WarbandCombat;
+namespace Zornhau;
 
 // Network corrections must not replay a committed swing on the owning client.
 // A new accepted Begin is the only way to open another attack presentation.

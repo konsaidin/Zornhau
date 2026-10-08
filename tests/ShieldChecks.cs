@@ -1,4 +1,4 @@
-using WarbandCombat;
+using Zornhau;
 using Vintagestory.API.Common;
 
 internal static class ShieldChecks

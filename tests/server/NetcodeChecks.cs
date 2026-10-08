@@ -8,7 +8,7 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Server;
 using Vintagestory.API.MathTools;
-using WarbandCombat;
+using Zornhau;
 
 internal static class NetcodeChecks
 {
@@ -99,7 +99,7 @@ internal static class NetcodeChecks
             ack.Revision = 2;
             Check(sync.Apply(ack, local, 1400, ref id) && local.Phase == Phase.Recovery && !local.CanHit(1400),
                 "A pre-release snapshot cannot reopen a locally consumed physical contact after input replay");
-            ack.Revision = 1; ack.Feedback = "warbandcombat:hit";
+            ack.Revision = 1; ack.Feedback = "zornhau:hit";
             Check(!sync.Apply(ack, local, 1450, ref id), "Older revisions cannot replay phase or HUD feedback");
         }
         // Continuous heartbeats make the server's acknowledged input older than
@@ -210,7 +210,7 @@ internal static class NetcodeChecks
         try
         {
             var native = typeof(OverhaulBridge).GetMethod("NativeContactHandler", All)!;
-            Check(!(bool)native.Invoke(null, [players["attacker"]])!, "Raw CO batches, pushes and statuses cannot bypass Warband ownership");
+            Check(!(bool)native.Invoke(null, [players["attacker"]])!, "Raw CO batches, pushes and statuses cannot bypass Zornhau ownership");
             object?[] args = [players["attacker"], new MeleeDamagePacket(), null];
             Check(!(bool)typeof(OverhaulBridge).GetMethod("AttackPrefix", All)!.Invoke(null, args)!,
                 "Bare CO damage packet has no authority without the matching wrapped attack ID");
@@ -221,7 +221,8 @@ internal static class NetcodeChecks
                 Serializer.Serialize(payload, new MeleeDamagePacket { DamageType = "SlashingAttack", Collider = "Head",
                     Position = [0, 1.6, 0], MainHand = true, AttackerEntityId = 100, TargetEntityId = 101 });
                 var receive = typeof(OverhaulBridge).GetMethod("ReceiveContact", All)!;
-                var envelope = new OverhaulContactPacket { AttackId = 41, Payload = payload.ToArray() };
+                var envelope = new OverhaulContactPacket { AttackId = 41, Payload = payload.ToArray(),
+                    Rotation = CombatTurnAuthority.Capture(attacker, true) };
                 receive.Invoke(bridge, [players["attacker"], envelope]);
                 Check(wrapped == 0, "Stale wrapped contact cannot consume the current attack");
                 envelope.AttackId = 42; receive.Invoke(bridge, [players["attacker"], envelope]);
@@ -238,7 +239,7 @@ internal static class NetcodeChecks
         finally { typeof(OverhaulBridge).GetField("serverBridge", All)!.SetValue(null, oldBridge); }
         using (var stream = new MemoryStream())
         {
-            var original = new OverhaulContactPacket { AttackId = 42, Payload = [1, 2, 3] };
+            var original = new OverhaulContactPacket { AttackId = 42, Payload = [1, 2, 3], Rotation = [1, 3, 2] };
             Serializer.Serialize(stream, original); stream.Position = 0;
             var copy = Serializer.Deserialize<OverhaulContactPacket>(stream);
             Check(copy.AttackId == 42 && copy.Payload.SequenceEqual(original.Payload), "Wire envelope retains attack identity and bounded native payload");
@@ -249,7 +250,12 @@ internal static class NetcodeChecks
         var rawChannel = Stub.Make<IClientNetworkChannel>((m, a) =>
         { if (m.Name == "SendPacket") rawSent++; return Stub.Default(m.ReturnType); });
         var network = Stub.Make<IClientNetworkAPI>((m, a) => m.Name == "GetChannel" ? clientChannel : Stub.Default(m.ReturnType));
-        var clientApi = Stub.Make<ICoreClientAPI>((m, a) => m.Name == "get_Network" ? network : Stub.Default(m.ReturnType));
+        var localPlayer = (Vintagestory.Client.NoObf.ClientPlayer)RuntimeHelpers.GetUninitializedObject(typeof(Vintagestory.Client.NoObf.ClientPlayer));
+        var localData = Vintagestory.Client.NoObf.ClientWorldPlayerData.CreateNew(); localData.EntityPlayer = attacker;
+        typeof(Vintagestory.Client.NoObf.ClientPlayer).GetField("worlddata", All)!.SetValue(localPlayer, localData);
+        var localWorld = Stub.Make<IClientWorldAccessor>((m, a) => m.Name == "get_Player" ? localPlayer : Stub.Default(m.ReturnType));
+        var clientApi = Stub.Make<ICoreClientAPI>((m, a) => m.Name switch
+        { "get_Network" => network, "get_World" => localWorld, _ => Stub.Default(m.ReturnType) });
         var localControls = (CombatClient)RuntimeHelpers.GetUninitializedObject(typeof(CombatClient));
         Set(localControls, "<CurrentAttackId>k__BackingField", 42);
         var clientCombat = new CombatSystem { Controls = localControls };
@@ -259,7 +265,7 @@ internal static class NetcodeChecks
         Set(nativeClient, "_clientChannel", rawChannel);
         var clientBridgeField = typeof(OverhaulBridge).GetField("clientBridge", All)!;
         var previousClientBridge = clientBridgeField.GetValue(null);
-        var hook = new Harmony("warband.tests.netcode-client-envelope");
+        var hook = new Harmony("zornhau.tests.netcode-client-envelope");
         try
         {
             clientBridgeField.SetValue(null, clientBridge);
@@ -270,6 +276,8 @@ internal static class NetcodeChecks
             using (CombatPrediction.Begin()) nativeClient.SendPackets(new[] { nativePacket, nativePacket });
             Check(sentEnvelopes.Count == 1 && rawSent == 0 && sentEnvelopes[0].AttackId == 42,
                 "Actual native client Harmony hook wraps one owned contact and sends no raw batch");
+            Check(sentEnvelopes[0].Rotation!.SequenceEqual(CombatTurnAuthority.Capture(attacker)),
+                "CO contact includes the character/model heading rather than the orbit camera heading");
             using var decoded = new MemoryStream(sentEnvelopes[0].Payload);
             Check(Serializer.Deserialize<MeleeDamagePacket>(decoded).Collider == "Head",
                 "Client interception preserves the real head collider in the native wire payload");

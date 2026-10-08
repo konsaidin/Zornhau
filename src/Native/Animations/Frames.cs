@@ -5,7 +5,7 @@ using OpenTK.Mathematics;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 
-namespace WarbandCombat.Native.Animations;
+namespace Zornhau.Native.Animations;
 
 public enum EnumAnimatedElement
 {

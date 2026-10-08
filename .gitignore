@@ -16,3 +16,15 @@ tests/standalone/bin/
 tests/standalone/obj/
 tools/TrainingSmoke/bin/
 tools/TrainingSmoke/obj/
+
+# Local notes, IDE state and runtime data do not belong in the source repository.
+.local-notes/
+.idea/
+.vscode/
+*.log
+.env
+.env.*
+*.key
+*.pem
+*.vcdbs
+*.vcdbs-*

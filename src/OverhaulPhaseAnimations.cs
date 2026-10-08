@@ -1,14 +1,14 @@
 using CombatOverhaul.Animations;
 using Newtonsoft.Json;
 
-namespace WarbandCombat;
+namespace Zornhau;
 
 // Overhaul clips include their own windup, contact and recovery. Split those
-// poses while retaining Warband's independent server-controlled timings.
+// poses while retaining Zornhau's independent server-controlled timings.
 internal static class OverhaulPhaseAnimations
 {
     internal static string Code(string source, string phase, int strike = 140)
-        => "warbandcombat:co-" + source.Replace(':', '-').Replace('/', '-') + "-" + phase
+        => "zornhau:co-" + source.Replace(':', '-').Replace('/', '-') + "-" + phase
             + (phase == "swing" ? "-" + strike : "");
 
     internal static Dictionary<string, AnimationJson> Split(string code, AnimationJson source)
@@ -87,7 +87,7 @@ internal static class OverhaulPhaseAnimations
     private static AnimationJson Clip(PLayerKeyFrameJson[] frames, bool hold) => new()
     {
         PlayerKeyFrames = frames, Hold = hold,
-        // No native attack/block callbacks: Warband owns every state transition.
+        // No native attack/block callbacks: Zornhau owns every state transition.
         CallbackFrames = Array.Empty<CallbackFrameJson>(),
         SoundFrames = Array.Empty<SoundFrameJson>()
     };

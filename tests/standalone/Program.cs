@@ -8,7 +8,7 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
-using WarbandCombat;
+using Zornhau;
 
 int checks = 0;
 void Check(bool ok, string message) { if (!ok) throw new Exception(message); checks++; }
@@ -72,7 +72,7 @@ Check(box.Contact(new(new(0, 0, .1), new(0, 0, .8)), 0, out _, out _), "Exact cu
 var wall = new[] { PhysicalBox.FromCuboid(new Cuboidf(.25f, -1, -1, .35f, 1, 1), Vector3d.Zero) };
 Check(StandalonePhysics.TerrainStop(new(Vector3d.Zero, Vector3d.UnitX), .03, wall) < .5, "Physical wall blocks the blade before a target behind it");
 
-string game = Environment.GetEnvironmentVariable("VSPath") ?? "/home/dead/Documents/vintagestory";
+string game = Environment.GetEnvironmentVariable("VSPath") ?? Environment.GetEnvironmentVariable("VS_GAME_DIR") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Documents", "vintagestory");
 int shapes = 0;
 foreach (var family in new[] { "blade", "knife", "spear", "axe" })
 foreach (string path in Directory.EnumerateFiles(game + "/assets/survival/shapes/item/tool/" + family, "*.json", SearchOption.AllDirectories))
@@ -101,12 +101,13 @@ Check(!StandalonePhysics.ValidateBlade(segment, segment, new(0, .5, .5), Vector3
 Check(!StandalonePhysics.ValidateBlade(segment, segment, new(0, .5, .5), Vector3d.Zero, 3, 1, .04, double.NaN), "Nonfinite sweep fraction is rejected");
 Check(!StandalonePhysics.ValidateBlade(segment, new(new(3, .5, 0), new(3, .5, 1)), new(0, .5, .5), Vector3d.Zero, 6, 1, .04, 0), "Teleport-sized sweep is rejected");
 
-var packet = new BladeContactPacket { AttackId = 123, Target = 82, Blade = 0, Previous = segment.Pack(), Current = segment.Pack(), Fraction = 1, Point = new[] { 0d, .5, .5 } };
+var packet = new BladeContactPacket { AttackId = 123, Target = 82, Blade = 0, Previous = segment.Pack(), Current = segment.Pack(), Fraction = 1, Point = new[] { 0d, .5, .5 }, Rotation = [1, 3, 2] };
 using (var buffer = new MemoryStream())
 {
     Serializer.Serialize(buffer, packet); buffer.Position = 0;
     var copy = Serializer.Deserialize<BladeContactPacket>(buffer);
-    Check(copy.AttackId == 123 && copy.Target == 82 && copy.Previous.SequenceEqual(packet.Previous), "Contact protocol preserves geometry and exact attack ID");
+    Check(copy.AttackId == 123 && copy.Target == 82 && copy.Previous.SequenceEqual(packet.Previous)
+        && copy.Rotation!.SequenceEqual(packet.Rotation), "Contact protocol preserves geometry, rotation and exact attack ID");
 }
 foreach (var tool in new[] { EnumTool.Sword, EnumTool.Spear, EnumTool.Axe, EnumTool.Knife })
 {
@@ -137,6 +138,7 @@ var api = Stub.Make<ICoreServerAPI>((m, a) => m.Name switch
     _ => Stub.Default(m.ReturnType)
 });
 ownerEntity.Api = target.Api = api; ownerEntity.World = target.World = world;
+packet.Rotation = CombatTurnAuthority.Capture(ownerEntity, true);
 ownerEntity.Right.Itemstack = new ItemStack(weapon);
 var owner = Stub.Player(ownerEntity); Stub.Privileges = true;
 var system = new CombatSystem(); const BindingFlags fields = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
@@ -150,7 +152,8 @@ var geom = (WeaponGeometry)typeof(StandalonePhysics).GetField("geometry", fields
 ((Dictionary<int, BladePiece[]>)typeof(WeaponGeometry).GetField("profiles", fields)!.GetValue(geom)!)[710] = new[] { new BladePiece(segment, .04) };
 void Begin()
 {
-    state.Reset(); state.Apply(Command.Begin, Direction.Right, 1000, CombatSystem.Timing(weapon));
+    state.Reset(); CombatTurnAuthority.Observe(ownerEntity);
+    state.Apply(Command.Begin, Direction.Right, 1000, CombatSystem.Timing(weapon));
     state.Apply(Command.Release, Direction.Right, 1001, CombatSystem.Timing(weapon));
 }
 Begin(); packet.AttackId = 122; standalone.OnContact(owner, packet);
@@ -168,6 +171,8 @@ Stub.Privileges = true; ownerEntity.Pos.Dimension = target.Pos.Dimension = 1;
 double dimensionY = ownerEntity.Pos.InternalY;
 packet.Previous = packet.Current = new BladeSegment(new(0, dimensionY + .5, 0), new(0, dimensionY + .5, 1)).Pack();
 packet.Point = new[] { 0d, dimensionY + .5, .5 }; standalone.OnContact(owner, packet);
+Check(state.Phase == Phase.Recovery && weapon.Attacks == 1, "Changing dimension cancels the old attack before a contact can migrate with it");
+Begin(); standalone.OnContact(owner, packet);
 Check(state.Phase == Phase.Recovery && weapon.Attacks == 2, "Physical contacts use dimension-aware world coordinates on the server");
 standalone.Dispose();
 NativeChecks.Run(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../")), Check);

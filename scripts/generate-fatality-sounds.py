@@ -52,9 +52,9 @@ def synthesize(family, variant):
 
 
 def main():
-    destination = ROOT / 'assets/warbandcombat/sounds/fatalities'
+    destination = ROOT / 'assets/zornhau/sounds/fatalities'
     destination.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix='warband-gore-audio-') as scratch:
+    with tempfile.TemporaryDirectory(prefix='zornhau-gore-audio-') as scratch:
         for family in ('sever', 'crush', 'land'):
             for variant in (1, 2):
                 source = Path(scratch) / f'{family}{variant}.wav'

@@ -8,14 +8,14 @@ using Vintagestory.API.Server;
 using Vintagestory.API.Util;
 using Vintagestory.GameContent;
 
-namespace WarbandCombat;
+namespace Zornhau;
 
 // Use the game's account-free seraph, with the same skeleton and clothing
 // renderer as a player. Keep game-domain references when cloning its config.
 public sealed class TrainingDummy : EntityPlayerBot
 {
-    internal static readonly AssetLocation TypeCode = new("game:warband-trainingdummy");
-    internal const string ClassName = "WarbandTrainingDummy";
+    internal static readonly AssetLocation TypeCode = new("game:zornhau-trainingdummy");
+    internal const string ClassName = "ZornhauTrainingDummy";
     internal long ReviveAt;
     private ILoadedSound? deathVoice;
     private long deathVoiceAt;
@@ -161,9 +161,9 @@ internal sealed class TrainingDummies : IDisposable
         position.Yaw = GameMath.Mod(position.Yaw + GameMath.PI, GameMath.TWOPI);
         position.Pitch = 0; position.Roll = 0;
         dummy.Pos.SetFrom(position);
-        dummy.WatchedAttributes.SetString("warbandDummyMode", mode);
-        dummy.WatchedAttributes.SetString("warbandDummyOwner", player.PlayerUID);
-        dummy.WatchedAttributes.SetFloat("warbandDummyHealth", mode == "normal" ? 15 : 1);
+        dummy.WatchedAttributes.SetString("zornhauDummyMode", mode);
+        dummy.WatchedAttributes.SetString("zornhauDummyOwner", player.PlayerUID);
+        dummy.WatchedAttributes.SetFloat("zornhauDummyHealth", mode == "normal" ? 15 : 1);
         dummy.WatchedAttributes["nametag"] = new TreeAttribute();
         dummy.WatchedAttributes.GetTreeAttribute("nametag").SetString("name", mode == "helmet" ? "Болванчик · шлем" : "Болванчик");
         api.World.SpawnEntity(dummy);
@@ -181,14 +181,14 @@ internal sealed class TrainingDummies : IDisposable
         dummy.Revive(); dummy.DespawnReason = null; dummy.ReviveAt = 0;
         var health = dummy.GetBehavior<EntityBehaviorHealth>()
             ?? throw new InvalidOperationException("Training dummy health behavior missing");
-        float amount = dummy.WatchedAttributes.GetFloat("warbandDummyHealth", 15);
+        float amount = dummy.WatchedAttributes.GetFloat("zornhauDummyHealth", 15);
         health.BaseMaxHealth = health.MaxHealth = health.Health = amount;
         health.ActiveDoTEffects.Clear();
         var gear = dummy.GetBehavior<EntityBehaviorSeraphInventory>()
             ?? throw new InvalidOperationException("Training dummy inventory behavior missing");
         var inventory = gear.Inventory;
         inventory.DiscardAll();
-        if (dummy.WatchedAttributes.GetString("warbandDummyMode") == "helmet")
+        if (dummy.WatchedAttributes.GetString("zornhauDummyMode") == "helmet")
         {
             var helmet = api.World.GetItem(new AssetLocation("game:armor-head-plate-iron"));
             if (helmet == null) throw new InvalidOperationException("Training helmet item missing");

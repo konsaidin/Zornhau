@@ -10,8 +10,10 @@
   <ItemGroup><Compile Include="../src/CombatAnimations.cs" Link="CombatAnimations.cs" /></ItemGroup>
   <ItemGroup><Compile Include="../src/CombatIntegration.cs" Link="CombatIntegration.cs" /></ItemGroup>
   <ItemGroup><Compile Include="../src/CombatShields.cs" Link="CombatShields.cs" /></ItemGroup>
+  <ItemGroup><Compile Include="../src/CombatBalance.cs" Link="CombatBalance.cs" /></ItemGroup>
   <ItemGroup><Compile Include="../src/CombatAim.cs" Link="CombatAim.cs" /></ItemGroup>
   <ItemGroup><Compile Remove="overhaul/**/*.cs" /><Compile Remove="server/**/*.cs" /><Compile Remove="standalone/**/*.cs" /><Compile Remove="shared/**/*.cs" /></ItemGroup>
-  <PropertyGroup><VSPath Condition="'$(VSPath)' == ''">/home/dead/Documents/vintagestory</VSPath></PropertyGroup>
+  <PropertyGroup></PropertyGroup>
   <ItemGroup><Reference Include="VintagestoryAPI"><HintPath>$(VSPath)/VintagestoryAPI.dll</HintPath></Reference></ItemGroup>
+  <ItemGroup><Reference Include="Newtonsoft.Json"><HintPath>$(VSPath)/Lib/Newtonsoft.Json.dll</HintPath></Reference></ItemGroup>
 </Project>

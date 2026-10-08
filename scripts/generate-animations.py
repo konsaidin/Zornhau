@@ -83,7 +83,7 @@ contact_wrists = {}
 for action in ('windup', 'swing', 'block', 'recovery'):
     for direction in windups:
         for fp in (False, True):
-            code = f'warband-{action}-{direction}' + ('-fp' if fp else '')
+            code = f'zornhau-{action}-{direction}' + ('-fp' if fp else '')
             windup = with_body(windups[direction], body_windups[direction])
             end = with_body(ends[direction], body_hits[direction])
             contact_body = (-4, 0, 0) if direction in ('left', 'right') else body_hits[direction]
@@ -177,7 +177,7 @@ for action in ('windup', 'swing', 'block', 'recovery'):
             }
             patches.append({'op': 'add', 'file': 'game:entities/humanoid/player.json',
                             'path': '/client/animations/-', 'side': 'Server', 'value': metadata})
-output = ROOT / 'assets/warbandcombat/patches/animations.json'
+output = ROOT / 'assets/zornhau/patches/animations.json'
 output.parent.mkdir(parents=True, exist_ok=True)
 output.write_text(json.dumps(patches, indent=2) + '\n')
 print(f'Generated {len(patches)} animation patches')

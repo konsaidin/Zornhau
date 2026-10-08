@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><TargetFramework>net10.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><VSPath Condition="'$(VSPath)' == ''">/home/dead/Documents/vintagestory</VSPath></PropertyGroup>
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
   <ItemGroup>
-    <Reference Include="WarbandCombat"><HintPath>../../bin/Release/net10.0/WarbandCombat.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Zornhau"><HintPath>../../bin/Release/net10.0/Zornhau.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="VintagestoryAPI"><HintPath>$(VSPath)/VintagestoryAPI.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="VSEssentials"><HintPath>$(VSPath)/Mods/VSEssentials.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="VSSurvivalMod"><HintPath>$(VSPath)/Mods/VSSurvivalMod.dll</HintPath><Private>false</Private></Reference>

@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def run(args):
     game = Path(args.game).resolve()
     version = json.loads((ROOT / 'modinfo.json').read_text())['version']
-    package = ROOT / 'dist' / f'warbandcombat-{version}.zip'
+    package = ROOT / 'dist' / f'zornhau-{version}.zip'
     if not package.exists(): raise FileNotFoundError(f'Build the mod first: {package}')
     if args.training_smoke:
         subprocess.run([args.dotnet, 'build', str(ROOT / 'tools/TrainingSmoke/TrainingSmoke.csproj'),
@@ -25,7 +25,7 @@ def run(args):
         with zipfile.ZipFile(training, 'w', zipfile.ZIP_DEFLATED) as archive:
             archive.writestr('modinfo.json', json.dumps(dict(type='code', modid='trainingsmoke',
                 name='Developer training integration check', version='1.0.0', side='server',
-                authors=['Warband Combat developers'], dependencies=dict(warbandcombat=version))))
+                authors=['Zornhau developers'], dependencies=dict(zornhau=version))))
             archive.write(ROOT / 'tools/TrainingSmoke/bin/Release/net10.0/TrainingSmoke.dll', 'TrainingSmoke.dll')
     if not args.smoke:
         subprocess.run([args.dotnet, 'build', str(ROOT / 'tools/BalanceAudit/BalanceAudit.csproj'),
@@ -33,7 +33,7 @@ def run(args):
         audit = ROOT / '.artifacts/balanceaudit.zip'
         with zipfile.ZipFile(audit, 'w', zipfile.ZIP_DEFLATED) as archive:
             archive.writestr('modinfo.json', json.dumps(dict(type='code', modid='balanceaudit',
-                name='Developer balance audit', version='1.0.1', side='server', authors=['Warband Combat developers'])))
+                name='Developer balance audit', version='1.0.1', side='server', authors=['Zornhau developers'])))
             archive.write(ROOT / 'tools/BalanceAudit/bin/Release/net10.0/BalanceAudit.dll', 'BalanceAudit.dll')
     stamp = datetime.now().strftime('%Y%m%d-%H%M%S')
     contexts = ('vanilla', 'co') if args.context == 'both' else (args.context,)
@@ -50,7 +50,7 @@ def run(args):
             sources = fetcher.fetch()
             for entry in json.loads((ROOT / 'compat/overhaul-modpack.json').read_text())['packages']:
                 shutil.copy2(sources / entry['file'], mods / entry['file'])
-        config = dict(ServerName='Isolated Warband balance check', Ip='127.0.0.1',
+        config = dict(ServerName='Isolated Zornhau balance check', Ip='127.0.0.1',
             Port=args.port + (context == 'co'), AdvertiseServer=False, Upnp=False,
             AllowPvP=True, DefaultRoleCode='suplayer', ModPaths=[str(game / 'Mods'), str(mods)],
             Roles=[dict(Code='suplayer', PrivilegeLevel=0, Name='Balance tester', DefaultGameMode=1,
@@ -62,12 +62,12 @@ def run(args):
         (profile / 'serverconfig.json').write_text(json.dumps(config))
         output = ROOT / '.artifacts' / f'balance-{context}.json'
         environment = os.environ.copy()
-        environment.pop('WARBAND_BALANCE_AUDIT', None)
-        environment.pop('WARBAND_TRAINING_SMOKE', None)
-        if args.training_smoke: environment['WARBAND_TRAINING_SMOKE'] = '1'
+        environment.pop('ZORNHAU_BALANCE_AUDIT', None)
+        environment.pop('ZORNHAU_TRAINING_SMOKE', None)
+        if args.training_smoke: environment['ZORNHAU_TRAINING_SMOKE'] = '1'
         if not args.smoke:
             output.unlink(missing_ok=True)
-            environment['WARBAND_BALANCE_AUDIT'] = str(output)
+            environment['ZORNHAU_BALANCE_AUDIT'] = str(output)
         log = profile / 'console.log'
         with log.open('w') as stream:
             process = subprocess.Popen([args.dotnet, str(game / 'VintagestoryServer.dll'),
@@ -78,7 +78,7 @@ def run(args):
                 while time.monotonic() < deadline:
                     contents = log.read_text(errors='replace')
                     if 'Entering runphase RunGame' in contents:
-                        if '[Warband Combat] Loaded ' not in contents: raise RuntimeError('Balance profiles were not loaded')
+                        if '[Zornhau] Loaded ' not in contents: raise RuntimeError('Balance profiles were not loaded')
                         if not args.smoke and not output.exists(): raise RuntimeError('Audit did not export')
                         if not args.training_smoke or '[Training Smoke] PASS:' in contents: break
                     if '[Training Smoke] FAILED:' in contents: raise RuntimeError(f'Training integration failed: {log}')
@@ -103,8 +103,9 @@ def run(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--game', default='/home/dead/Documents/vintagestory')
-    parser.add_argument('--dotnet', default=os.environ.get('VS_DOTNET', '/home/dead/.local/share/vs-combat-dotnet/dotnet'))
+    parser.add_argument('--game', default=os.environ.get('VSPath', os.environ.get('VS_GAME_DIR', str(Path.home() / 'Documents/vintagestory'))))
+    local_sdk = Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share'))) / 'vs-combat-dotnet/dotnet'
+    parser.add_argument('--dotnet', default=os.environ.get('VS_DOTNET', str(local_sdk) if local_sdk.is_file() else (shutil.which('dotnet') or 'dotnet')))
     parser.add_argument('--context', choices=('vanilla', 'co', 'both'), default='both')
     parser.add_argument('--port', type=int, default=25568)
     parser.add_argument('--smoke', action='store_true', help='Validate the packaged mod without the audit plugin')

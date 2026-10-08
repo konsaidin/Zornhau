@@ -9,10 +9,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('model', type=Path)
-parser.add_argument('--output', type=Path, default=ROOT / 'assets/warbandcombat/patches/animations.json')
+parser.add_argument('--output', type=Path, default=ROOT / 'assets/zornhau/patches/animations.json')
 args = parser.parse_args()
 model = json.loads(args.model.read_text())
-patches = json.loads((ROOT / 'assets/warbandcombat/patches/animations.json').read_text())
+patches = json.loads((ROOT / 'assets/zornhau/patches/animations.json').read_text())
 known = {p['value']['code'] for p in patches if p['file'].endswith('/seraph.json')}
 supported = {'UpperArmR', 'LowerArmR', 'ItemAnchor', 'UpperTorso', 'Neck', 'Head'}
 clips = {}

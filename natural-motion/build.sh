@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
-SDK_BIN="${VS_DOTNET:-/home/dead/.local/share/vs-combat-dotnet/dotnet}"
+source "../scripts/common.sh"
 "$SDK_BIN" build NaturalMotion.csproj -c Release --nologo
 "$SDK_BIN" run --project tests/NaturalMotion.Tests.csproj -c Release --nologo
 python3 - <<'PY'

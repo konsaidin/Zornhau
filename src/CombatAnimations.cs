@@ -1,7 +1,7 @@
 using Vintagestory.API.Common;
 using System.Runtime.CompilerServices;
 
-namespace WarbandCombat;
+namespace Zornhau;
 
 internal static class CombatAnimations
 {
@@ -11,12 +11,12 @@ internal static class CombatAnimations
 
     internal static bool OnLocalAnimationStart(ref AnimationMetaData animation, ref EnumHandling handling)
     {
-        if (ownedStartDepth > 0 && ownedSpeed.HasValue && animation.Code?.StartsWith("warband-", StringComparison.Ordinal) == true)
+        if (ownedStartDepth > 0 && ownedSpeed.HasValue && animation.Code?.StartsWith("zornhau-", StringComparison.Ordinal) == true)
         {
             animation = animation.Clone(); animation.AnimationSpeed = ownedSpeed.Value;
         }
-        if (ownedStartDepth == 0 && (animation.Code?.StartsWith("warband-", StringComparison.Ordinal) == true
-            || animation.Animation?.StartsWith("warband-", StringComparison.Ordinal) == true))
+        if (ownedStartDepth == 0 && (animation.Code?.StartsWith("zornhau-", StringComparison.Ordinal) == true
+            || animation.Animation?.StartsWith("zornhau-", StringComparison.Ordinal) == true))
         {
             handling = EnumHandling.PreventSubsequent;
             return false;
@@ -41,7 +41,7 @@ internal static class CombatAnimations
         finally { ownedStartDepth--; ownedSpeed = previous; }
     }
     internal static readonly string[] Codes =
-        (from prefix in new[] { "warband", "warband-body" }
+        (from prefix in new[] { "zornhau", "zornhau-body" }
          from action in new[] { "windup", "swing", "block", "recovery" }
          from direction in Enum.GetValues<Direction>()
          select $"{prefix}-{action}-{direction.ToString().ToLowerInvariant()}").Append("raiseshield-left").ToArray();
@@ -53,7 +53,7 @@ internal static class CombatAnimations
             : CombatPresentation.CombatAnimationsAction(fighter, now);
         bool native = integration?.Animate(player, fighter, now, action) == true
             || standalone?.Animate(player, fighter, now, action) == true;
-        string prefix = native ? "warband-body" : "warband";
+        string prefix = native ? "zornhau-body" : "zornhau";
         string? desired = !native && action == "block" && fighter.ShieldGuard ? "raiseshield-left"
             : action == null ? null : $"{prefix}-{action}-{fighter.Direction.ToString().ToLowerInvariant()}";
         if (!selections.GetOrCreateValue(player).Change(desired)) return;
@@ -63,7 +63,7 @@ internal static class CombatAnimations
         // them just because the animator no longer reports them as active.
         if (desired != null)
         {
-            if (!native && desired.StartsWith("warband-", StringComparison.Ordinal) && fighter.Timing.PhysicalContacts)
+            if (!native && desired.StartsWith("zornhau-", StringComparison.Ordinal) && fighter.Timing.PhysicalContacts)
             {
                 double remaining = action switch
                 {

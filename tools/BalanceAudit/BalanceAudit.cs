@@ -3,21 +3,37 @@ using System.Reflection;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Vintagestory.API.Common;
+using Vintagestory.API.Server;
 
 // A separate developer-only mod. Run it in an isolated headless profile to
 // export the game's resolved variants/ByType patches, not guessed raw JSON.
 public sealed class BalanceAudit : ModSystem
 {
     public override double ExecuteOrder() => 1000;
-    public override void AssetsFinalize(ICoreAPI api)
+    public override void StartServerSide(ICoreServerAPI api)
+        => api.Event.ServerRunPhase(EnumServerRunPhase.GameReady, () => Export(api));
+
+    private static void Export(ICoreAPI api)
     {
-        string? destination = Environment.GetEnvironmentVariable("WARBAND_BALANCE_AUDIT");
+        string? destination = Environment.GetEnvironmentVariable("ZORNHAU_BALANCE_AUDIT");
         if (api.Side != EnumAppSide.Server || destination == null) return;
         var items = new JArray();
+        var armors = new JArray();
         foreach (var item in api.World.Items)
         {
             if (item?.Code == null) continue;
             var attrs = item.Attributes == null ? new JObject() : JObject.Parse(item.Attributes.ToString()!);
+            var armor = item.CollectibleBehaviors?.FirstOrDefault(b => b.GetType().FullName == "CombatOverhaul.Armor.ArmorBehavior");
+            if (armor != null)
+                armors.Add(new JObject {
+                    ["code"] = item.Code.ToString(), ["durability"] = item.GetMaxDurability(new ItemStack(item)),
+                    ["type"] = JToken.FromObject(Read(armor, "ArmorType")!),
+                    ["resists"] = JToken.FromObject(Read(armor, "Resists")!),
+                    ["resistsByType"] = JToken.FromObject(Read(armor, "ResistsByType")!),
+                    ["stats"] = JToken.FromObject(Read(armor, "Stats")!)
+                });
+            else if (attrs["protectionModifiers"] is JObject protection)
+                armors.Add(new JObject { ["code"] = item.Code.ToString(), ["protection"] = protection });
             if (item.Tool is not (EnumTool.Sword or EnumTool.Spear or EnumTool.Axe or EnumTool.Knife)
                 && !attrs.Properties().Any(p => p.Name is "OneHandedStance" or "TwoHandedStance" or "Modes")) continue;
             var stack = new ItemStack(item);
@@ -42,7 +58,11 @@ public sealed class BalanceAudit : ModSystem
                 foreach (var value in values) entries.Add(Recipe(value!));
             recipes[name] = entries;
         }
-        File.WriteAllText(destination, new JObject { ["items"] = items, ["recipes"] = recipes }.ToString(Formatting.None));
+        var resistType = AppDomain.CurrentDomain.GetAssemblies().SelectMany(Types)
+            .FirstOrDefault(t => t.FullName == "CombatOverhaul.DamageSystems.DamageResistData");
+        File.WriteAllText(destination, new JObject { ["items"] = items, ["recipes"] = recipes,
+            ["armors"] = armors, ["armorDamageReduction"] = resistType == null ? null
+                : JToken.FromObject(resistType.GetProperty("DamageReduction")!.GetValue(null)!) }.ToString(Formatting.None));
         api.Logger.Notification("[Balance Audit] Exported {0} melee/tool variants to {1}", items.Count, destination);
     }
 

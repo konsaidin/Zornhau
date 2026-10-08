@@ -8,7 +8,7 @@ using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.API.Util;
-using WarbandCombat;
+using Zornhau;
 
 internal static class FatalityChecks
 {
@@ -263,7 +263,7 @@ internal static class FatalityChecks
                 int count = sent.Count; manager.OnDeath(victim, source);
                 check(sent.Count == count, "Repeated death callbacks cannot duplicate effects or fragments");
                 manager.Reset(victim);
-                check(victim.WatchedAttributes.GetInt(FatalityRules.Attribute) == 0 && victim.WatchedAttributes.GetString("warbandCrushedHelmet") == "", "Revival clears mesh deformation metadata");
+                check(victim.WatchedAttributes.GetInt(FatalityRules.Attribute) == 0 && victim.WatchedAttributes.GetString("zornhauCrushedHelmet") == "", "Revival clears mesh deformation metadata");
             }
             sent.Clear();
             var moving = new Holder { Api = api, World = world, Alive = true, EntityId = 8999 };

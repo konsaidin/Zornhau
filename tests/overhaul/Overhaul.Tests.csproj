@@ -4,7 +4,6 @@
     <OutputType>Exe</OutputType>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <VSPath Condition="'$(VSPath)' == ''">/home/dead/Documents/vintagestory</VSPath>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../src/CombatGuardAnimations.cs" Link="CombatGuardAnimations.cs" />

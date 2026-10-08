@@ -146,16 +146,31 @@ def refresh():
                 for pattern, stance in stats.get('MainHandDualWieldStances', {}).items(): stances['dual:' + pattern] = stance
                 for name, stance in stances.items():
                     can_attack = not co or stance.get('CanAttack', False)
+                    directions = {d: source_damage(item, stance, d) for d in DIRECTIONS}
+                    old_directions = {d: source_damage(item, stance, d, False) for d in DIRECTIONS}
+                    # Native CO changes a lone dagger's top/side contacts to
+                    # slashing. Dual daggers retain their authored piercing.
+                    if co and 'dagger' in item['code'].split(':')[-1].split('-') and not name.startswith('dual:'):
+                        for values in (directions, old_directions):
+                            for d in ('Overhead', 'Right', 'Left'):
+                                if values[d]['type'] == 'PiercingAttack': values[d]['type'] = 'SlashingAttack'
                     # A true two-handed-only vanilla ruin is not an ordinary
                     # one-handed craft. Keep the stock offhand exception visible.
                     result.append({'context': context, 'code': item['code'], 'mode': mode, 'stance': name,
                         'hands': 2 if name == 'two' else 1, 'canAttack': can_attack,
                         'tool': item['tool'], 'material': material(item['code']), 'durability': item['durability'],
                         'native': co, 'oldTiming': old_timing(item['code'], item['tool'], co),
-                        'directions': {d: source_damage(item, stance, d) for d in DIRECTIONS},
-                        'oldDirections': {d: source_damage(item, stance, d, False) for d in DIRECTIONS},
+                        'directions': directions, 'oldDirections': old_directions,
                         'crafting': steps, 'smithing': forged})
     (ROOT / 'balance/catalog.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n')
+    data = json.loads((ROOT / '.artifacts/balance-co.json').read_text())
+    armor = {'context': 'co', 'game': '1.22.7', 'co': '0.18.8', 'armory': '1.11.3',
+             'damageReduction': data['armorDamageReduction'], 'items': data['armors']}
+    (ROOT / 'balance/armor-catalog.json').write_text(json.dumps(armor, ensure_ascii=False, indent=2) + '\n')
+    fixture_codes = {'armory:dagger-long-plain-iron', 'armory:sword-great-plain-iron',
+                     'game:spear-generic-iron', 'armory:mace-plain-steel'}
+    (ROOT / 'balance/integration-weapons.json').write_text(json.dumps(
+        [item for item in data['items'] if item['code'] in fixture_codes], ensure_ascii=False, indent=2) + '\n')
     print('Captured resolved profiles:', len(result))
 
 
@@ -176,25 +191,32 @@ def generate():
                    'Class': row['material'] + '-' + str(row['hands']) + 'h', 'Family': fam,
                    'Windup': w, 'Strike': s, 'Recovery': r, 'Power': power,
                    'SourcePower': [row['directions'][d]['power'] for d in DIRECTIONS]}
+        floors = POLICY['armor']['families'].get(fam, {}) if row['context'] == 'co' and row['material'] in POLICY['armor']['materials'] else {}
+        piercing = {kind: min(floor, max(0, POLICY['armor']['tierCeilings'][kind]
+            - max((c['tier'] for c in row['directions'].values() if c['type'] == kind), default=0)))
+            for kind, floor in floors.items()}
+        profile['ArmorPiercing'] = piercing
         runtime[row['context']][row['code']].append(profile)
         oldw, olds, oldr = row['oldTiming']
         oldpower = [row['oldDirections'][d]['power'] * bonus(row['tool'], d) for d in DIRECTIONS]
         newpower = [power * bonus(row['tool'], d) for d in DIRECTIONS]
-        summary = dict(row, family=fam, timing=[w, s, r], cycle=cycle, target=goal, newPower=newpower,
+        summary = dict(row, family=fam, timing=[w, s, r], cycle=cycle, target=goal, newPower=newpower, armorPiercing=piercing,
                        newDps=statistics.mean(newpower) * 1000 / cycle,
                        oldDpsEarly=statistics.mean(oldpower) * 1000 / (oldw + oldr),
                        oldDpsMid=statistics.mean(oldpower) * 1000 / (oldw + olds / 2 + oldr),
                        oldDpsLate=statistics.mean(oldpower) * 1000 / (oldw + olds + 50 + oldr))
         detail.append(summary)
         if row['canAttack']: classes[(row['material'], row['hands'], row['context'])].append(summary)
-    asset = ROOT / 'assets/warbandcombat/config/balance-profiles.json'
+    asset = ROOT / 'assets/zornhau/config/balance-profiles.json'
     asset.write_text(json.dumps(runtime, ensure_ascii=False, separators=(',', ':')) + '\n')
     write_docs(detail, classes)
+    from armor_balance import write_armor_docs
+    write_armor_docs(ROOT, detail, POLICY)
     print(f'Generated {len(detail)} balance profiles and detailed tables')
 
 
 def write_docs(rows, classes):
-    doc = ['# Баланс оружия 0.6.0', '',
+    doc = ['# Zornhau — баланс оружия 0.8.0', '',
         'Снимок реально загруженных предметов и рецептов VS 1.22.7; CO Fork 0.18.8, Armory Fork 1.11.3, Overhaullib Legacy 1.2.14. '
         'Варианты и ByType уже раскрыты самим движком. `balance/catalog.json` содержит исходные числа и цепочки рецептов; '
         '`balance/policy.json` задаёт цели; `scripts/generate-balance.py` генерирует эту таблицу и runtime-профили из одного источника.', '',
@@ -222,7 +244,11 @@ def write_docs(rows, classes):
         '- Стрельба, метание, удар щитом, CO HandleAttack/Bash и административные предметы не включены в нормализацию. '
         'Обычное использование ножей/топоров как инструментов сохраняется.',
         '- Новые профили выбираются по реальной стойке и режиму на клиенте и сервере. '
-        'Стойка с CanAttack=false не получает разрешения на начало удара.', '',
+        'Стойка с CanAttack=false не получает разрешения на начало удара.',
+        '- В 0.8.0 для PvP с CO добавлены минимумы пробития по семейству и фактическому типу контакта. '
+        'Исходное пробитие выше минимума сохраняется, бонусы качества прибавляются после него. '
+        'Броня и её коэффициенты не изменяются; для PvE и самостоятельной игры эти минимумы не применяются. '
+        'Матрица комплектов: [ARMOR-BALANCE.md](ARMOR-BALANCE.md).', '',
         '## Классы стоимости', '',
         '| Материал | Руки | Набор | Профилей | Старый средний DPS (середина реза) | Новый средний / min–max DPS | Технология |',
         '| --- | ---: | --- | ---: | ---: | ---: | --- |']
@@ -301,7 +327,8 @@ def write_docs(rows, classes):
                 'windup_ms': row['timing'][0], 'strike_ms': row['timing'][1], 'tail_ms': 50, 'recovery_ms': row['timing'][2],
                 'cycle_ms': row['cycle'], 'average_dps': row['newDps'] if row['canAttack'] else '',
                 'direction_dps': row['newPower'][i]*1000/row['cycle'] if row['canAttack'] else '',
-                'damage_type': origin['type'], 'tier': origin['tier'], 'armor_piercing': origin['ap'],
+                'damage_type': origin['type'], 'tier': origin['tier'], 'native_armor_piercing': origin['ap'],
+                'armor_piercing': max(origin['ap'], row['armorPiercing'].get(origin['type'], 0)),
                 'server_reach_bound_m': origin['reach'] or '', 'source_collider_radius_m': origin['radius'] or '',
                 'effective_collider_radius_m': max(.1, origin['radius']) + .03 if origin['radius'] is not None else '',
                 'durability': row['durability'], 'crafting': json.dumps(row['crafting'], ensure_ascii=False),
@@ -315,12 +342,12 @@ def write_docs(rows, classes):
     doc += ['', '## Что ещё проверять в дуэлях', '',
         'Сходный бюджет класса не означает одинаковую вероятность победы. Проверить щит против двуручника, '
         'дистанцию пики против ножа, тупой/колющий урон против разных доспехов, довороты, попадания по разным частям тела, '
-        'пинг и цену расхода прочности. Успешное попадание пока не имеет отдельного гарантированного stun/отмены атаки жертвы; '
-        'это остаётся отдельной механикой, не частью формулы DPS. Числа этой ревизии — исходная точка для таких дуэлей, '
+        'пинг и цену расхода прочности. Попадание прерывает замах/рез жертвы с восстановлением не менее 240 мс. '
+        'Матрица урона по штатной броне и слоям: [ARMOR-BALANCE.md](ARMOR-BALANCE.md). Числа этой ревизии — исходная точка для таких дуэлей, '
         'а не измеренный винрейт.', '']
-    (ROOT / 'WEAPON-BALANCE.md').write_text('\n'.join(doc))
+    (ROOT / 'docs/WEAPON-BALANCE.md').write_text('\n'.join(doc))
     with (ROOT / 'balance/weapon-balance.csv').open('w', newline='', encoding='utf-8-sig') as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(csv_rows[0]))
+        writer = csv.DictWriter(handle, fieldnames=list(csv_rows[0]), lineterminator='\n')
         writer.writeheader(); writer.writerows(csv_rows)
 
 

@@ -94,8 +94,8 @@ public sealed class NaturalMotionSystem : ModSystem
         if (animations == null || animations.Length == 0) return;
         var library = mod.sources.GetValue(animator, _ => new StockPoses(animations.Where(a => a?.Animation != null).Select(a => a.Animation)));
         if (!library.Available) return;
-        bool combat = player.WatchedAttributes.GetInt("warbandPhase") is >= 1 and <= 4
-            || __instance.ActiveAnimationsByAnimCode.Keys.Any(code => code.StartsWith("warband-", StringComparison.Ordinal));
+        bool combat = player.WatchedAttributes.GetInt("zornhauPhase") is >= 1 and <= 4
+            || __instance.ActiveAnimationsByAnimCode.Keys.Any(code => code.StartsWith("zornhau-", StringComparison.Ordinal));
         bool excluded = player.MountedOn != null || player.Swimming || player.FeetInLiquid
             || player.Controls.IsClimbing || player.Controls.Gliding || player.Controls.FloorSitting
             || account?.WorldData?.FreeMove == true;

@@ -35,7 +35,7 @@ internal static class WeaponOverlayChecks
         var stances = JObject.Parse(File.ReadAllText(asset));
         stances.Merge(JObject.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "falx.json"))));
         var restSources = stances.Properties().ToDictionary(p => p.Name, p => p.Value.ToObject<AnimationJson>()!);
-        foreach (var (code, pose) in WarbandCombat.OverhaulRestPoses.Replacements(restSources)) stances[code] = JToken.FromObject(pose);
+        foreach (var (code, pose) in Zornhau.OverhaulRestPoses.Replacements(restSources)) stances[code] = JToken.FromObject(pose);
         long now = 0;
         var player = (ViewPlayer)RuntimeHelpers.GetUninitializedObject(typeof(ViewPlayer));
         var world = Proxy.Create<IClientWorldAccessor>((m, a) => m.Name switch {
@@ -126,7 +126,7 @@ internal static class WeaponOverlayChecks
                         if (frame == 150)
                             foreach (string clip in new[] { "jump", "newjump", "creativefly" }) manager.StopAnimation(clip);
                         if (frame == 200) manager.StopAnimation(gait + suffix);
-                        if (frame == 220) actor.WatchedAttributes.SetInt("warbandPhase", 2);
+                        if (frame == 220) actor.WatchedAttributes.SetInt("zornhauPhase", 2);
                         manager.OnClientFrame(.017f);
                         stationary.OnFrame(new(), .017f);
                         if (frame < 3) continue; // Animator startup can defer its first matrix calculation.

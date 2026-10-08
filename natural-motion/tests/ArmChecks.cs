@@ -129,7 +129,7 @@ internal static class ArmChecks
                 // Combat and excluded activities must retain the engine's arms.
                 foreach (bool combat in new[] { true, false })
                 {
-                    actor.WatchedAttributes.SetInt("warbandPhase", combat ? 2 : 0);
+                    actor.WatchedAttributes.SetInt("zornhauPhase", combat ? 2 : 0);
                     actor.Swimming = !combat;
                     now += 17;
                     if (view > 0) firstPersonManager.SetValue(actor, manager);

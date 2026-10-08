@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <VSPath Condition="'$(VSPath)' == '' and '$(VS_GAME_DIR)' != ''">$(VS_GAME_DIR)</VSPath>
+    <VSPath Condition="'$(VSPath)' == ''">$([System.Environment]::GetFolderPath(System.Environment+SpecialFolder.UserProfile))/Documents/vintagestory</VSPath>
+  </PropertyGroup>
+</Project>

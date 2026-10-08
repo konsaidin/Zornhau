@@ -2,9 +2,9 @@ using System.Reflection;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 
-namespace WarbandCombat;
+namespace Zornhau;
 
-internal interface IWarbandDamage
+internal interface IZornhauDamage
 {
     Direction AttackDirection { get; }
     bool Blocked { get; set; }
@@ -25,9 +25,10 @@ internal interface ICombatIntegration : IDisposable
     void Frame(EntityPlayer player, Fighter fighter, long now);
     void RenderDiagnostics(EntityPlayer player, long now);
     string WeaponMode(EntityPlayer player);
-    IWarbandDamage? GetValidatedDamage(DamageSource source);
+    IZornhauDamage? GetValidatedDamage(DamageSource source);
     void AssetsReady();
     void ClearNativeBlock(EntityPlayer player);
+    void InterruptUse(EntityPlayer player);
 }
 
 internal static class OverhaulCompat
@@ -48,7 +49,7 @@ internal static class OverhaulCompat
     {
         if (!api.ModLoader.IsModEnabled("combatoverhaulfork")) return null;
         // Defer loading types that reference Overhaul until its optional assembly is present.
-        var type = typeof(OverhaulCompat).Assembly.GetType("WarbandCombat.OverhaulBridge", true)!;
+        var type = typeof(OverhaulCompat).Assembly.GetType("Zornhau.OverhaulBridge", true)!;
         try
         {
             return (ICombatIntegration)type.GetMethod("Create", BindingFlags.Public | BindingFlags.Static)!
@@ -56,7 +57,7 @@ internal static class OverhaulCompat
         }
         catch (TargetInvocationException exception)
         {
-            throw new InvalidOperationException("Warband Combat: cannot initialize the Combat Overhaul adapter.",
+            throw new InvalidOperationException("Zornhau: cannot initialize the Combat Overhaul adapter.",
                 exception.InnerException ?? exception);
         }
     }

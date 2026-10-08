@@ -2,7 +2,6 @@
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework><OutputType>Exe</OutputType><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>NaturalMotion.Tests</AssemblyName>
-    <VSPath Condition="'$(VSPath)' == ''">/home/dead/Documents/vintagestory</VSPath>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../NaturalMotion.csproj" />

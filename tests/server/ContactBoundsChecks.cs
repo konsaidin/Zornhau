@@ -6,7 +6,7 @@ using Newtonsoft.Json.Linq;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
-using WarbandCombat;
+using Zornhau;
 
 internal static class ContactBoundsChecks
 {
@@ -16,8 +16,8 @@ internal static class ContactBoundsChecks
         int checks = 0;
         void Check(bool ok, string text) { if (!ok) throw new Exception(text); checks++; }
         var assembly = typeof(CombatSystem).Assembly;
-        var type = assembly.GetType("WarbandCombat.OverhaulContactBounds")!;
-        var historyType = assembly.GetType("WarbandCombat.ContactPositionHistory")!;
+        var type = assembly.GetType("Zornhau.OverhaulContactBounds")!;
+        var historyType = assembly.GetType("Zornhau.ContactPositionHistory")!;
         var world = Stub.Make<IWorldAccessor>((m, a) => m.Name == "get_Side" ? EnumAppSide.Server : Stub.Default(m.ReturnType));
         var api = Stub.Make<ICoreAPI>((m, a) => m.Name == "get_Side" ? EnumAppSide.Server : Stub.Default(m.ReturnType));
         var validator = Activator.CreateInstance(type, all, null, new object[] { api }, null)!;
@@ -28,7 +28,7 @@ internal static class ContactBoundsChecks
             detail = (string)args[^1]; return result;
         }
         void Record(Entity target, long time) => type.GetMethod("Record", all)!.Invoke(validator, new object[] { target, time });
-        string game = Environment.GetEnvironmentVariable("VSPath") ?? "/home/dead/Documents/vintagestory";
+        string game = Environment.GetEnvironmentVariable("VSPath") ?? Environment.GetEnvironmentVariable("VS_GAME_DIR") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Documents", "vintagestory");
         var shape = JsonConvert.DeserializeObject<Shape>(File.ReadAllText(game + "/assets/survival/shapes/entity/animal/mammal/bear/brown-adult.json"))!;
         var patch = JArray.Parse(File.ReadAllText(".artifacts/compat/unpacked/overhaulliblegacycompat_1.2.14/assets/overhaulliblegacycompat/patches/colliders/carnivores.json"));
         var config = patch.First(p => p["target"]?.ToString() == "bear-adult")["value"]!["elements"]!;

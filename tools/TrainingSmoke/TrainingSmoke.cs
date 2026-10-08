@@ -4,14 +4,14 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Server;
 using Vintagestory.GameContent;
-using WarbandCombat;
+using Zornhau;
 
 // Developer-only integration plugin. Never bundled with the released mod.
 public sealed class TrainingSmoke : ModSystem
 {
     public override void StartServerSide(ICoreServerAPI api)
     {
-        if (Environment.GetEnvironmentVariable("WARBAND_TRAINING_SMOKE") != "1") return;
+        if (Environment.GetEnvironmentVariable("ZORNHAU_TRAINING_SMOKE") != "1") return;
         api.Event.ServerRunPhase(EnumServerRunPhase.RunGame, () =>
         {
             var spawn = api.World.DefaultSpawnPosition;
@@ -30,16 +30,16 @@ public sealed class TrainingSmoke : ModSystem
             var trainer = typeof(CombatSystem).GetField("dummies", flags)!.GetValue(system)!;
             var record = fatalities.GetType().GetMethod("RecordContact", flags)!;
             var restore = trainer.GetType().GetMethod("Restore", flags)!;
-            var direction = typeof(CombatSystem).Assembly.GetType("WarbandCombat.Direction")!;
-            var type = api.World.GetEntityType(new("game:warband-trainingdummy"));
+            var direction = typeof(CombatSystem).Assembly.GetType("Zornhau.Direction")!;
+            var type = api.World.GetEntityType(new("game:zornhau-trainingdummy"));
             var vanilla = api.World.GetEntityType(new("game:playerbot"));
             Require(type != null && vanilla.Attributes["inventory"].AsArray<JsonItemStack>().Length > 0
                 && type.Attributes["inventory"].AsArray<JsonItemStack>().Length == 0, "Cloning must preserve the vanilla bot");
             var target = (TrainingDummy)api.ClassRegistry.CreateEntity(type!);
             var spawn = api.World.DefaultSpawnPosition;
             target.Pos.SetPos(spawn.X + .5, spawn.Y + 1, spawn.Z + .5);
-            target.WatchedAttributes.SetString("warbandDummyMode", "fatal");
-            target.WatchedAttributes.SetFloat("warbandDummyHealth", 1);
+            target.WatchedAttributes.SetString("zornhauDummyMode", "fatal");
+            target.WatchedAttributes.SetFloat("zornhauDummyHealth", 1);
             api.World.SpawnEntity(target);
             Require(api.World.GetEntityById(target.EntityId) == target && !target.StoreWithChunk,
                 "Engine must spawn the temporary humanoid");
@@ -56,7 +56,7 @@ public sealed class TrainingSmoke : ModSystem
                 ("Left", EnumDamageType.SlashingAttack, "UpperTorso", 0),
                 ("Right", EnumDamageType.BluntAttack, "Head", 2) })
             {
-                target.WatchedAttributes.SetString("warbandDummyMode", test.Item2 == EnumDamageType.BluntAttack ? "helmet" : "fatal");
+                target.WatchedAttributes.SetString("zornhauDummyMode", test.Item2 == EnumDamageType.BluntAttack ? "helmet" : "fatal");
                 restore.Invoke(trainer, [target]);
                 var source = new DamageSource { SourceEntity = attacker, Source = EnumDamageSource.Player,
                     Type = test.Item2, IgnoreInvFrames = true };
@@ -66,14 +66,14 @@ public sealed class TrainingSmoke : ModSystem
                 int before = helmet?.Collectible.GetRemainingDurability(helmet) ?? 0;
                 record.Invoke(fatalities, [target, source, Enum.Parse(direction, test.Item1), point, test.Item3]);
                 Require(target.ReceiveDamage(source, 1000) && !target.Alive, "Actual engine damage must kill the dummy");
-                Require(target.WatchedAttributes.GetInt("warbandFatality") == test.Item4, "Correct lethal-head effect");
+                Require(target.WatchedAttributes.GetInt("zornhauFatality") == test.Item4, "Correct lethal-head effect");
                 Require(!target.ShouldDespawn && (long)typeof(TrainingDummy).GetField("ReviveAt", flags)!.GetValue(target)! > api.World.ElapsedMilliseconds,
                     "Corpse must remain until delayed revival");
                 if (test.Item2 == EnumDamageType.BluntAttack)
                     Require(helmet != null && helmet.Collectible.GetRemainingDurability(helmet) < before, "Actual helmet durability must be reduced");
                 restore.Invoke(trainer, [target]);
                 Require(target.Alive && target.DespawnReason == null && target.GetBehavior<EntityBehaviorHealth>()!.Health == 1
-                    && target.WatchedAttributes.GetInt("warbandFatality") == 0, "Revival must restore health, head and despawn state");
+                    && target.WatchedAttributes.GetInt("zornhauFatality") == 0, "Revival must restore health, head and despawn state");
             }
             api.World.DespawnEntity(target, new EntityDespawnData { Reason = EnumDespawnReason.Removed });
             api.Logger.Notification("[Training Smoke] PASS: actual spawn, face, empty hands, lethal head rules, helmet wear, corpse retention, revival and cleanup; co={0}", co);

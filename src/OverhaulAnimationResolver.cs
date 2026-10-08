@@ -1,6 +1,6 @@
 using CombatOverhaul.Implementations;
 
-namespace WarbandCombat;
+namespace Zornhau;
 
 internal static class OverhaulAnimationResolver
 {

@@ -85,13 +85,13 @@ def first_person(elements):
 def complete(model):
     clips = {a['code']: a for a in model['animations']}
     for direction in ('overhead', 'right', 'thrust', 'left'):
-        guard = clips[f'warband-block-{direction}']
+        guard = clips[f'zornhau-block-{direction}']
         pose = copy.deepcopy(guard['keyframes'][0]['elements'])
         guard['keyframes'] = [{'frame': f, 'elements': copy.deepcopy(pose)} for f in (0, 14)]
         guard_fp = clips[guard['code'] + '-fp']
         guard_fp['keyframes'] = [{'frame': f, 'elements': first_person(pose)} for f in (0, 14)]
     for direction in ('left', 'right'):
-        swing = clips[f'warband-swing-{direction}']
+        swing = clips[f'zornhau-swing-{direction}']
         keys = copy.deepcopy(swing['keyframes'])
         if direction == 'right':
             # Give the authored shoulder release two frames instead of one.
@@ -99,7 +99,7 @@ def complete(model):
                 if key['frame'] in (1, 2):
                     key['frame'] += 1
         swing['keyframes'] = dense_frames(keys)
-        recovery = clips[f'warband-recovery-{direction}']
+        recovery = clips[f'zornhau-recovery-{direction}']
         contact = next(f for f in swing['keyframes'] if f['frame'] == 4)
         recovery['keyframes'][0]['elements'] = copy.deepcopy(contact['elements'])
         recovery['keyframes'] = dense_frames(recovery['keyframes'])
@@ -107,7 +107,7 @@ def complete(model):
         path += [f['elements'] for f in recovery['keyframes'][1:]]
         wrist_path(path, end_at_zero=True)
         recovery['keyframes'][0]['elements'] = copy.deepcopy(contact['elements'])
-        windup = clips[f'warband-windup-{direction}']
+        windup = clips[f'zornhau-windup-{direction}']
         windup['keyframes'] = [{'frame': f, 'elements': copy.deepcopy(swing['keyframes'][0]['elements'])}
                               for f in (0, 14)]
         for clip in (windup, swing, recovery):
@@ -128,7 +128,7 @@ def complete(model):
 def complete_thrust(model):
     """Connect the authored chamber to its existing extended contact pose."""
     clips = {a['code']: a for a in model['animations']}
-    swing = clips['warband-swing-thrust']
+    swing = clips['zornhau-swing-thrust']
     first = copy.deepcopy(swing['keyframes'][0])
     last = copy.deepcopy(swing['keyframes'][-1])
     if first['frame'] != 0 or last['frame'] < 4:
@@ -142,16 +142,16 @@ def complete_thrust(model):
     assert swing['keyframes'][0] == first
     assert swing['keyframes'][-1] == last
 
-    windup = clips['warband-windup-thrust']
+    windup = clips['zornhau-windup-thrust']
     windup['keyframes'] = [{'frame': f, 'elements': copy.deepcopy(first['elements'])}
                           for f in (0, windup['quantityframes'] - 1)]
-    recovery = clips['warband-recovery-thrust']
+    recovery = clips['zornhau-recovery-thrust']
     recovery['keyframes'][0]['elements'] = copy.deepcopy(contact['elements'])
 
-    fp_swing = clips['warband-swing-thrust-fp']
+    fp_swing = clips['zornhau-swing-thrust-fp']
     fp_swing['keyframes'] = [{'frame': f['frame'], 'elements': first_person(f['elements'])}
                             for f in swing['keyframes']]
-    fp_recovery = clips['warband-recovery-thrust-fp']
+    fp_recovery = clips['zornhau-recovery-thrust-fp']
     fp_recovery['keyframes'] = dense_frames([
         {'frame': f['frame'], 'elements': first_person(f['elements'])}
         for f in recovery['keyframes']])
@@ -162,7 +162,7 @@ def complete_thrust(model):
     wrist_path(path, end_at_zero=True)
     fp_contact = next(f for f in fp_swing['keyframes'] if f['frame'] == 4)
     fp_recovery['keyframes'][0]['elements'] = copy.deepcopy(fp_contact['elements'])
-    fp_windup = clips['warband-windup-thrust-fp']
+    fp_windup = clips['zornhau-windup-thrust-fp']
     fp_windup['keyframes'] = [
         {'frame': f, 'elements': copy.deepcopy(fp_swing['keyframes'][0]['elements'])}
         for f in (0, fp_windup['quantityframes'] - 1)]

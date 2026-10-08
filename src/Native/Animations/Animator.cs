@@ -3,7 +3,7 @@
 // See third-party/overhaul-core/README.md and LICENSE.
 using Vintagestory.API.Common;
 
-namespace WarbandCombat.Native.Animations;
+namespace Zornhau.Native.Animations;
 
 public class Animator
 {

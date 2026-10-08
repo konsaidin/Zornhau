@@ -7,7 +7,7 @@ using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
 
-namespace WarbandCombat;
+namespace Zornhau;
 
 internal sealed class FatalityRenderer : IRenderer
 {
@@ -15,7 +15,7 @@ internal sealed class FatalityRenderer : IRenderer
     private readonly bool cameraEnabled;
     private readonly bool bloodStains;
     private readonly FatalityGore gore;
-    private readonly Harmony harmony = new("warbandcombat.fatalities");
+    private readonly Harmony harmony = new("zornhau.fatalities");
     private readonly ConditionalWeakTable<EntityAgent, MeshData> snapshots = new();
     private readonly ConditionalWeakTable<EntityAgent, Action> listeners = new();
     private readonly Dictionary<long, Effect> effects = new();
@@ -53,7 +53,7 @@ internal sealed class FatalityRenderer : IRenderer
             prefix: new HarmonyMethod(typeof(FatalityRenderer), nameof(Tesselate)));
         var camera = AccessTools.TypeByName("Vintagestory.Client.NoObf.Camera");
         harmony.Patch(AccessTools.Method(camera, "GetCameraMatrix"), prefix: new HarmonyMethod(typeof(FatalityRenderer), nameof(Camera)));
-        api.Event.RegisterRenderer(this, EnumRenderStage.Opaque, "warband-fatalities");
+        api.Event.RegisterRenderer(this, EnumRenderStage.Opaque, "zornhau-fatalities");
     }
 
     private static void Tesselate(EntityShapeRenderer __instance, ref Action<MeshData> onMeshDataReady)
@@ -79,7 +79,7 @@ internal sealed class FatalityRenderer : IRenderer
             }
             else if (kind == FatalityKind.HeadCrush)
             {
-                string prefix = player.WatchedAttributes.GetString("warbandCrushedHelmet", "");
+                string prefix = player.WatchedAttributes.GetString("zornhauCrushedHelmet", "");
                 var regions = FatalityMesh.HelmetRegions(manager.api, player, prefix);
                 var ids = FatalityMesh.HeadJoints(player);
                 var helmetParts = FatalityMesh.HelmetParts(mesh, ids, regions, surfaces);
@@ -96,7 +96,7 @@ internal sealed class FatalityRenderer : IRenderer
         Action changed = player.MarkShapeModified;
         listeners.Add(player, changed);
         player.WatchedAttributes.RegisterModifiedListener(FatalityRules.Attribute, changed);
-        player.WatchedAttributes.RegisterModifiedListener("warbandCrushedHelmet", changed);
+        player.WatchedAttributes.RegisterModifiedListener("zornhauCrushedHelmet", changed);
     }
 
     internal void Receive(FatalityPacket packet)
@@ -120,7 +120,7 @@ internal sealed class FatalityRenderer : IRenderer
             if (!victim.Alive || packet.AgeMs == 0)
             {
                 victim.WatchedAttributes.SetInt(FatalityRules.Attribute, (int)packet.Kind);
-                victim.WatchedAttributes.SetString("warbandCrushedHelmet", packet.HelmetPrefix);
+                victim.WatchedAttributes.SetString("zornhauCrushedHelmet", packet.HelmetPrefix);
             }
             Prepare(effect, victim);
             victim.MarkShapeModified();

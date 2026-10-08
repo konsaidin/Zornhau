@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 using HarmonyLib;
 using Vintagestory.API.Client;
 using Vintagestory.Client.NoObf;
-using WarbandCombat;
+using Zornhau;
 
 internal static class ReticleChecks
 {
@@ -51,7 +51,7 @@ internal static class ReticleChecks
         var native = RuntimeHelpers.GetUninitializedObject(typeof(SystemRenderAim));
         var game = RuntimeHelpers.GetUninitializedObject(typeof(ClientMain));
         var draw = AccessTools.Method(typeof(SystemRenderAim), "DrawAim");
-        var harness = new Harmony("warbandcombat.reticle-test");
+        var harness = new Harmony("zornhau.reticle-test");
         using var reticle = new CombatReticle(api, () => visible);
         // The native draw would access the window/OpenGL. This last prefix is
         // reached only if production code allows the native renderer through.

@@ -1,14 +1,14 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Vintagestory.API.Common;
-using WarbandCombat;
+using Zornhau;
 
 static class WeaponBalanceChecks
 {
     internal static void Run(string root, Action<bool, string> check)
     {
         var runtime = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, WeaponBalanceProfile[]>>>(
-            File.ReadAllText(Path.Combine(root, "assets/warbandcombat/config/balance-profiles.json")))!;
+            File.ReadAllText(Path.Combine(root, "assets/zornhau/config/balance-profiles.json")))!;
         var policy = JObject.Parse(File.ReadAllText(Path.Combine(root, "balance/policy.json")));
         var catalog = JArray.Parse(File.ReadAllText(Path.Combine(root, "balance/catalog.json")));
         int profilesChecked = 0;
@@ -26,7 +26,7 @@ static class WeaponBalanceChecks
                 player.Left.Itemstack = profile.Stance == "two" ? null
                     : new ItemStack(new Item { Code = new(profile.Stance.StartsWith("dual:")
                         ? profile.Stance[5..].Replace("*", "test") : "game:torch-basic-lit") });
-                player.WatchedAttributes.SetString("warbandWeaponMode", profile.Mode);
+                player.WatchedAttributes.SetString("zornhauWeaponMode", profile.Mode);
                 check(ReferenceEquals(CombatBalance.For(player, profile.Mode), profile), "Current mode and offhand choose the real audited stance");
                 check(CombatBalance.CanAttack(player, profile.Mode) == profile.CanAttack, "An unavailable stance cannot begin an attack");
                 check(CombatSystem.Timing(player, profile.Mode) == profile.Timing, "Client/server prediction uses the stance's balanced timings");

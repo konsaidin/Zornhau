@@ -10,7 +10,7 @@ using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
 
-namespace WarbandCombat.Native.Colliders;
+namespace Zornhau.Native.Colliders;
 
 public interface ICollider
 {

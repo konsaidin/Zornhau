@@ -7,9 +7,9 @@ using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.GameContent;
-using WarbandCombat.Native.Colliders;
+using Zornhau.Native.Colliders;
 
-namespace WarbandCombat;
+namespace Zornhau;
 
 // Independent physical contacts. No CO type or library is referenced by this path.
 internal sealed class StandalonePhysics : IDisposable
@@ -41,7 +41,8 @@ internal sealed class StandalonePhysics : IDisposable
         if (api is ICoreClientAPI)
         {
             clientPhysics = this;
-            renderPatch = new Harmony("warbandcombat.physical-render");
+            renderPatch = new Harmony("zornhau.physical-render");
+            ShieldBackRenderer.Patch(renderPatch);
             StandaloneAim.Patch(renderPatch, (ICoreClientAPI)api, combat);
             renderPatch.Patch(AccessTools.Method(typeof(EntityShapeRenderer), "RenderItem"),
                 postfix: new HarmonyMethod(typeof(StandalonePhysics), nameof(ItemRendered)));
@@ -55,7 +56,7 @@ internal sealed class StandalonePhysics : IDisposable
             bounds = new(api);
             trackingTick = api.Event.RegisterGameTickListener(TrackTargets, 50);
         }
-        api.Logger.Notification("[Warband Combat] Embedded CO animated weapon physics ready ({0}).", api.Side);
+        api.Logger.Notification("[Zornhau] Embedded CO animated weapon physics ready ({0}).", api.Side);
     }
 
     private bool OwnWeapon(CollectibleObject? item)
@@ -190,8 +191,9 @@ internal sealed class StandalonePhysics : IDisposable
         if (chosen is { } contact)
         {
             sent = true;
-            client.Network.GetChannel("warbandcombat").SendPacket(new BladeContactPacket
+            client.Network.GetChannel("zornhau").SendPacket(new BladeContactPacket
             {
+                Rotation = CombatTurnAuthority.Capture(player),
                 AttackId = attackId, Target = contact.Entity.EntityId, Blade = contact.Blade,
                 Previous = previous[contact.Blade].Segment.Pack(), Current = current[contact.Blade].Segment.Pack(),
                 Fraction = contact.Fraction, Point = new[] { contact.Point.X, contact.Point.Y, contact.Point.Z }, Element = contact.Element
@@ -248,6 +250,8 @@ internal sealed class StandalonePhysics : IDisposable
         if (combat.DeferPhysicalContact(player, packet.AttackId, () => ProcessContact(player, packet))) return;
         if (packet.AttackId != combat.PhysicalAttackId(player) || !combat.CanAcceptPhysicalContact(player))
         { Reject("state-or-equipment", combat.PhysicalContactState(player)); return; }
+        if (!combat.CheckTurnProof(player, packet.Rotation))
+        { Reject("turn-limit", "Missing, nonfinite or excessive character rotation"); return; }
         var stack = player.Entity.RightHandItemSlot.Itemstack;
         if (stack == null || !OwnWeapon(stack.Collectible)) { Reject("not-physical-weapon"); return; }
         if (packet.Previous?.Length != 6 || packet.Current?.Length != 6 || packet.Point?.Length != 3

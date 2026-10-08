@@ -4,7 +4,7 @@ using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
 using Cairo;
 
-namespace WarbandCombat;
+namespace Zornhau;
 
 internal sealed class CombatClient : IRenderer
 {
@@ -36,7 +36,7 @@ internal sealed class CombatClient : IRenderer
     private long lastHeartbeat;
     private string feedback = "";
     private long feedbackUntil;
-    private long lastContact, contactAt = -CombatHud.FlashMs;
+    private long lastContact, lastUseInterrupt, contactAt = -CombatHud.FlashMs;
     private Direction contactDirection;
     private bool contactOmni;
     private ContactKind contactKind;
@@ -49,47 +49,49 @@ internal sealed class CombatClient : IRenderer
     internal CombatClient(ICoreClientAPI api)
     {
         this.api = api;
-        HitDiagnosticsEnabled = api.Settings.Bool["warbandHitDiagnostics"];
-        if (api.Settings.Bool["warbandCameraDiagnostics"]) cameraDiagnostics = new CameraDiagnostics(api);
+        HitDiagnosticsEnabled = api.Settings.Bool["zornhauHitDiagnostics"];
+        if (api.Settings.Bool["zornhauCameraDiagnostics"]) cameraDiagnostics = new CameraDiagnostics(api);
         // GenOrUpdateTextTexture updates an existing wrapper; it does not allocate one.
         texture = new LoadedTexture(api);
         font = CairoFont.WhiteSmallText().WithFontSize(13);
         font.StrokeWidth = 2;
         font.StrokeColor = new double[] { 0, 0, 0, .9 };
-        channel = api.Network.GetChannel("warbandcombat").SetMessageHandler<StatePacket>(OnState)
-            .SetMessageHandler<ContactPacket>(OnContact).SetMessageHandler<HitDiagnosticPacket>(OnHitDiagnostic);
+        channel = api.Network.GetChannel("zornhau").SetMessageHandler<StatePacket>(OnState)
+            .SetMessageHandler<ContactPacket>(OnContact).SetMessageHandler<HitDiagnosticPacket>(OnHitDiagnostic)
+            .SetMessageHandler<UseInterruptPacket>(OnUseInterrupt);
         turning = new CombatTurning(api, Fighter, () => Available && api.Input.MouseGrabbed && !api.IsGamePaused && channel.Connected);
         reticle = new CombatReticle(api, () => HudVisible);
-        api.Input.RegisterHotKey("warband-toggle", Lang.Get("warbandcombat:toggle"), GlKeys.K);
-        api.Input.SetHotKeyHandler("warband-toggle", _ =>
+        api.Input.RegisterHotKey("zornhau-toggle", Lang.Get("zornhau:toggle"), GlKeys.K);
+        api.Input.SetHotKeyHandler("zornhau-toggle", _ =>
         {
             if (forcePvpCombat)
             {
-                api.ShowChatMessage(Lang.Get("warbandcombat:pvp-required"));
+                api.ShowChatMessage(Lang.Get("zornhau:pvp-required"));
                 return true;
             }
             Cancel(); Enabled = !Enabled;
-            api.ShowChatMessage(Lang.Get(Enabled ? "warbandcombat:enabled" : "warbandcombat:disabled"));
+            api.ShowChatMessage(Lang.Get(Enabled ? "zornhau:enabled" : "zornhau:disabled"));
             return true;
         });
-        api.Input.RegisterHotKey("warband-hit-diagnostics", Lang.Get("warbandcombat:hit-diagnostics-toggle"), GlKeys.F8);
-        api.Input.SetHotKeyHandler("warband-hit-diagnostics", _ =>
+        api.Input.RegisterHotKey("zornhau-hit-diagnostics", Lang.Get("zornhau:hit-diagnostics-toggle"), GlKeys.F8);
+        api.Input.SetHotKeyHandler("zornhau-hit-diagnostics", _ =>
         {
             HitDiagnosticsEnabled = !HitDiagnosticsEnabled;
-            api.Settings.Bool["warbandHitDiagnostics"] = HitDiagnosticsEnabled;
+            api.Settings.Bool["zornhauHitDiagnostics"] = HitDiagnosticsEnabled;
             hitDiagnostics.Reset(); diagnosticDetail = ""; pendingHitDiagnostics.Clear();
             if (channel.Connected) channel.SendPacket(new DiagnosticsSettingsPacket { Enabled = HitDiagnosticsEnabled });
-            api.ShowChatMessage(Lang.Get(HitDiagnosticsEnabled ? "warbandcombat:hit-diagnostics-on" : "warbandcombat:hit-diagnostics-off"));
+            api.ShowChatMessage(Lang.Get(HitDiagnosticsEnabled ? "zornhau:hit-diagnostics-on" : "zornhau:hit-diagnostics-off"));
             return true;
         });
         api.Event.MouseDown += MouseDown;
         api.Event.MouseUp += MouseUp;
+        api.Event.MouseUp += ReleaseInterruptedUse;
         api.Event.MouseMove += MouseMove;
         api.Input.InWorldAction += InWorldAction;
         api.Event.LeaveWorld += LeaveWorld;
         tick = api.Event.RegisterGameTickListener(Tick, 20);
-        api.Event.RegisterRenderer(this, EnumRenderStage.Ortho, "warband-hud");
-        api.Event.RegisterRenderer(this, EnumRenderStage.AfterOIT, "warband-hit-collider");
+        api.Event.RegisterRenderer(this, EnumRenderStage.Ortho, "zornhau-hud");
+        api.Event.RegisterRenderer(this, EnumRenderStage.AfterOIT, "zornhau-hit-collider");
     }
 
     internal bool Available => Enabled && api.World.Player?.Entity is { Alive: true } entity
@@ -152,7 +154,7 @@ internal sealed class CombatClient : IRenderer
             if (HitDiagnosticsEnabled)
             {
                 hitDiagnostics.Begin(sequence + 1); diagnosticDetail = "";
-                api.Logger.Notification("[Warband Hit] client attack={0} begin direction={1} weapon={2} mode={3}",
+                api.Logger.Notification("[Zornhau Hit] client attack={0} begin direction={1} weapon={2} mode={3}",
                     sequence + 1, Direction, item?.Code, api.World.Player?.Entity is { } diagnosticPlayer ? Integration?.WeaponMode(diagnosticPlayer) : "");
             }
         }
@@ -297,20 +299,33 @@ internal sealed class CombatClient : IRenderer
         }
     }
 
+    private void ReleaseInterruptedUse(MouseEvent args)
+    {
+        if (args.Button == EnumMouseButton.Right && api.World.Player?.Entity is { } player) CombatUseInterrupt.Release(player);
+    }
+
+    private void OnUseInterrupt(UseInterruptPacket packet)
+    {
+        if (packet.Id <= lastUseInterrupt || api.World.Player?.Entity is not { } player) return;
+        lastUseInterrupt = packet.Id;
+        CombatUseInterrupt.Cancel(player);
+        Integration?.InterruptUse(player);
+    }
+
     internal void RecordHitFrame(bool terrain, bool entityContact, bool terrainBlockedTarget, string detail, string terrainDetail)
     {
         if (!HitDiagnosticsEnabled) return;
         if (terrain && !hitDiagnostics.Terrain)
         {
             diagnosticDetail = terrainDetail;
-            api.Logger.Notification("[Warband Hit] client attack={0} terrain-intersection {1}", hitDiagnostics.AttackId, terrainDetail);
+            api.Logger.Notification("[Zornhau Hit] client attack={0} terrain-intersection {1}", hitDiagnostics.AttackId, terrainDetail);
         }
         bool firstBlocked = terrainBlockedTarget && !hitDiagnostics.TerrainBlockedTarget;
         hitDiagnostics.Sample(terrain, entityContact, terrainBlockedTarget);
         if (firstBlocked)
         {
             diagnosticDetail = detail;
-            api.Logger.Notification("[Warband Hit] client attack={0} terrain-blocked-target {1}", hitDiagnostics.AttackId, detail);
+            api.Logger.Notification("[Zornhau Hit] client attack={0} terrain-blocked-target {1}", hitDiagnostics.AttackId, detail);
         }
     }
 
@@ -319,7 +334,7 @@ internal sealed class CombatClient : IRenderer
         if (!HitDiagnosticsEnabled) return;
         hitDiagnostics.ContactSent(Now); diagnosticDetail = detail;
         pendingHitDiagnostics[hitDiagnostics.AttackId] = Now;
-        api.Logger.Notification("[Warband Hit] client attack={0} contact-sent {1}", hitDiagnostics.AttackId, detail);
+        api.Logger.Notification("[Zornhau Hit] client attack={0} contact-sent {1}", hitDiagnostics.AttackId, detail);
     }
 
     internal void RecordMissingCollider()
@@ -331,14 +346,14 @@ internal sealed class CombatClient : IRenderer
     {
         if (!HitDiagnosticsEnabled) return;
         if (hitDiagnostics.Finish(Fighter.Phase))
-            api.Logger.Notification("[Warband Hit] client attack={0} result={1} frames={2} terrain={3} blockedTarget={4} entityContact={5} sent={6} {7}",
+            api.Logger.Notification("[Zornhau Hit] client attack={0} result={1} frames={2} terrain={3} blockedTarget={4} entityContact={5} sent={6} {7}",
                 hitDiagnostics.AttackId, hitDiagnostics.Result, hitDiagnostics.Frames, hitDiagnostics.Terrain,
                 hitDiagnostics.TerrainBlockedTarget, hitDiagnostics.EntityContact, hitDiagnostics.Sent, diagnosticDetail);
         foreach (var pending in pendingHitDiagnostics.Where(p => Now - p.Value >= 2000).ToArray())
         {
             pendingHitDiagnostics.Remove(pending.Key);
             if (pending.Key == hitDiagnostics.AttackId) hitDiagnostics.Timeout(Now);
-            api.Logger.Notification("[Warband Hit] client attack={0} no-server-reply after 2000ms", pending.Key);
+            api.Logger.Notification("[Zornhau Hit] client attack={0} no-server-reply after 2000ms", pending.Key);
         }
     }
 
@@ -346,7 +361,7 @@ internal sealed class CombatClient : IRenderer
     {
         if (!HitDiagnosticsEnabled) return;
         pendingHitDiagnostics.Remove(packet.AttackId);
-        api.Logger.Notification("[Warband Hit] server attack={0} target={1} result={2} {3}",
+        api.Logger.Notification("[Zornhau Hit] server attack={0} target={1} result={2} {3}",
             packet.AttackId, packet.Target, packet.Result, packet.Detail);
         // A delayed answer is logged, but cannot overwrite a newer swing's HUD.
         if (hitDiagnostics.ServerResult(packet.AttackId, packet.Result)) diagnosticDetail = packet.Detail;
@@ -365,7 +380,7 @@ internal sealed class CombatClient : IRenderer
         Fighter.Reset(clearSprint: true); left = right = false; ownedSlot = -1; ownedStack = null;
         sprintWanted = sprintWasLocked = false;
         sequence = 0; feedbackUntil = 0;
-        lastContact = 0; contactAt = -CombatHud.FlashMs; contactOmni = false;
+        lastContact = lastUseInterrupt = 0; contactAt = -CombatHud.FlashMs; contactOmni = false;
         forcePvpCombat = false;
     }
 
@@ -397,11 +412,11 @@ internal sealed class CombatClient : IRenderer
         // F8 owns all diagnostic writing below the reticle. The normal combat
         // view conveys direction and confirmed contacts through the plus alone.
         if (!HitDiagnosticsEnabled) return;
-        string state = Lang.Get("warbandcombat:" + CombatHud.PhaseKey(Fighter, Now));
+        string state = Lang.Get("zornhau:" + CombatHud.PhaseKey(Fighter, Now));
         string text = Now < feedbackUntil ? state + "\n" + feedback : state;
-        text += "\n" + Lang.Get("warbandcombat:hit-debug-status", hitDiagnostics.AttackId,
-                Lang.Get("warbandcombat:hit-debug-" + hitDiagnostics.Result))
-            + "\n" + Lang.Get("warbandcombat:hit-debug-legend");
+        text += "\n" + Lang.Get("zornhau:hit-debug-status", hitDiagnostics.AttackId,
+                Lang.Get("zornhau:hit-debug-" + hitDiagnostics.Result))
+            + "\n" + Lang.Get("zornhau:hit-debug-legend");
         if (text != lastText)
         {
             api.Gui.TextTexture.GenOrUpdateTextTexture(text, font, ref texture);
@@ -417,14 +432,15 @@ internal sealed class CombatClient : IRenderer
         DetachAnimationHooks();
         api.Event.MouseDown -= MouseDown;
         api.Event.MouseUp -= MouseUp;
+        api.Event.MouseUp -= ReleaseInterruptedUse;
         api.Event.MouseMove -= MouseMove;
         api.Input.InWorldAction -= InWorldAction;
         api.Event.LeaveWorld -= LeaveWorld;
         api.Event.UnregisterGameTickListener(tick);
         api.Event.UnregisterRenderer(this, EnumRenderStage.Ortho);
         api.Event.UnregisterRenderer(this, EnumRenderStage.AfterOIT);
-        api.Input.SetHotKeyHandler("warband-toggle", _ => false);
-        api.Input.SetHotKeyHandler("warband-hit-diagnostics", _ => false);
+        api.Input.SetHotKeyHandler("zornhau-toggle", _ => false);
+        api.Input.SetHotKeyHandler("zornhau-hit-diagnostics", _ => false);
         texture.Dispose(); font.Dispose();
     }
 

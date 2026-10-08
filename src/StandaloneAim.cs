@@ -2,7 +2,7 @@ using HarmonyLib;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 
-namespace WarbandCombat;
+namespace Zornhau;
 
 // Aim the same arm pose that is rendered and used by the independent blade engine.
 internal static class StandaloneAim
@@ -32,7 +32,7 @@ internal static class StandaloneAim
             || !CombatSystem.Supported(item) || combat.Integration?.UsesPhysicalContacts(item) == true) return;
         frame = combat.NativeAnimations?.Frame(player, api.World.ElapsedMilliseconds);
         bool local = player == api.World.Player?.Entity;
-        var phase = local ? combat.Controls?.Fighter.Phase ?? Phase.Idle : (Phase)player.WatchedAttributes.GetInt("warbandPhase");
+        var phase = local ? combat.Controls?.Fighter.Phase ?? Phase.Idle : (Phase)player.WatchedAttributes.GetInt("zornhauPhase");
         if (phase is not (Phase.Windup or Phase.Swing or Phase.Recovery)) return;
         float follow = 0;
         if (local && api.World.Player?.CameraMode == EnumCameraMode.FirstPerson && !api.Settings.Bool["immersiveFpMode"]

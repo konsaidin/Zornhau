@@ -7,7 +7,7 @@ internal static class AnimationGeometry
     // Use the engine's transforms, not the generator's rotation implementation.
     internal static void Check()
     {
-        string game = Environment.GetEnvironmentVariable("VSPath") ?? "/home/dead/Documents/vintagestory";
+        string game = Environment.GetEnvironmentVariable("VSPath") ?? Environment.GetEnvironmentVariable("VS_GAME_DIR") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Documents", "vintagestory");
         using var shape = JsonDocument.Parse(File.ReadAllText($"{game}/assets/game/shapes/entity/humanoid/seraph.json"));
         var bones = new Dictionary<string, ShapeElement>();
         void Read(JsonElement elements)
@@ -57,7 +57,7 @@ internal static class AnimationGeometry
             }
             return matrix;
         }
-        using var patches = JsonDocument.Parse(File.ReadAllText("assets/warbandcombat/patches/animations.json"));
+        using var patches = JsonDocument.Parse(File.ReadAllText("assets/zornhau/patches/animations.json"));
         var animations = patches.RootElement.EnumerateArray()
             .Where(p => p.GetProperty("file").GetString() == "game:shapes/entity/humanoid/seraph.json")
             .Select(p => p.GetProperty("value"))
@@ -69,7 +69,7 @@ internal static class AnimationGeometry
             if (patch.GetProperty("file").GetString() != "game:shapes/entity/humanoid/seraph.json") continue;
             var animation = patch.GetProperty("value");
             string code = animation.GetProperty("code").GetString()!;
-            if (!code.StartsWith("warband-swing-") || code.Contains("overhead")) continue;
+            if (!code.StartsWith("zornhau-swing-") || code.Contains("overhead")) continue;
             var frames = animation.GetProperty("keyframes").EnumerateArray().ToArray();
             JsonElement Frame(int number) => frames.Single(f => f.GetProperty("frame").GetInt32() == number).GetProperty("elements");
             var contact = Transform(Frame(4), true);

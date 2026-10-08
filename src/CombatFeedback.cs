@@ -1,6 +1,6 @@
 using Vintagestory.API.Common;
 
-namespace WarbandCombat;
+namespace Zornhau;
 
 internal static class CombatFeedback
 {

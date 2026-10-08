@@ -1,4 +1,4 @@
-namespace WarbandCombat;
+namespace Zornhau;
 
 // Observes existing collision results. It never advances or consumes a Fighter.
 internal sealed class HitDiagnostics

@@ -4,14 +4,14 @@ using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 
-namespace WarbandCombat;
+namespace Zornhau;
 
 // Split the game's own plus into four tinted arms and an unchanged center.
 // Suppress its original draw only while our combat HUD is actually visible.
 internal sealed class CombatReticle : IDisposable
 {
     private static CombatReticle? active;
-    private readonly Harmony harmony = new("warbandcombat.reticle");
+    private readonly Harmony harmony = new("zornhau.reticle");
     private readonly ICoreClientAPI api;
     private readonly Func<bool> visible;
     private readonly LoadedTexture[] textures;

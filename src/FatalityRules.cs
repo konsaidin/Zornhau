@@ -1,13 +1,13 @@
 using OpenTK.Mathematics;
 using Vintagestory.API.Common;
 
-namespace WarbandCombat;
+namespace Zornhau;
 
 public enum FatalityKind { None, Decapitation, HeadCrush }
 
 internal static class FatalityRules
 {
-    internal const string Attribute = "warbandFatality";
+    internal const string Attribute = "zornhauFatality";
     internal const double HeadRadius = .18, FragmentRadius = .07;
     internal const int LifetimeMs = 30000, CameraMs = 6500, MaxEffects = 32;
     internal static FatalityKind Choose(bool head, EnumDamageType type, Direction direction)

@@ -1,4 +1,4 @@
-using WarbandCombat;
+using Zornhau;
 using Vintagestory.API.Common;
 
 internal static class PresentationChecks
@@ -47,17 +47,17 @@ internal static class PresentationChecks
         Check(CombatPresentation.SnapshotAge(100, 0, 0, 0) == 0, "Initial snapshots without an input echo are supported");
         var own = new TestAnimationManager();
         own.OnStartAnimation += CombatAnimations.OnLocalAnimationStart;
-        CombatAnimations.StartOwnedAnimation(own, "warband-swing-right");
-        Check(own.IsAnimationActive("warband-swing-right"), "Predicted local swing is permitted by the actual API event");
+        CombatAnimations.StartOwnedAnimation(own, "zornhau-swing-right");
+        Check(own.IsAnimationActive("zornhau-swing-right"), "Predicted local swing is permitted by the actual API event");
         own.ActiveAnimationsByAnimCode.Clear(); // Engine retires a completed one-shot.
-        foreach (string code in new[] { "warband-swing-right", "warband-swing-right-fp", "warband-windup-left", "warband-recovery-right" })
+        foreach (string code in new[] { "zornhau-swing-right", "zornhau-swing-right-fp", "zornhau-windup-left", "zornhau-recovery-right" })
             Check(!own.StartAnimation(new AnimationMetaData { Code = code, Animation = code }),
                 "Delayed server clip cannot restart on the owning player");
-        CombatAnimations.StartOwnedAnimation(own, "warband-swing-left");
-        Check(own.IsAnimationActive("warband-swing-left"), "Next local swing is permitted");
+        CombatAnimations.StartOwnedAnimation(own, "zornhau-swing-left");
+        Check(own.IsAnimationActive("zornhau-swing-left"), "Next local swing is permitted");
         Check(own.StartAnimation(new AnimationMetaData { Code = "walk", Animation = "walk" }), "Walking still synchronizes");
         var remote = new TestAnimationManager();
-        Check(remote.StartAnimation(new AnimationMetaData { Code = "warband-swing-right", Animation = "warband-swing-right" }),
+        Check(remote.StartAnimation(new AnimationMetaData { Code = "zornhau-swing-right", Animation = "zornhau-swing-right" }),
             "Other players keep server animation replication");
         foreach (var timing in new[] { WeaponTiming.Sword, new WeaponTiming(420, 170, 480), new WeaponTiming(180, 100, 260),
             WeaponTiming.Overhaul("sword-great-plain-steel"), WeaponTiming.Overhaul("pike-plain-steel") })
@@ -85,8 +85,8 @@ internal static class PresentationChecks
             for (long now = fighter.ContactEnds + 20; now < fighter.Ends; now += 20)
                 CombatAnimations.Update(player, fighter, now);
             string suffix = direction.ToString().ToLowerInvariant();
-            Check(player.Manager.Starts["warband-swing-" + suffix] == 1, "Production updater never repeats a retired swing");
-            Check(player.Manager.Starts["warband-recovery-" + suffix] == 1, "Production updater never repeats a retired recovery");
+            Check(player.Manager.Starts["zornhau-swing-" + suffix] == 1, "Production updater never repeats a retired swing");
+            Check(player.Manager.Starts["zornhau-recovery-" + suffix] == 1, "Production updater never repeats a retired recovery");
         }
         Console.WriteLine($"PASS: {checks} multiplayer presentation checks");
     }

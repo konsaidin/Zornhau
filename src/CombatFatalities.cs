@@ -7,7 +7,7 @@ using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.GameContent;
 
-namespace WarbandCombat;
+namespace Zornhau;
 
 public sealed class FatalityConfig
 {
@@ -40,20 +40,20 @@ internal sealed class CombatFatalities : IDisposable
     internal CombatFatalities(ICoreAPI api)
     {
         this.api = api;
-        config = api.LoadModConfig<FatalityConfig>("warband-fatalities.json") ?? new();
+        config = api.LoadModConfig<FatalityConfig>("zornhau-fatalities.json") ?? new();
         if (!float.IsFinite(config.HelmetDurabilityLoss)) config.HelmetDurabilityLoss = .35f;
         config.HelmetDurabilityLoss = Math.Clamp(config.HelmetDurabilityLoss, 0, 1);
         if (api is ICoreServerAPI sapi)
         {
-            server = sapi; channel = sapi.Network.GetChannel("warbandcombat");
-            sapi.StoreModConfig(config, "warband-fatalities.json");
+            server = sapi; channel = sapi.Network.GetChannel("zornhau");
+            sapi.StoreModConfig(config, "zornhau-fatalities.json");
             sapi.Event.PlayerNowPlaying += OnJoin;
             tick = sapi.Event.RegisterGameTickListener(Tick, 20);
         }
         else if (api is ICoreClientAPI capi)
         {
             renderer = new FatalityRenderer(capi, config.DeathCamera, config.BloodParticles, config.FleshSounds, config.BloodStains);
-            capi.Network.GetChannel("warbandcombat").SetMessageHandler<FatalityPacket>(renderer.Receive)
+            capi.Network.GetChannel("zornhau").SetMessageHandler<FatalityPacket>(renderer.Receive)
                 .SetMessageHandler<FatalityFrame>(renderer.Receive);
         }
     }
@@ -89,12 +89,12 @@ internal sealed class CombatFatalities : IDisposable
     internal void OnDeath(EntityAgent victim, DamageSource source)
     {
         if (server == null || !config.Enabled || victim.Alive || source == null || !contacts.TryGetValue(source, out var contact)
-            || !ReferenceEquals(contact.Target, victim) || source is IWarbandDamage { Blocked: true }
+            || !ReferenceEquals(contact.Target, victim) || source is IZornhauDamage { Blocked: true }
             || effects.Values.Any(e => e.Packet.Victim == victim.EntityId && e.Created == api.World.ElapsedMilliseconds)) return;
         contacts.Remove(source);
         long now = api.World.ElapsedMilliseconds;
         victim.WatchedAttributes.SetInt(FatalityRules.Attribute, (int)contact.Kind);
-        victim.WatchedAttributes.SetString("warbandCrushedHelmet", contact.HelmetPrefix);
+        victim.WatchedAttributes.SetString("zornhauCrushedHelmet", contact.HelmetPrefix);
         if (contact.Kind == FatalityKind.HeadCrush && contact.Helmet != null && contact.HelmetSlot != null
             && ReferenceEquals(contact.HelmetSlot.Itemstack, contact.Helmet) && config.HelmetDurabilityLoss > 0)
         {
@@ -115,7 +115,7 @@ internal sealed class CombatFatalities : IDisposable
         var effect = new Effect(packet, now, bodies); effects.Add(packet.Id, effect);
         foreach (var player in Nearby(packet)) SendEffect(effect, player, now);
         SendFrames();
-        api.Logger.Notification("[Warband Fatality] victim={0} kind={1} direction={2} headContact=true", victim is EntityPlayer real ? real.PlayerUID : victim.EntityId.ToString(), contact.Kind, contact.Direction);
+        api.Logger.Notification("[Zornhau Fatality] victim={0} kind={1} direction={2} headContact=true", victim is EntityPlayer real ? real.PlayerUID : victim.EntityId.ToString(), contact.Kind, contact.Direction);
     }
 
     internal void Reset(EntityAgent victim)
@@ -123,7 +123,7 @@ internal sealed class CombatFatalities : IDisposable
         if (server != null)
         {
             victim.WatchedAttributes.SetInt(FatalityRules.Attribute, 0);
-            victim.WatchedAttributes.SetString("warbandCrushedHelmet", "");
+            victim.WatchedAttributes.SetString("zornhauCrushedHelmet", "");
         }
     }
 

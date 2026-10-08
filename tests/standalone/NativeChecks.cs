@@ -3,10 +3,10 @@ using OpenTK.Mathematics;
 using Vintagestory.API.Common;
 using Vintagestory.API.Client;
 using Vintagestory.API.MathTools;
-using WarbandCombat;
-using WarbandCombat.Native.Animations;
-using WarbandCombat.Native.Colliders;
-using NativeAnimation = WarbandCombat.Native.Animations.Animation;
+using Zornhau;
+using Zornhau.Native.Animations;
+using Zornhau.Native.Colliders;
+using NativeAnimation = Zornhau.Native.Animations.Animation;
 
 static class NativeChecks
 {
@@ -18,7 +18,7 @@ static class NativeChecks
             File.ReadAllText(Path.Combine(root, "third-party/reanimated/clips.json")))!;
         // A connected client receives the mod config, but no original entity JSON.
         var profileAsset = Stub.Make<IAsset>((m, a) => m.Name == "ToText"
-            ? File.ReadAllText(Path.Combine(root, "assets/warbandcombat/config/native-colliders.json")) : Stub.Default(m.ReturnType));
+            ? File.ReadAllText(Path.Combine(root, "assets/zornhau/config/native-colliders.json")) : Stub.Default(m.ReturnType));
         var assetApi = Stub.Make<ICoreAPI>((m, a) => m.Name switch
         {
             "get_Assets" => Stub.Make<IAssetManager>((call, args) => call.Name == "TryGet"
@@ -73,7 +73,7 @@ static class NativeChecks
         check(NativeBodyColliders.SweepSteps(blade, new(new(-1, 1, 0), new(1, 1, 0)), .13) >= 10,
             "Native blade sweep uses temporal subdivisions");
 
-        string game = Environment.GetEnvironmentVariable("VSPath") ?? "/home/dead/Documents/vintagestory";
+        string game = Environment.GetEnvironmentVariable("VSPath") ?? Environment.GetEnvironmentVariable("VS_GAME_DIR") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Documents", "vintagestory");
         foreach (string file in new[] {
             Path.Combine(game, "assets/game/shapes/entity/humanoid/seraph.json"),
             Path.Combine(game, "assets/survival/shapes/entity/animal/mammal/bear/brown-adult.json") })

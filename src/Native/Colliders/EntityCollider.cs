@@ -9,7 +9,7 @@ using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
 
-namespace WarbandCombat.Native.Colliders;
+namespace Zornhau.Native.Colliders;
 
 public readonly struct CuboidFace
 {

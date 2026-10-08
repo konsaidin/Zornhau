@@ -2,15 +2,15 @@ using Newtonsoft.Json;
 using OpenTK.Mathematics;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
-using WarbandCombat;
-using WarbandCombat.Native.Animations;
+using Zornhau;
+using Zornhau.Native.Animations;
 
 static class GuardAnimationChecks
 {
     internal static void Run(string root, Action<bool, string> check)
     {
         var clips = JsonConvert.DeserializeObject<Dictionary<string, AnimationJson>>(
-            File.ReadAllText(Path.Combine(root, "assets/warbandcombat/config/overhaul-fallback.json")))!;
+            File.ReadAllText(Path.Combine(root, "assets/zornhau/config/overhaul-fallback.json")))!;
         var player = new Holder();
         var claymore = new Item { Tool = EnumTool.Sword, Code = new("game:blade-claymore-ruined") };
         player.Right.Itemstack = new ItemStack(claymore);
@@ -21,7 +21,7 @@ static class GuardAnimationChecks
         player.Right.Itemstack = new ItemStack(new Item { Tool = EnumTool.Sword, Code = new("game:blade-arming-ruined") });
         check(!StandaloneAnimations.TwoHanded(player), "An ordinary one-handed sword keeps its original guards with an empty offhand");
 
-        string game = Environment.GetEnvironmentVariable("VSPath") ?? "/home/dead/Documents/vintagestory";
+        string game = Environment.GetEnvironmentVariable("VSPath") ?? Environment.GetEnvironmentVariable("VS_GAME_DIR") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Documents", "vintagestory");
         foreach (string rig in new[] { "seraph", "seraph-faceless", "seraph-hairless" })
         {
             var shape = JsonConvert.DeserializeObject<Shape>(File.ReadAllText(

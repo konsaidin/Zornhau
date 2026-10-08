@@ -4,7 +4,7 @@
 using OpenTK.Mathematics;
 using Vintagestory.API.Common;
 
-namespace WarbandCombat.Native.Animations;
+namespace Zornhau.Native.Animations;
 
 public sealed class Animation
 {
